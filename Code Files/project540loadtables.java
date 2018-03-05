@@ -103,6 +103,52 @@ public class project540loadtables {
                     REFERENCES Hotels(ID)
                 ");/// needs to happen after hotel table is created
 
+                statement.executeUpdate("CREATE TABLE Rooms (
+                    RoomNum INT NOT NULL,
+                    HotelID INT NOT NULL,
+                    Category VARCHAR(225) NOT NULL,
+                    MaxOcc INT NOT NULL,
+                    NightlyRate DOUBLE NOT NULL,
+                    DRSStaff INT,
+                    DCStaff INT,
+                    PRIMARY KEY(RoomNum,HotelID),
+                    CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID),
+                    CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID),
+                    CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID)
+                )");
+
+                statement.executeUpdate("CREATE TABLE Stays (
+                    ID INT NOT NULL AUTO_INCREMENT, 
+                    StartDate DATE NOT NULL,
+                    CheckInTime TIME NOT NULL,
+                    RoomNum INT NOT NULL,
+                    HotelID INT NOT NULL,
+                    CustomerSSN INT NOT NULL,
+                    NumGuests INT NOT NULL,
+                    CheckOutTime TIME,
+                    EndDate DATE,
+                    PaymentMethod ENUM('CASH','CARD') NOT NULL,
+                    CardType ENUM('VISA','MASTERCARD','HOTEL'),
+                    CardNumber INT,
+                    BillingAddress VARCHAR(255) NOT NULL,
+                    PRIMARY KEY(ID),
+                    CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),
+                    CONSTRAINT FK_STAYHID FOREIGN KEY (HotelID) REFERENCES Rooms(HotelID),
+                    CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum) REFERENCES Rooms(RoomNum),
+                    CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN)
+                )");
+
+                statement.executeUpdate("CREATE TABLE Provided (
+                    ID INT NOT NULL AUTO_INCREMENT, 
+                    StayID INT NOT NULL,
+                    StaffID INT NOT NULL,
+                    ServiceName VARCHAR(255) NOT NULL,
+                    PRIMARY KEY(ID),
+                    CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(StayID),
+                    CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(StaffID),
+                    CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(ServiceName)
+
+                )");  
 
             } 
             finally {
