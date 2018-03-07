@@ -54,107 +54,106 @@ public class project540loadtables {
                 );*/
 
 
-                statement.executeUpdate("CREATE TABLE Customers (
-                    SSN INT NOT NULL,
-                    Name VARCHAR(255) NOT NULL,
-                    DOB DATE NOT NULL,
-                    PhoneNum INT NOT NULL,        
-                    Email VARCHAR(255) NOT NULL,
-                    PRIMARY KEY (SSN)
-                )");    /// phone number to be entered as 10 digit int ex: 9993335555
+                statement.executeUpdate("CREATE TABLE Customers ("+
+                    "SSN INT NOT NULL,"+
+                    "Name VARCHAR(255) NOT NULL,"+
+                    "DOB DATE NOT NULL,"+
+                    "PhoneNum INT NOT NULL,"+
+                    "Email VARCHAR(255) NOT NULL,"+
+                    "PRIMARY KEY (SSN)"+
+                ")");    /// phone number to be entered as 10 digit int ex: 9993335555
 
-                statement.executeUpdate("CREATE TABLE ServiceTypes (
-                    Name VARCHAR(255) NOT NULL,
-                    Cost INT NOT NULL,
-                    PRIMARY KEY (Name)
-                )");
+                statement.executeUpdate("CREATE TABLE ServiceTypes ("+
+                    "Name VARCHAR(255) NOT NULL,"+
+                    "Cost INT NOT NULL,"+
+                    "PRIMARY KEY (Name)"+
+                ")");
 
-                statement.executeUpdate("CREATE TABLE Staff (
-                    ID INT NOT NULL AUTO_INCREMENT,
-                    Name VARCHAR(225) NOT NULL,
-                    DOB DATE NOT NULL,
-                    JobTitle VARCHAR(225),
-                    Dep VARCHAR(225) NOT NULL,
-                    PhoneNum INT NOT NULL,
-                    Address VARCHAR(225) NOT NULL,
-                    HotelID INT,
-                    PRIMARY KEY(ID)   
-                )");
+                statement.executeUpdate("CREATE TABLE Staff ("+
+                    "ID INT NOT NULL AUTO_INCREMENT,"+
+                    "Name VARCHAR(225) NOT NULL,"+
+                    "DOB DATE NOT NULL,"+
+                    "JobTitle VARCHAR(225),"+
+                    "Dep VARCHAR(225) NOT NULL,"+
+                    "PhoneNum INT NOT NULL,"+
+                    "Address VARCHAR(225) NOT NULL,"+
+                    "HotelID INT,"+
+                    "PRIMARY KEY(ID)"+
+                ")");
 
-                statement.executeUpdate("CREATE TABLE Hotels (
-                    ID INT NOT NULL AUTO_INCREMENT, 
-                    Name VARCHAR(225) NOT NULL,
-                    StreetAddress VARCHAR(225) NOT NULL,
-                    City VARCHAR(225) NOT NULL,
-                    State VARCHAR(225) NOT NULL,
-                    PhoneNum INT Not Null,
-                    ManagerID INT Not Null,
-                    Primary Key(ID),
-                    CONSTRAINT UC_HACS UNIQUE (StreetAddress, City, State),
-                    CONSTRAINT UC_HPN UNIQUE (PhoneNum),
-                    CONSTRAINT UC_HMID UNIQUE (ManagerID),
-                    CONSTRAINT FK_HMID FOREIGN KEY (ManagerID) REFERENCES Staff(ID)
-                )");
+                statement.executeUpdate("CREATE TABLE Hotels ("+
+                    "ID INT NOT NULL AUTO_INCREMENT,"+
+                    "Name VARCHAR(225) NOT NULL,"+
+                    "StreetAddress VARCHAR(225) NOT NULL,"+
+                    "City VARCHAR(225) NOT NULL,"+
+                    "State VARCHAR(225) NOT NULL,"+
+                    "PhoneNum INT Not Null,"+
+                    "ManagerID INT Not Null,"+
+                    "Primary Key(ID),"+
+                    "CONSTRAINT UC_HACS UNIQUE (StreetAddress, City, State),"+
+                    "CONSTRAINT UC_HPN UNIQUE (PhoneNum),"+
+                    "CONSTRAINT UC_HMID UNIQUE (ManagerID),"+
+                    "CONSTRAINT FK_HMID FOREIGN KEY (ManagerID) REFERENCES Staff(ID)"+
+                ")");
 
 
-                statement.executeUpdate("ALTER TABLE Staff
-                    ADD CONSTRAINT FK_STAFFHID 
-                    FOREIGN KEY (HotelID)    
-                    REFERENCES Hotels(ID)
-                ");/// needs to happen after hotel table is created
+                statement.executeUpdate("ALTER TABLE Staff "+
+                    "ADD CONSTRAINT FK_STAFFHID "+
+                    "FOREIGN KEY (HotelID) "+
+                    "REFERENCES Hotels(ID)"
+                );/// needs to happen after hotel table is created
 
-                statement.executeUpdate("CREATE TABLE Rooms (
-                    RoomNum INT NOT NULL,
-                    HotelID INT NOT NULL,
-                    Category VARCHAR(225) NOT NULL,
-                    MaxOcc INT NOT NULL,
-                    NightlyRate DOUBLE NOT NULL,
-                    DRSStaff INT,
-                    DCStaff INT,
-                    PRIMARY KEY(RoomNum,HotelID),
-                    CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID),
-                    CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID),
-                    CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID)
-                )");
+                statement.executeUpdate("CREATE TABLE Rooms ("+
+                    "RoomNum INT NOT NULL,"+
+                    "HotelID INT NOT NULL,"+
+                    "Category VARCHAR(225) NOT NULL,"+
+                    "MaxOcc INT NOT NULL,"+
+                    "NightlyRate DOUBLE NOT NULL,"+
+                    "DRSStaff INT,"+
+                    "DCStaff INT,"+
+                    "PRIMARY KEY(RoomNum,HotelID),"+
+                    "CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID),"+
+                    "CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID),"+
+                    "CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID)"+
+                ")");
 
-                statement.executeUpdate("CREATE TABLE Stays (
-                    ID INT NOT NULL AUTO_INCREMENT, 
-                    StartDate DATE NOT NULL,
-                    CheckInTime TIME NOT NULL,
-                    RoomNum INT NOT NULL,
-                    HotelID INT NOT NULL,
-                    CustomerSSN INT NOT NULL,
-                    NumGuests INT NOT NULL,
-                    CheckOutTime TIME,
-                    EndDate DATE,
-                    PaymentMethod ENUM('CASH','CARD') NOT NULL,
-                    CardType ENUM('VISA','MASTERCARD','HOTEL'),
-                    CardNumber INT,
-                    BillingAddress VARCHAR(255) NOT NULL,
-                    PRIMARY KEY(ID),
-                    CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),
-                    CONSTRAINT FK_STAYHID FOREIGN KEY (HotelID) REFERENCES Rooms(HotelID),
-                    CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum) REFERENCES Rooms(RoomNum),
-                    CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN)
-                )");
+                statement.executeUpdate("CREATE TABLE Stays ("+
+                    "ID INT NOT NULL AUTO_INCREMENT,"+
+                    "StartDate DATE NOT NULL,"+
+                    "CheckInTime TIME NOT NULL,"+
+                    "RoomNum INT NOT NULL,"+
+                    "HotelID INT NOT NULL,"+
+                    "CustomerSSN INT NOT NULL,"+
+                    "NumGuests INT NOT NULL,"+
+                    "CheckOutTime TIME,"+
+                    "EndDate DATE,"+
+                    "PaymentMethod ENUM('CASH','CARD') NOT NULL,"+
+                    "CardType ENUM('VISA','MASTERCARD','HOTEL'),"+
+                    "CardNumber INT,"+
+                    "BillingAddress VARCHAR(255) NOT NULL,"+
+                    "PRIMARY KEY(ID),"+
+                    "CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),"+
+                    "CONSTRAINT FK_STAYHID FOREIGN KEY (HotelID) REFERENCES Rooms(HotelID),"+
+                    "CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum) REFERENCES Rooms(RoomNum),"+
+                    "CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN)"+
+                ")");
 
-                statement.executeUpdate("CREATE TABLE Provided (
-                    ID INT NOT NULL AUTO_INCREMENT, 
-                    StayID INT NOT NULL,
-                    StaffID INT NOT NULL,
-                    ServiceName VARCHAR(255) NOT NULL,
-                    PRIMARY KEY(ID),
-                    CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(StayID),
-                    CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(StaffID),
-                    CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(ServiceName)
-
-                )");  
+                statement.executeUpdate("CREATE TABLE Provided ("+
+                    "ID INT NOT NULL AUTO_INCREMENT,"+
+                    "StayID INT NOT NULL,"+
+                    "StaffID INT NOT NULL,"+
+                    "ServiceName VARCHAR(255) NOT NULL,"+
+                    "PRIMARY KEY(ID),"+
+                    "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID),"+
+                    "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID),"+
+                    "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name)"+
+                ")");  
 
             } 
             finally {
-                close(result);
-                close(statement);
-                close(connection);
+                //close(result);
+                //close(statement);
+                //close(connection);
             }
         } 
         catch(Throwable oops) {
