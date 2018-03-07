@@ -53,6 +53,45 @@ public class project540loadtables {
                     PRIMARY KEY (ID)
                 );*/
 
+                Boolean DropTables=false;
+                try{ 
+                    ///this is to set the following SQL statements so they don't commit to the database upon 
+                    ///execution completion. 
+                 connection.setAutoCommit(false);
+
+
+
+                statement.executeUpdate("Drop Table Provided");
+                statement.executeUpdate("Drop Table Stays");
+                statement.executeUpdate("Drop Table ServiceTypes");
+                statement.executeUpdate("Drop Table Rooms");
+                statement.executeUpdate("Drop Table Customers");
+                statement.executeUpdate("Alter Table Staff Drop Foreign Key FK_STAFFHID");
+                statement.executeUpdate("Drop Table Hotels");
+                statement.executeUpdate("Drop Table Staff");
+
+                connection.commit();
+                connection.setAutoCommit(true);
+                DropTables=true;
+                }catch(SQLException e ){
+                    DropTables=false;
+                    e.printStackTrace();
+                    if (connection != null) {////This section is is to rollback everything that was commited
+                        ////during the last commit since something failed.
+                        try {
+                            System.err.print("Transaction is being rolled back");
+                            connection.rollback();
+                        } catch(SQLException excep) {
+                            e.printStackTrace();
+                        }
+                    }}
+
+
+            if(DropTables){
+                try{ 
+                    ///this is to set the following SQL statements so they don't commit to the database upon 
+                    ///execution completion. 
+                 connection.setAutoCommit(false);
 
                 statement.executeUpdate("CREATE TABLE Customers ("+
                     "SSN INT NOT NULL,"+
@@ -148,6 +187,30 @@ public class project540loadtables {
                     "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID),"+
                     "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name)"+
                 ")");  
+
+
+                connection.commit();
+                connection.setAutoCommit(true);
+
+                }catch(SQLException e ){
+                    e.printStackTrace();
+                    if (connection != null) {////This section is is to rollback everything that was commited
+                        ////during the last commit since something failed.
+                        try {
+                            System.err.print("Transaction is being rolled back");
+                            connection.rollback();
+                        } catch(SQLException excep) {
+                            e.printStackTrace();
+                        }
+                    }
+
+                }}
+
+
+
+
+
+
 
             } 
             finally {
