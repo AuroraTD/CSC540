@@ -24,20 +24,21 @@ public class WolfInns {
     
     // Declare constants - commands
     
-    private static final String CMD_MAIN =              "MAIN";
-    private static final String CMD_QUIT =              "QUIT";
-    private static final String CMD_REPORTS =           "REPORTS";
-    private static final String CMD_MANAGE =            "MANAGE";
+    private static final String CMD_MAIN =                  "MAIN";
+    private static final String CMD_QUIT =                  "QUIT";
+    private static final String CMD_REPORTS =               "REPORTS";
+    private static final String CMD_MANAGE =                "MANAGE";
     
-    private static final String CMD_REPORT_HOTELS =     "HOTELS";
-    private static final String CMD_REPORT_ROOMS =      "ROOMS";
-    private static final String CMD_REPORT_STAFF =      "STAFF";
-    private static final String CMD_REPORT_CUSTOMERS =  "CUSTOMERS";
-    private static final String CMD_REPORT_STAYS =      "STAYS";
-    private static final String CMD_REPORT_SERVICES =   "SERVICES";
-    private static final String CMD_REPORT_PROVIDED =   "PROVIDED";
+    private static final String CMD_REPORT_HOTELS =         "HOTELS";
+    private static final String CMD_REPORT_ROOMS =          "ROOMS";
+    private static final String CMD_REPORT_STAFF =          "STAFF";
+    private static final String CMD_REPORT_CUSTOMERS =      "CUSTOMERS";
+    private static final String CMD_REPORT_STAYS =          "STAYS";
+    private static final String CMD_REPORT_SERVICES =       "SERVICES";
+    private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     
-    private static final String CMD_MANAGE_HOTEL_ADD =  "ADDHOTEL";
+    private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
+    private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
     
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
@@ -66,6 +67,7 @@ public class WolfInns {
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Add ability to print entire Provided table.
+     *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -107,6 +109,8 @@ public class WolfInns {
                 case CMD_MANAGE:
                     System.out.println("'" + CMD_MANAGE_HOTEL_ADD + "'");
                     System.out.println("\t- add a hotel");
+                    System.out.println("'" + CMD_MANAGE_HOTEL_DELETE + "'");
+                    System.out.println("\t- delete a hotel");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -218,11 +222,12 @@ public class WolfInns {
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Changed state to CHAR(2).
+     *                  03/09/18 -  ATTD -  Added on delete rules for foreign keys.
      */
     public static void createTables() {
         
         try {
-            
+
             // Drop all tables that already exist, so that we may run repeatedly
             dropExistingTables();
             
@@ -285,7 +290,10 @@ public class WolfInns {
                 "CONSTRAINT UC_HACS UNIQUE (StreetAddress, City, State),"+
                 "CONSTRAINT UC_HPN UNIQUE (PhoneNum),"+
                 "CONSTRAINT UC_HMID UNIQUE (ManagerID),"+
-                "CONSTRAINT FK_HMID FOREIGN KEY (ManagerID) REFERENCES Staff(ID)"+
+                /* If a manager is deleted from the system and not replaced in the same transaction, no choice but to delete hotel
+                 * A hotel cannot be without a manager
+                 */
+                "CONSTRAINT FK_HMID FOREIGN KEY (ManagerID) REFERENCES Staff(ID) ON DELETE CASCADE"+
             ")");
 
             /* Alter table: Staff
@@ -294,8 +302,10 @@ public class WolfInns {
              */
             jdbc_statement.executeUpdate("ALTER TABLE Staff "+
                 "ADD CONSTRAINT FK_STAFFHID "+
-                "FOREIGN KEY (HotelID) "+
-                "REFERENCES Hotels(ID)"
+                 /* If a hotel is deleted, no need to delete the staff that work there,
+                  * NULL is allowed (currently unassigned staff)
+                  */
+                "FOREIGN KEY (HotelID) REFERENCES Hotels(ID) ON DELETE SET NULL"
             ); 
 
             // Create table: Rooms
@@ -308,9 +318,16 @@ public class WolfInns {
                 "DRSStaff INT,"+
                 "DCStaff INT,"+
                 "PRIMARY KEY(RoomNum,HotelID),"+
-                "CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID),"+
-                "CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID),"+
-                "CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID)"+
+                // If a hotel is deleted, then the rooms within it should also be deleted
+                "CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID) ON DELETE CASCADE,"+
+                /* If a staff member dedicated to a room is deleted by the end of a transaction
+                 * then something has probably gone wrong, because that staff member should have been replaced
+                 * to maintain continuous service
+                 * Nonetheless, not appropriate to delete the room in this case
+                 * NULL is allowed
+                */
+                "CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID) ON DELETE SET NULL,"+
+                "CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID) ON DELETE SET NULL"+
             ")");
 
             // Create table: Stays
@@ -330,9 +347,14 @@ public class WolfInns {
                 "BillingAddress VARCHAR(255) NOT NULL,"+
                 "PRIMARY KEY(ID),"+
                 "CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),"+
-                "CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum) REFERENCES Rooms(RoomNum),"+
-                "CONSTRAINT FK_STAYHID FOREIGN KEY (HotelID) REFERENCES Rooms(HotelID),"+
-                "CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN)"+
+                /* If a room is deleted, then the stay no longer makes sense and should be deleted
+                 * Need to handle room/hotel together as a single foreign key
+                 * Because a foreign key is supposed to point to a unique tuple
+                 * And room number by itself is not unique
+                */
+                "CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum, HotelID) REFERENCES Rooms(RoomNum, HotelID) ON DELETE CASCADE,"+
+                // If a customer is deleted, then the stay no longer makes sense and should be deleted
+                "CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN) ON DELETE CASCADE"+
             ")");
 
             // Create table: Provided
@@ -342,9 +364,12 @@ public class WolfInns {
                 "StaffID INT NOT NULL,"+
                 "ServiceName VARCHAR(255) NOT NULL,"+
                 "PRIMARY KEY(ID),"+
-                "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID),"+
-                "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID),"+
-                "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name)"+
+                // If a stay is deleted, then the service provided record no longer makes sense and should be deleted
+                "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID) ON DELETE CASCADE,"+
+                // If a staff member is deleted, then the service provided record no longer makes sense and should be deleted
+                "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID) ON DELETE CASCADE,"+
+                // If a service type is deleted, then the service provided record no longer makes sense and should be deleted
+                "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name) ON DELETE CASCADE"+
             ")");
             
             System.out.println("Tables created successfully!");
@@ -734,18 +759,18 @@ public class WolfInns {
     	
     	 try {
              
-             // Start transaction
+    	     // Start transaction
              jdbc_connection.setAutoCommit(false);
              
              // Update(Assign) HotelId for Staff 
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 1 WHERE ID >=1 AND ID <=8;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 2 WHERE ID >=9 AND ID <=14;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 3 WHERE ID >=15 AND ID <=20;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 4 WHERE ID >=21 AND ID <=26;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 5 WHERE ID >=27 AND ID <=34;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 6 WHERE ID >=35 AND ID <=41;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 7 WHERE ID >=42 AND ID <=48;");
-			jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 8 WHERE ID >=49 AND ID <=55;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 1 WHERE ID >=1 AND ID <=8;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 2 WHERE ID >=9 AND ID <=14;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 3 WHERE ID >=15 AND ID <=20;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 4 WHERE ID >=21 AND ID <=26;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 5 WHERE ID >=27 AND ID <=34;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 6 WHERE ID >=35 AND ID <=41;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 7 WHERE ID >=42 AND ID <=48;");
+             jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 8 WHERE ID >=49 AND ID <=55;");
 			
 			System.out.println("Hotel Id's updated for Staff!");
              
@@ -842,7 +867,7 @@ public class WolfInns {
 				" (3, 8, 'EXECUTIVE_SUITE', 3, 300, NULL, NULL);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (4, 8, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);"); 
+				" (4, 8, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);");
             System.out.println("Rooms Table loaded!");
             
             // End transaction
@@ -1072,6 +1097,7 @@ public class WolfInns {
      * Return -     numPadChars -       The number of characters to include in a padded string
      * 
      * Modifications:   03/08/18 -  ATTD -  Created method.
+     *                  03/09/18 -  ATTD -  Another minor tweak.
      */
     public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
         
@@ -1081,6 +1107,7 @@ public class WolfInns {
         final int NUM_PAD_CHARS_DATE_TIME =     11;
         final int NUM_PAD_CHARS_DEFAULT =       30;
         final int NUM_PAD_CHARS_FULL_ADDRESS =  55;
+        final int NUM_PAD_CHARS_NAME =          20;
         
         // Declare variables
         int numPadChars = NUM_PAD_CHARS_DEFAULT;
@@ -1102,6 +1129,9 @@ public class WolfInns {
             }
             else if (columnName.equals("State")) {
                 numPadChars = NUM_PAD_CHARS_STATE;
+            }
+            else if (columnName.equals("Name")) {
+                numPadChars = NUM_PAD_CHARS_NAME;
             }
             
         }
@@ -1261,6 +1291,35 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Management task: Delete a hotel
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/09/18 -  ATTD -  Created method.
+     */
+    public static void manageHotelDelete() {
+
+        try {
+            
+            // Declare local variables
+            long hotelID = 0;
+            
+            // Get name
+            System.out.print("\nEnter the hotel ID\n> ");
+            hotelID = Long.parseLong(scanner.nextLine());
+
+            // Call method to actually interact with the DB
+            updateDeleteHotel(hotelID, true);
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
     // UPDATES
     
     /** 
@@ -1349,6 +1408,42 @@ public class WolfInns {
         
     }
     
+    /** 
+     * DB Update: Delete Hotel
+     * 
+     * Why does this method exist at all when it is so dead simple?
+     * 1. To keep with the pattern of isolating methods that directly interact with the DBMS, 
+     * from those that interact with the user (readability of code)
+     * 2. In case in the future we find some need for mass deletes.
+     * 
+     * Arguments -  hotelID -       The ID of the hotel
+     *              reportSuccess - True if we should print success message to console (should be false for mass population of hotels)
+     * Return -     None
+     * 
+     * Modifications:   03/09/18 -  ATTD -  Created method.
+     */
+    public static void updateDeleteHotel (long hotelID, boolean reportSuccess) {
+
+        try {
+
+            /* Remove the hotel from the Hotels table
+             * No need to explicitly set up a transaction, because only one SQL command is needed
+             */
+            jdbc_statement.executeUpdate("DELETE FROM Hotels "+
+                "WHERE ID = " + hotelID);
+            
+            // Tell the user about the success
+            if (reportSuccess) {
+                System.out.println("\nHotel ID " + hotelID + " deleted!\n");
+            }
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
     // MAIN
     
     /* MAIN function
@@ -1361,6 +1456,7 @@ public class WolfInns {
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Add ability to print entire Provided table.
      *                  03/08/18 -  ATTD -  Add sub-menus (report, etc) off of main menu.
+     *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      */
     public static void main(String[] args) {
         
@@ -1469,6 +1565,9 @@ public class WolfInns {
                         switch (command.toUpperCase()) {
                         case CMD_MANAGE_HOTEL_ADD:
                             manageHotelAdd();
+                            break;
+                        case CMD_MANAGE_HOTEL_DELETE:
+                            manageHotelDelete();
                             break;
                         case CMD_MAIN:
                             // Tell the user their options in this new menu
