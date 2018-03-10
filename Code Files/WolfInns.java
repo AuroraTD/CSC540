@@ -466,19 +466,19 @@ public class WolfInns {
 				"('PHONE_BILL', 25);");
 			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
 				"(Name, Cost) VALUES "+
-				" ('DRY_CLEANING', 20);");
+				"('DRY_CLEANING', 20);");
 			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
 				"(Name, Cost) VALUES "+
-				" ('GYM', 35);");
+				"('GYM', 35);");
 			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
 				"(Name, Cost) VALUES "+
-				" ('ROOM_SERVICE', 25);");
+				"('ROOM_SERVICE', 25);");
 			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
 				"(Name, Cost) VALUES "+
-				" ('CATERING', 50);");
+				"('CATERING', 50);");
 			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
 				"(Name, Cost) VALUES "+
-				" ('SPECIAL_SERVICE', 40);");
+				"('SPECIAL_SERVICE', 40);");
 			
 			System.out.println("ServiceTypes table loaded!");
 
@@ -503,6 +503,7 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/09/18 -  ATTD -  Removed explicit setting of ID (this is auto incremented).
+     *                  03/10/18 -  ATTD -  Removed explicit setting of hotel ID to null.
      */
     public static void populateStaffTable() {
         
@@ -514,184 +515,184 @@ public class WolfInns {
             // Populating data for Staff
     		// Staff for Hotel#1
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Zoe Holmes', '1980-10-02', 'Manager', 'Manager', 8141113134, '123 6th St. Melbourne, FL 32904', NULL);");
-    		jdbc_statement.executeUpdate("INSERT INTO Staff  "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Katelyn Weeks', '1970-04-20', 'Front Desk Representative', 'Front Desk Representative', 6926641058, '123 6th St. Melbourne, FL 32904', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Zoe Holmes', '1980-10-02', 'Manager', 'Manager', 8141113134, '123 6th St. Melbourne, FL 32904');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Abby Huffman', '1990-12-14', 'Room Service', 'Room Service', 6738742135, '71 Pilgrim Avenue Chevy Chase, MD 20815', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Katelyn Weeks', '1970-04-20', 'Front Desk Representative', 'Front Desk Representative', 6926641058, '123 6th St. Melbourne, FL 32904');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Oliver Gibson', '1985-05-12', 'Room Service', 'Room Service', 1515218329, '70 Bowman St. South Windsor, CT 06074', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Abby Huffman', '1990-12-14', 'Room Service', 'Room Service', 6738742135, '71 Pilgrim Avenue Chevy Chase, MD 20815');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Michael Day', '1983-02-25', 'Catering', 'Catering', 3294931245, '4 Goldfield Rd. Honolulu, HI 96815', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Oliver Gibson', '1985-05-12', 'Room Service', 'Room Service', 1515218329, '70 Bowman St. South Windsor, CT 06074');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('David Adams', '1985-01-17', 'Dry Cleaning', 'Dry Cleaning', 9194153214, '44 Shirley Ave. West Chicago, IL 60185', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Michael Day', '1983-02-25', 'Catering', 'Catering', 3294931245, '4 Goldfield Rd. Honolulu, HI 96815');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Ishaan Goodman', '1993-04-19', 'Gym', 'Gym', 5203201425, '514 S. Magnolia St. Orlando, FL 32806', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('David Adams', '1985-01-17', 'Dry Cleaning', 'Dry Cleaning', 9194153214, '44 Shirley Ave. West Chicago, IL 60185');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Nicholas Read', '1981-01-14', 'Catering', 'Catering', 2564132017, '236 Pumpkin Hill Court Leesburg, VA 20175', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Ishaan Goodman', '1993-04-19', 'Gym', 'Gym', 5203201425, '514 S. Magnolia St. Orlando, FL 32806');");
+    		jdbc_statement.executeUpdate("INSERT INTO Staff "+
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Nicholas Read', '1981-01-14', 'Catering', 'Catering', 2564132017, '236 Pumpkin Hill Court Leesburg, VA 20175');");
     		
     		// Staff for Hotel#2
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Dominic Mitchell', '1971-03-13', 'Manager', 'Manager', 2922497845, '7005 South Franklin St. Somerset, NJ 08873', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Dominic Mitchell', '1971-03-13', 'Manager', 'Manager', 2922497845, '7005 South Franklin St. Somerset, NJ 08873');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Oliver Lucas', '1961-05-11', 'Front Desk Representative', 'Front Desk Representative', 2519881245, '7 Edgefield St. Augusta, GA 30906', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Oliver Lucas', '1961-05-11', 'Front Desk Representative', 'Front Desk Representative', 2519881245, '7 Edgefield St. Augusta, GA 30906');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Molly Thomas', '1987-07-10', 'Room Service', 'Room Service', 5425871245, '541 S. Holly Street Norcross, GA 30092', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Molly Thomas', '1987-07-10', 'Room Service', 'Room Service', 5425871245, '541 S. Holly Street Norcross, GA 30092');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-		        " ('Caitlin Cole', '1989-08-15', 'Catering', 'Catering', 4997845612, '7 Ivy Ave. Traverse City, MI 49684', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+		        "('Caitlin Cole', '1989-08-15', 'Catering', 'Catering', 4997845612, '7 Ivy Ave. Traverse City, MI 49684');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Victoria Medina', '1989-02-04', 'Dry Cleaning', 'Dry Cleaning', 1341702154, '8221 Trenton St. Jamestown, NY 14701', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Victoria Medina', '1989-02-04', 'Dry Cleaning', 'Dry Cleaning', 1341702154, '8221 Trenton St. Jamestown, NY 14701');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Will Rollins', '1982-07-06', 'Gym', 'Gym', 7071264587, '346 Beacon Lane Quakertown, PA 18951', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Will Rollins', '1982-07-06', 'Gym', 'Gym', 7071264587, '346 Beacon Lane Quakertown, PA 18951');");
     		
     		// Staff for Hotel#3
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Masen Shepard', '1983-01-09', 'Manager', 'Manager', 8995412364, '3 Fulton Ave. Bountiful, UT 84010', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Masen Shepard', '1983-01-09', 'Manager', 'Manager', 8995412364, '3 Fulton Ave. Bountiful, UT 84010');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Willow Roberts', '1987-02-08', 'Front Desk Representative', 'Front Desk Representative', 5535531245, '7868 N. Lees Creek Street Chandler, AZ 85224', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Willow Roberts', '1987-02-08', 'Front Desk Representative', 'Front Desk Representative', 5535531245, '7868 N. Lees Creek Street Chandler, AZ 85224');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Maddison Davies', '1981-03-07', 'Room Service', 'Room Service', 6784561245, '61 New Road Ithaca, NY 14850', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Maddison Davies', '1981-03-07', 'Room Service', 'Room Service', 6784561245, '61 New Road Ithaca, NY 14850');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Crystal Barr', '1989-04-06', 'Catering', 'Catering', 4591247845, '9094 6th Ave. Macomb, MI 48042', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Crystal Barr', '1989-04-06', 'Catering', 'Catering', 4591247845, '9094 6th Ave. Macomb, MI 48042');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Dayana Tyson', '1980-05-05', 'Dry Cleaning', 'Dry Cleaning', 4072134587, '837 W. 10th St. Jonesboro, GA 30236', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Dayana Tyson', '1980-05-05', 'Dry Cleaning', 'Dry Cleaning', 4072134587, '837 W. 10th St. Jonesboro, GA 30236');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Tommy Perry', '1979-06-04', 'Gym', 'Gym', 5774812456, '785 Bohemia Street Jupiter, FL 33458', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Tommy Perry', '1979-06-04', 'Gym', 'Gym', 5774812456, '785 Bohemia Street Jupiter, FL 33458');");
     		
     		// Staff for Hotel#4
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Joshua Burke', '1972-01-10', 'Manager', 'Manager', 1245214521, '8947 Briarwood St. Baldwin, NY 11510', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Joshua Burke', '1972-01-10', 'Manager', 'Manager', 1245214521, '8947 Briarwood St. Baldwin, NY 11510');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Bobby Matthews', '1982-02-14', 'Front Desk Representative', 'Front Desk Representative', 5771812456, '25 W. Dogwood Lane Bemidji, MN 56601', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Bobby Matthews', '1982-02-14', 'Front Desk Representative', 'Front Desk Representative', 5771812456, '25 W. Dogwood Lane Bemidji, MN 56601');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Pedro Cohen', '1983-04-24', 'Room Service', 'Room Service', 8774812456, '9708 Brickyard Ave. Elyria, OH 44035', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Pedro Cohen', '1983-04-24', 'Room Service', 'Room Service', 8774812456, '9708 Brickyard Ave. Elyria, OH 44035');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Alessandro Beck', '1981-06-12', 'Catering', 'Catering', 5774812452, '682 Glen Ridge St. Leesburg, VA 20175', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Alessandro Beck', '1981-06-12', 'Catering', 'Catering', 5774812452, '682 Glen Ridge St. Leesburg, VA 20175');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Emily Petty', '1984-08-19', 'Dry Cleaning', 'Dry Cleaning', 5772812456, '7604 Courtland St. Easley, SC 29640', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Emily Petty', '1984-08-19', 'Dry Cleaning', 'Dry Cleaning', 5772812456, '7604 Courtland St. Easley, SC 29640');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Rudy Cole', '1972-01-09', 'Gym', 'Gym', 5774812856, '37 Marconi Drive Owensboro, KY 42301', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Rudy Cole', '1972-01-09', 'Gym', 'Gym', 5774812856, '37 Marconi Drive Owensboro, KY 42301');");
     		
     		// Staff for Hotel#5
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Blair Ball', '1981-01-10', 'Manager', 'Manager', 8854124568, '551 New Saddle Ave. Cape Coral, FL 33904', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Blair Ball', '1981-01-10', 'Manager', 'Manager', 8854124568, '551 New Saddle Ave. Cape Coral, FL 33904');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Billy Lopez', '1982-05-11', 'Front Desk Representative', 'Front Desk Representative', 5124562123, '99 Miles Road Danbury, CT 06810', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Billy Lopez', '1982-05-11', 'Front Desk Representative', 'Front Desk Representative', 5124562123, '99 Miles Road Danbury, CT 06810');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Lee Ward', '1983-06-12', 'Room Service', 'Room Service', 9209124562, '959 S. Tailwater St. Ridgewood, NJ 07450', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Lee Ward', '1983-06-12', 'Room Service', 'Room Service', 9209124562, '959 S. Tailwater St. Ridgewood, NJ 07450');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Ryan Parker', '1972-08-13', 'Catering', 'Catering', 1183024152, '157 State Dr. Attleboro, MA 02703', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Ryan Parker', '1972-08-13', 'Catering', 'Catering', 1183024152, '157 State Dr. Attleboro, MA 02703');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Glen Elliott', '1971-09-14', 'Catering', 'Catering', 6502134785, '9775 Clinton Dr. Thornton, CO 80241', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Glen Elliott', '1971-09-14', 'Catering', 'Catering', 6502134785, '9775 Clinton Dr. Thornton, CO 80241');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Ash Harrison', '1977-02-15', 'Dry Cleaning', 'Dry Cleaning', 9192451365, '9924 Jefferson Ave. Plainfield, NJ 07060', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Ash Harrison', '1977-02-15', 'Dry Cleaning', 'Dry Cleaning', 9192451365, '9924 Jefferson Ave. Plainfield, NJ 07060');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Leslie Little', '1979-12-16', 'Gym', 'Gym', 9192014512, '7371 Pin Oak St. Dalton, GA 30721', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Leslie Little', '1979-12-16', 'Gym', 'Gym', 9192014512, '7371 Pin Oak St. Dalton, GA 30721');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Mason West', '1970-10-17', 'Gym', 'Gym', 6501231245, '798 W. Valley Farms Lane Saint Petersburg, FL 33702', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Mason West', '1970-10-17', 'Gym', 'Gym', 6501231245, '798 W. Valley Farms Lane Saint Petersburg, FL 33702');");
     		
     		//Staff for Hotel#6
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Riley Dawson', '1975-01-09', 'Manager', 'Manager', 1183021245, '898 Ocean Court Hilliard, OH 43026', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Riley Dawson', '1975-01-09', 'Manager', 'Manager', 1183021245, '898 Ocean Court Hilliard, OH 43026');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Gabe Howard', '1987-03-01', 'Front Desk Representative', 'Front Desk Representative', 6501421523, '914 Edgefield Dr. Hartselle, AL 35640', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Gabe Howard', '1987-03-01', 'Front Desk Representative', 'Front Desk Representative', 6501421523, '914 Edgefield Dr. Hartselle, AL 35640');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Jessie Nielsen', '1982-06-02', 'Room Service', 'Room Service', 7574124587, '7973 Edgewood Road Gallatin, TN 37066', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Jessie Nielsen', '1982-06-02', 'Room Service', 'Room Service', 7574124587, '7973 Edgewood Road Gallatin, TN 37066');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Gabe Carlson', '1983-08-03', 'Room Service', 'Room Service', 5771245865, '339 Pine Lane Tampa, FL 33604', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Gabe Carlson', '1983-08-03', 'Room Service', 'Room Service', 5771245865, '339 Pine Lane Tampa, FL 33604');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Carmen Lee', '1976-01-04', 'Catering', 'Catering', 9885234562, '120 Longbranch Drive Port Richey, FL 34668', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Carmen Lee', '1976-01-04', 'Catering', 'Catering', 9885234562, '120 Longbranch Drive Port Richey, FL 34668');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-		        " (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Mell Tran', '1979-06-05', 'Dry Cleaning', 'Dry Cleaning', 9162451245, '32 Pearl St. Peoria, IL 61604', NULL);");
+		        "(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Mell Tran', '1979-06-05', 'Dry Cleaning', 'Dry Cleaning', 9162451245, '32 Pearl St. Peoria, IL 61604');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Leslie Cook', '1970-10-08', 'Gym', 'Gym', 6501245126, '59 W. High Ridge Street Iowa City, IA 52240', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Leslie Cook', '1970-10-08', 'Gym', 'Gym', 6501245126, '59 W. High Ridge Street Iowa City, IA 52240');");
     		
     		//Staff for Hotel#7
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Rory Burke', '1971-01-05', 'Manager', 'Manager', 7702653764, '9273 Ridge Drive Winter Springs, FL 32708', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Rory Burke', '1971-01-05', 'Manager', 'Manager', 7702653764, '9273 Ridge Drive Winter Springs, FL 32708');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Macy Fuller', '1972-02-07', 'Front Desk Representative', 'Front Desk Representative', 7485612345, '676 Myers Street Baldwin, NY 11510', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Macy Fuller', '1972-02-07', 'Front Desk Representative', 'Front Desk Representative', 7485612345, '676 Myers Street Baldwin, NY 11510');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Megan Lloyd', '1973-03-01', 'Room Service', 'Room Service', 7221452315, '849 George Lane Park Ridge, IL 60068', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Megan Lloyd', '1973-03-01', 'Room Service', 'Room Service', 7221452315, '849 George Lane Park Ridge, IL 60068');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Grace Francis', '1974-04-09', 'Catering', 'Catering', 3425612345, '282 Old York Court Mechanicsburg, PA 17050', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Grace Francis', '1974-04-09', 'Catering', 'Catering', 3425612345, '282 Old York Court Mechanicsburg, PA 17050');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Macy Fuller', '1975-05-02', 'Dry Cleaning', 'Dry Cleaning', 4665127845, '57 Shadow Brook St. Hudson, NH 03051', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Macy Fuller', '1975-05-02', 'Dry Cleaning', 'Dry Cleaning', 4665127845, '57 Shadow Brook St. Hudson, NH 03051');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Cory Hoover', '1976-06-12', 'Gym', 'Gym', 9252210735, '892 Roosevelt Street Ithaca, NY 14850', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Cory Hoover', '1976-06-12', 'Gym', 'Gym', 9252210735, '892 Roosevelt Street Ithaca, NY 14850');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Sam Graham', '1977-07-25', 'Gym', 'Gym', 7226251245, '262 Bayberry St. Dorchester, MA 02125', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Sam Graham', '1977-07-25', 'Gym', 'Gym', 7226251245, '262 Bayberry St. Dorchester, MA 02125');");
     		
     		//Staff for Hotel#8
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Charlie Adams', '1981-01-01', 'Manager', 'Manager', 6084254152, '9716 Glen Creek Dr. Newark, NJ 07103', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Charlie Adams', '1981-01-01', 'Manager', 'Manager', 6084254152, '9716 Glen Creek Dr. Newark, NJ 07103');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Kiran West', '1985-02-02', 'Front Desk Representative', 'Front Desk Representative', 9623154125, '68 Smith Dr. Lexington, NC 27292', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Kiran West', '1985-02-02', 'Front Desk Representative', 'Front Desk Representative', 9623154125, '68 Smith Dr. Lexington, NC 27292');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Franky John', '1986-03-03', 'Room Service', 'Room Service', 8748544152, '6 Shirley Road Fairborn, OH 45324', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Franky John', '1986-03-03', 'Room Service', 'Room Service', 8748544152, '6 Shirley Road Fairborn, OH 45324');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Charlie Bell', '1985-04-04', 'Room Service', 'Room Service', 9845124562, '66 Elm Street Jupiter, FL 33458', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Charlie Bell', '1985-04-04', 'Room Service', 'Room Service', 9845124562, '66 Elm Street Jupiter, FL 33458');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Jamie Young', '1986-06-05', 'Catering', 'Catering', 9892145214, '8111 Birch Hill Avenue Ravenna, OH 44266', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Jamie Young', '1986-06-05', 'Catering', 'Catering', 9892145214, '8111 Birch Hill Avenue Ravenna, OH 44266');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Jackie Miller', '1978-08-06', 'Dry Cleaning', 'Dry Cleaning', 9795486234, '9895 Redwood Court Glenview, IL 60025', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Jackie Miller', '1978-08-06', 'Dry Cleaning', 'Dry Cleaning', 9795486234, '9895 Redwood Court Glenview, IL 60025');");
     		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-				" (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID ) VALUES "+
-				" ('Jude Cole', '1979-03-07', 'Gym', 'Gym', 9195642251, '8512 Cambridge Ave. Lake In The Hills, IL 60156', NULL);");
+				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
+				"('Jude Cole', '1979-03-07', 'Gym', 'Gym', 9195642251, '8512 Cambridge Ave. Lake In The Hills, IL 60156');");
          
     		System.out.println("Staff table loaded!");
     		
