@@ -957,9 +957,6 @@ public class WolfInns {
 				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
 				" ('2018-03-16', '10:00:00', 2, 9, 888090545, 2, NULL, NULL, 'CARD', 'VISA', '4400178498564683', '34 Hail Ave. Cranberry Twp, PA 16066');");
             System.out.println("Stays table loaded!");
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, '10:00:00', '2018-02-18', 470.00, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
-    	    System.out.println("Stays table loaded!");
             
             // End transaction
             jdbc_connection.commit();
