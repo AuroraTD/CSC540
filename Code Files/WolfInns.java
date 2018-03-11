@@ -223,6 +223,7 @@ public class WolfInns {
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Changed state to CHAR(2).
      *                  03/09/18 -  ATTD -  Added on delete rules for foreign keys.
+     *                  03/11/18 -  ATTD -  Added amount owed to Stays relation.
      */
     public static void createTables() {
         
@@ -341,6 +342,7 @@ public class WolfInns {
                 "NumGuests INT NOT NULL,"+
                 "CheckOutTime TIME,"+
                 "EndDate DATE,"+
+                "AmountOwed DOUBLE,"+
                 "PaymentMethod ENUM('CASH','CARD') NOT NULL,"+
                 "CardType ENUM('VISA','MASTERCARD','HOTEL'),"+
                 "CardNumber BIGINT,"+
@@ -892,6 +894,7 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/09/18 -  ATTD -  Removed explicit setting of ID (this is auto incremented).
+     *                  03/11/18 -  ATTD -  Added amount owed to Stays relation.
      */
     public static void populateStaysTable() {
         
@@ -902,29 +905,29 @@ public class WolfInns {
             
             // Populating data for Stays
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 235.00, 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH', NULL, NULL, '754 East Walt Whitman St. Hopkins, MN 55343');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 275.00, 'CASH', NULL, NULL, '754 East Walt Whitman St. Hopkins, MN 55343');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 570.00, 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 285.00, 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 520.00, 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 245.00, 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, '10:00:00', '2018-02-01', 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, '10:00:00', '2018-02-01', 435.00, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, '10:00:00', '2018-02-18', 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, '10:00:00', '2018-02-18', 470.00, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
     	    System.out.println("Stays table loaded!");
             
             // End transaction
