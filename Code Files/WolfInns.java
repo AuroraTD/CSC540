@@ -729,6 +729,7 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/09/18 -  ATTD -  Calling method to insert hotels (which also update's new manager's staff info).
+     *                  03/11/18 -  ATTD -  Removed 9th hotel.
      */
     public static void populateHotelsTable() {
         
@@ -746,7 +747,6 @@ public class WolfInns {
     		updateInsertHotel("The Pierre", "2 E 61st St", "New York", "NY", 6501836874L, 35, false);
     		updateInsertHotel("Fairfield Inn & Suites", "0040 Sellona St", "Raleigh", "NC", 6501236074L, 42, false);
     		updateInsertHotel("Mandarin Oriental", "80 Columbus Cir", "New York", "NY", 6591236874L, 49, false);
-    		updateInsertHotel("WolfInns Capital", "Macau Island", "Macau", "CH", 9991236874L, 50, false);
     		System.out.println("Hotels table loaded!");
             
             // End transaction
@@ -806,6 +806,8 @@ public class WolfInns {
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
+     *                  03/11/18 -  ATTD -  Changed dedicated presidential suite staff for hotel 9 to avoid staff conflicts.
+     *                  03/11/18 -  ATTD -  Removed hotel 9.
      */
     public static void populateRoomsTable() {
         
@@ -815,6 +817,8 @@ public class WolfInns {
             jdbc_connection.setAutoCommit(false);
             
             // Populating data for Rooms
+            
+            // Hotel # 1
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 1, 'ECONOMY', 3, 150, NULL, NULL);");
@@ -824,6 +828,7 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (3, 1, 'EXECUTIVE_SUITE', 4, 300, NULL, NULL);");
+    		// Hotel # 2
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 2, 'DELUXE', 3, 200, NULL, NULL);");
@@ -833,6 +838,7 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (3, 2, 'EXECUTIVE_SUITE', 4, 250, NULL, NULL);");
+    		// Hotel # 3
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 3, 'PRESIDENTIAL_SUITE', 3, 550, 17, 18);");
@@ -842,12 +848,14 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (3, 3, 'DELUXE', 3, 450, NULL, NULL);");
+    		// Hotel # 4
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 4, 'ECONOMY', 4, 100, NULL, NULL);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (2, 4, 'EXECUTIVE_SUITE', 4, 250, NULL, NULL);");
+    		// Hotel # 5
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 5, 'DELUXE', 3, 300, NULL, NULL);");
@@ -857,18 +865,21 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (3, 5, 'PRESIDENTIAL_SUITE', 4, 500, 29, 30);");
+    		// Hotel # 6
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 6, 'ECONOMY', 2, 220, NULL, NULL);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 		        " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (2, 6, 'DELUXE', 4, 350, NULL, NULL);");
+    		// Hotel # 7
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 7, 'ECONOMY', 2, 125, NULL, NULL);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (2, 7, 'EXECUTIVE_SUITE', 4, 400, NULL, NULL);");
+    		// Hotel # 8
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
 				" (1, 8, 'ECONOMY', 2, 200, NULL, NULL);");
@@ -881,18 +892,7 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
                 " (4, 8, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);");
-            jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-                " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-                " (1, 9, 'DELUXE', 3, 250, NULL, NULL);");
-            jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-                " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-                " (2, 9, 'ECONOMY', 2, 200, NULL, NULL);");
-            jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-                " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-                " (3, 9, 'EXECUTIVE_SUITE', 3, 300, NULL, NULL);");
-            jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-                " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-                " (4, 9, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);");
+
             System.out.println("Rooms Table loaded!");
             
             // End transaction
@@ -917,6 +917,11 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/09/18 -  ATTD -  Removed explicit setting of ID (this is auto incremented).
      *                  03/11/18 -  ATTD -  Added amount owed to Stays relation.
+     *                  03/11/18 -  ATTD -  Removed hotel 9.
+     *                                      It was added to demonstrate that we can have NULL values for check out time, end date.
+     *                                      This demonstration is instead added into some of the existing stays for hotels 1-8.
+     *                                      The reason for this change is just to keep the amount of data to a reasonably low level 
+     *                                      to help us think through queries and updates more quickly.
      */
     public static void populateStaysTable() {
         
@@ -925,7 +930,7 @@ public class WolfInns {
             // Start transaction
             jdbc_connection.setAutoCommit(false);
             
-            // Populating data for Stays
+            // Stays where the guest has already checked out
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
 				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
 				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 235.00, 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
@@ -944,18 +949,13 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
 				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
 				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 245.00, 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
+    		// Stays that are still going on
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, '10:00:00', '2018-02-01', 435.00, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 435.00, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, '10:00:00', '2018-02-18', 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
-            jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-16', '08:00:00', 1, 9, 888092545, 2, NULL, NULL, 'CARD', 'VISA', '4400178498568312', '24 Hall Ave. Cranberry Twp, PA 16066');");
-            jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-16', '10:00:00', 2, 9, 888090545, 2, NULL, NULL, 'CARD', 'VISA', '4400178498564683', '34 Hail Ave. Cranberry Twp, PA 16066');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
             System.out.println("Stays table loaded!");
             
             // End transaction
