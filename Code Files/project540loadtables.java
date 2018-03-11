@@ -8,6 +8,7 @@ public class project540loadtables {
     private static final String password = "200157888";
 
 
+
     public static void main(String[] args) {
         try {
             Class.forName("org.mariadb.jdbc.Driver");
