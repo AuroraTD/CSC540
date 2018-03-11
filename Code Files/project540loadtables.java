@@ -3,12 +3,10 @@ import java.sql.*;
 
 public class project540loadtables {
 
-    // private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi"; // Using SERVICE_NAME
-    // private static final String user = "smscoggi";
-    // private static final String password = "200157888";
-    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/asoni3"; // Using SERVICE_NAME
-    private static final String user = "asoni3";
-    private static final String password = "harvey";
+    private static final String jdbcURL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi"; // Using SERVICE_NAME
+    private static final String user = "smscoggi";
+    private static final String password = "200157888";
+
 
 
     public static void main(String[] args) {

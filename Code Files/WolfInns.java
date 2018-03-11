@@ -41,13 +41,9 @@ public class WolfInns {
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
     
     // Declare constants - connection parameters
-    // private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
-    // private static final String JDBC_USER = "smscoggi";
-    // private static final String JDBC_PASSWORD = "200157888";
-
-    private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/asoni3";
-    private static final String JDBC_USER = "asoni3";
-    private static final String JDBC_PASSWORD = "harvey";
+    private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
+    private static final String JDBC_USER = "smscoggi";
+    private static final String JDBC_PASSWORD = "200157888";
     
     // Declare variables
     private static Connection jdbc_connection;
