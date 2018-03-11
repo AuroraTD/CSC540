@@ -951,8 +951,8 @@ public class WolfInns {
 				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 245.00, 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
     		// Stays that are still going on
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 435.00, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
 				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
 				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');"); 
