@@ -16,6 +16,7 @@
 // Imports
 import java.util.Scanner;
 import java.sql.*;
+import java.text.NumberFormat;
 
 // WolfInns class
 public class WolfInns {
@@ -29,6 +30,7 @@ public class WolfInns {
     private static final String CMD_REPORTS =               "REPORTS";
     private static final String CMD_MANAGE =                "MANAGE";
     
+    private static final String CMD_REPORT_REVENUE =        "REVENUE";
     private static final String CMD_REPORT_HOTELS =         "HOTELS";
     private static final String CMD_REPORT_ROOMS =          "ROOMS";
     private static final String CMD_REPORT_STAFF =          "STAFF";
@@ -68,6 +70,7 @@ public class WolfInns {
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Add ability to print entire Provided table.
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
+     *                  03/11/18 -  ATTD -  Add ability to report revenue.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -88,6 +91,8 @@ public class WolfInns {
                     System.out.println("");
                     break;
                 case CMD_REPORTS:
+                    System.out.println("'" + CMD_REPORT_REVENUE + "'");
+                    System.out.println("\t- run report on a hotel's revenue during a given date range");
                     System.out.println("'" + CMD_REPORT_HOTELS + "'");
                     System.out.println("\t- run report on hotels");
                     System.out.println("'" + CMD_REPORT_ROOMS + "'");
@@ -1001,17 +1006,85 @@ public class WolfInns {
         
     }
     
-    // PRINT
+    // REPORTS
     
     /** 
-     * Print all results from a given table
+     * Report task: Report revenue earned by a hotel over a date range
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/11/18 -  ATTD -  Created method.
+     */
+    public static void reportHotelRevenue() {
+
+        String errorMessage;
+        try {
+            
+            // Declare local variables
+            int hotelID;
+            String startDate = "";
+            String endDate = "";
+            boolean okaySoFar;
+            
+            // Get name
+            System.out.print("\nEnter the hotel ID\n> ");
+            hotelID = Integer.parseInt(scanner.nextLine());
+            
+            // Get start date
+            System.out.print("\nEnter the start date\n> ");
+            startDate = scanner.nextLine();
+            /* DBMS seems to accept a malformed date with no complaints
+             * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
+             */
+            okaySoFar = true;
+            if (startDate.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
+                System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot run revenue report)\n");
+                okaySoFar = false;
+            }
+            
+            // Get end date
+            if (okaySoFar) {
+                System.out.print("\nEnter the end date\n> ");
+                endDate = scanner.nextLine();
+                /* DBMS seems to accept a malformed date with no complaints
+                 * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
+                 */
+                if (endDate.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
+                    System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot run revenue report)\n");
+                    okaySoFar = false;
+                }
+            }
+
+            // Call method to actually interact with the DB
+            if (okaySoFar) {
+                queryHotelRevenue(hotelID, startDate, endDate);
+            }
+            
+        }
+        catch (Throwable err) {
+            // Handle non-SQL errors
+            errorMessage = err.toString();
+            if (errorMessage.contains("NumberFormatException")) {
+                // Tried to enter a number that wasn't quite a number
+                System.out.println("Hotel ID not entered correctly (cannot run revenue report)\n");
+            }
+            else {
+                err.printStackTrace();
+            }
+        }
+        
+    }
+    
+    /** 
+     * Report task: Report all results from a given table
      * 
      * Arguments -  tableName - The table to print out
      * Return -     None
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
      */
-    public static void printEntireTable(String tableName) {
+    public static void reportEntireTable(String tableName) {
 
         try {
             
@@ -1025,6 +1098,8 @@ public class WolfInns {
         }
         
     }
+    
+    // PRINT
     
     /** 
      * Print query result set
@@ -1291,6 +1366,7 @@ public class WolfInns {
             else {
                 err.printStackTrace();
             }
+            
         }
         
     }
@@ -1316,6 +1392,48 @@ public class WolfInns {
 
             // Call method to actually interact with the DB
             updateDeleteHotel(hotelID, true);
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    // QUERIES
+    
+    /** 
+     * DB Query: Hotel Revenue
+     * 
+     * Arguments -  hotelID -       The ID of the hotel
+     *              queryStartDate -     The start date of the date range we want revenue for
+     *              queryEndDate -       The end date of the date range we want revenue for
+     * Return -     None
+     * 
+     * Modifications:   03/09/18 -  ATTD -  Created method.
+     */
+    public static void queryHotelRevenue (int hotelID, String queryStartDate, String queryEndDate) {
+
+        try {
+            
+            // Declare variables
+            double revenue;
+            NumberFormat currency;
+
+            /* Get revenue for one hotel from a date range
+             * Revenue is earned when the guest checks OUT
+             * So we always look at the end date for the customer's stay
+             */
+            jdbc_result = jdbc_statement.executeQuery("SELECT SUM(AmountOwed) " + 
+                    "FROM Stays " +
+                    "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
+            
+            jdbc_result.next();
+            revenue = jdbc_result.getDouble(1);
+            
+            // Print report
+            currency = NumberFormat.getCurrencyInstance();
+            System.out.println("\nRevenue earned: " + currency.format(revenue) + "\n");
             
         }
         catch (Throwable err) {
@@ -1461,6 +1579,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Add ability to print entire Provided table.
      *                  03/08/18 -  ATTD -  Add sub-menus (report, etc) off of main menu.
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
+     *                  03/11/18 -  ATTD -  Add ability to report revenue.
      */
     public static void main(String[] args) {
         
@@ -1530,26 +1649,29 @@ public class WolfInns {
                     case CMD_REPORTS:
                         // Check user's input (case insensitively)
                         switch (command.toUpperCase()) {
+                            case CMD_REPORT_REVENUE:
+                                reportHotelRevenue();
+                            break;
                             case CMD_REPORT_HOTELS:
-                                printEntireTable("Hotels");
+                                reportEntireTable("Hotels");
                                 break;
                             case CMD_REPORT_ROOMS:
-                                printEntireTable("Rooms");
+                                reportEntireTable("Rooms");
                                 break;
                             case CMD_REPORT_STAFF:
-                                printEntireTable("Staff");
+                                reportEntireTable("Staff");
                                 break;
                             case CMD_REPORT_CUSTOMERS:
-                                printEntireTable("Customers");
+                                reportEntireTable("Customers");
                                 break;
                             case CMD_REPORT_STAYS:
-                                printEntireTable("Stays");
+                                reportEntireTable("Stays");
                                 break;
                             case CMD_REPORT_SERVICES:
-                                printEntireTable("ServiceTypes");
+                                reportEntireTable("ServiceTypes");
                                 break;
                             case CMD_REPORT_PROVIDED:
-                                printEntireTable("Provided");
+                                reportEntireTable("Provided");
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
