@@ -27,8 +27,11 @@ public class WolfInns {
     
     private static final String CMD_MAIN =                  "MAIN";
     private static final String CMD_QUIT =                  "QUIT";
+    private static final String CMD_BILLING =               "BILLING";
     private static final String CMD_REPORTS =               "REPORTS";
     private static final String CMD_MANAGE =                "MANAGE";
+    
+    private static final String CMD_BILLING_GENERATE =      "BILLFORSTAY";
     
     private static final String CMD_REPORT_REVENUE =        "REVENUE";
     private static final String CMD_REPORT_HOTELS =         "HOTELS";
@@ -71,6 +74,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Add ability to print entire Provided table.
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
+     *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -82,12 +86,21 @@ public class WolfInns {
             
             switch (menu) {
                 case CMD_MAIN:
+                    System.out.println("'" + CMD_BILLING + "'");
+                    System.out.println("\t- bill customers");
                     System.out.println("'" + CMD_REPORTS + "'");
                     System.out.println("\t- run reports");
                     System.out.println("'" + CMD_MANAGE + "'");
                     System.out.println("\t- manage the hotel chain (add hotels, etc)");
                     System.out.println("'" + CMD_QUIT + "'");
                     System.out.println("\t- exit the program");
+                    System.out.println("");
+                    break;
+                case CMD_BILLING:
+                    System.out.println("'" + CMD_BILLING_GENERATE + "'");
+                    System.out.println("\t- generate a bill and an itemized receipt for a customer stay");
+                    System.out.println("'" + CMD_MAIN + "'");
+                    System.out.println("\t- go back to the main menu");
                     System.out.println("");
                     break;
                 case CMD_REPORTS:
@@ -922,6 +935,8 @@ public class WolfInns {
      *                                      This demonstration is instead added into some of the existing stays for hotels 1-8.
      *                                      The reason for this change is just to keep the amount of data to a reasonably low level 
      *                                      to help us think through queries and updates more quickly.
+     *                  03/11/18 -  ATTD -  Do not set amount owed here (risk of calculating wrong when we calculate by hand).
+     *                                      Instead, set by running billing report on the stay.
      */
     public static void populateStaysTable() {
         
@@ -932,23 +947,23 @@ public class WolfInns {
             
             // Stays where the guest has already checked out
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 235.00, 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 275.00, 'CASH', NULL, NULL, '754 East Walt Whitman St. Hopkins, MN 55343');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH', NULL, NULL, '754 East Walt Whitman St. Hopkins, MN 55343');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 570.00, 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 285.00, 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 520.00, 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 245.00, 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
+				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
+				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
     		// Stays that are still going on
     		jdbc_statement.executeUpdate("INSERT INTO Stays "+
 				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
@@ -979,6 +994,8 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/09/18 -  ATTD -  Removed explicit setting of ID (this is auto incremented).
+     *                  03/11/18 -  ATTD -  Added another gym stay to stay ID 1, to more fully exercise ability to produce itemized receipt
+     *                                      (itemized receipt needs to sum costs for all instances of the same service type).
      */
     public static void populateProvidedTable() {
         
@@ -991,6 +1008,9 @@ public class WolfInns {
     		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
 				" (StayID, StaffID, ServiceName) VALUES " +
 				" (1, 7, 'GYM')");
+            jdbc_statement.executeUpdate("INSERT INTO Provided " + 
+                " (StayID, StaffID, ServiceName) VALUES " +
+                " (1, 7, 'GYM')");
     		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
 				" (StayID, StaffID, ServiceName) VALUES " +
 				" (1, 5, 'CATERING')");
@@ -1021,6 +1041,69 @@ public class WolfInns {
             // End transaction
             jdbc_connection.commit();
             jdbc_connection.setAutoCommit(true);
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    /** 
+     * Update Stays Table with amount owed for each stay that has actually ended
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/11/18 -  ATTD -  Created method.
+     */
+    public static void updateAmountOwedForStays() {
+        
+        try {
+            
+            // Declare variables (this method calls another which uses our global jdbc result, so we need to disambiguate)
+            ResultSet local_jdbc_result;
+            int stayID;
+
+            // Find the stays that have actually ended
+            local_jdbc_result = jdbc_statement.executeQuery("SELECT ID FROM Stays WHERE EndDate IS NOT NULL");
+            
+            // Go through and update amount owed for all stays that have actually ended
+            while (local_jdbc_result.next()) {
+                stayID = local_jdbc_result.getInt(1);
+                queryItemizedReceipt(stayID, false);
+            }
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    // BILLING
+    
+    /** 
+     * Billing task: Generate bill and itemized receipt for a customer's stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/11/18 -  ATTD -  Created method.
+     */
+    public static void generateBillAndReceipt() {
+        
+        try {
+
+            // Declare variables
+            int stayID;
+            
+            // Get stay ID
+            System.out.print("\nEnter the stay ID\n> ");
+            stayID = Integer.parseInt(scanner.nextLine());
+            
+            // Call method to actually interact with the DB
+            queryItemizedReceipt(stayID, true);
             
         }
         catch (Throwable err) {
@@ -1426,6 +1509,122 @@ public class WolfInns {
     // QUERIES
     
     /** 
+     * DB Query: Stay bill and itemized receipt
+     * 
+     * Note:    Since we want to produce an itemized receipt, and then pull from it the total amount owed by the customer, it would be awesome if we could use the VIEW feature
+     *          (sort of a stored query that can be operated on like a table).
+     *          Per http://www.mysqltutorial.org/mysql-views.aspx, "You cannot use subqueries in the FROM clause of the SELECT statement that defines the view before MySQL 5.7.7"
+     *          Per https://classic.wolfware.ncsu.edu/wrap-bin/mesgboard/csc:540::001:1:2018?task=ST&Forum=8&Topic=7, "We are running version 5.5.57 it seems"
+     * 
+     * Arguments -  stayID -        The ID of the stay for which we wish to generate a bill and an itemized receipt
+     *              reportResults - True if we wish to report the itemized receipt and total amount owed
+     *                              (false for mass calculation of amounts owed on stays)
+     * Return -     None
+     * 
+     * Modifications:   03/11/18 -  ATTD -  Created method.
+     */
+    public static void queryItemizedReceipt (int stayID, boolean reportResults) {
+
+        try {
+            
+            // Declare variables
+            NumberFormat currency;
+            String itemizedReceiptSQL;
+            double amountOwedBeforeDiscount = 0d;
+            double amountOwedAfterDiscount = 0d;
+            
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+                
+                // Generate an itemized receipt for the stay
+                itemizedReceiptSQL = 
+                        "(" + 
+                            "SELECT 'NIGHT' AS Item, Nights AS Qty, NightlyRate AS ItemCost, Nights * NightlyRate AS TotalCost " + 
+                            "FROM (" + 
+                                "SELECT DATEDIFF(EndDate, StartDate) AS Nights, NightlyRate " + 
+                                "FROM (" + 
+                                    "SELECT StartDate, EndDate, NightlyRate " + 
+                                    "FROM Rooms NATURAL JOIN (" + 
+                                        "SELECT StartDate, EndDate, RoomNum, HotelID " + 
+                                        "FROM Stays " + 
+                                        "WHERE ID = " + 
+                                        stayID +
+                                    ") AS A " + 
+                                ") AS B " + 
+                            ") AS C " + 
+                        ") " + 
+                        "UNION " + 
+                        "(" + 
+                            "SELECT Name AS Item, COUNT(*) AS Qty, Cost AS ItemCost, COUNT(*) * Cost AS TotalCost " + 
+                            "FROM (" + 
+                                "ServiceTypes NATURAL JOIN (" + 
+                                    "SELECT StayID, ServiceName AS Name " + 
+                                    "FROM Provided " + 
+                                    "WHERE StayID = " + 
+                                    stayID + 
+                                ") AS ServicesProvided " + 
+                            ") GROUP BY Item" + 
+                        ")";
+                jdbc_result = jdbc_statement.executeQuery(itemizedReceiptSQL + ";");
+                
+                // Print the itemized receipt and the total amount owed
+                if (reportResults) {
+                    System.out.println("\nItemized Receipt for Stay ID: " + stayID + "\n");
+                    printQueryResultSet(jdbc_result);
+                }
+                
+                // Calculate the total amount owed, both before and after the possible hotel credit card discount
+                jdbc_result = jdbc_statement.executeQuery(
+                        "SELECT SUM(TotalCost) FROM (" + 
+                        itemizedReceiptSQL + 
+                        ") AS ItemizedReceipt;");
+                jdbc_result.next();
+                amountOwedBeforeDiscount = jdbc_result.getDouble(1);
+                jdbc_result = jdbc_statement.executeQuery(
+                        "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
+                        stayID + 
+                        ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
+                        itemizedReceiptSQL + 
+                        ") AS ItemizedReceipt;");
+                jdbc_result.next();
+                amountOwedAfterDiscount = jdbc_result.getDouble(1);
+                
+                // Update the stay with the total amount owed
+                jdbc_statement.executeUpdate("UPDATE Stays SET AmountOwed = " + amountOwedAfterDiscount + " WHERE ID = " + stayID);
+                
+                // Print the total amount owed
+                if (reportResults) {
+                    currency = NumberFormat.getCurrencyInstance();
+                    System.out.println("\nTotal Amount Owed Before Discount: " + currency.format(amountOwedBeforeDiscount));
+                    System.out.println("\nWolfInns Credit Card Discount Applied: " + (amountOwedBeforeDiscount == amountOwedAfterDiscount ? "0%" : "5%"));
+                    System.out.println("\nTotal Amount Owed After Discount: " + currency.format(amountOwedAfterDiscount) + "\n");
+                }
+                
+            }
+            catch (Throwable err) {
+                
+                // Print stack trace
+                err.printStackTrace();
+
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    /** 
      * DB Query: Hotel Revenue
      * 
      * Arguments -  hotelID -       The ID of the hotel
@@ -1603,6 +1802,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Add sub-menus (report, etc) off of main menu.
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
+     *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      */
     public static void main(String[] args) {
         
@@ -1633,6 +1833,7 @@ public class WolfInns {
             populateRoomsTable();
             populateStaysTable();
             populateProvidedTable();
+            updateAmountOwedForStays();
             
             // Print available commands
             printAvailableCommands(CMD_MAIN);
@@ -1647,6 +1848,12 @@ public class WolfInns {
                     case CMD_MAIN:
                         // Check user's input (case insensitively)
                         switch (command.toUpperCase()) {
+                            case CMD_BILLING:
+                                // Tell the user their options in this new menu
+                                printAvailableCommands(CMD_BILLING);
+                                // Remember what menu we're in
+                                currentMenu = CMD_BILLING;
+                            break;
                             case CMD_REPORTS:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_REPORTS);
@@ -1666,6 +1873,25 @@ public class WolfInns {
                                 // Remind the user about what commands are available
                                 System.out.println("\nCommand not recognized");
                                 printAvailableCommands(CMD_MAIN);
+                                break;
+                        }
+                        break;
+                    case CMD_BILLING:
+                        // Check user's input (case insensitively)
+                        switch (command.toUpperCase()) {
+                            case CMD_BILLING_GENERATE:
+                                generateBillAndReceipt();
+                                break;
+                            case CMD_MAIN:
+                                // Tell the user their options in this new menu
+                                printAvailableCommands(CMD_MAIN);
+                                // Remember what menu we're in
+                                currentMenu = CMD_MAIN;
+                                break;
+                            default:
+                                // Remind the user about what commands are available
+                                System.out.println("\nCommand not recognized");
+                                printAvailableCommands(CMD_BILLING);
                                 break;
                         }
                         break;
