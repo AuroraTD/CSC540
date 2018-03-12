@@ -44,6 +44,7 @@ public class WolfInns {
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
+    private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
     
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
@@ -75,6 +76,7 @@ public class WolfInns {
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
+     *                  03/12/18 -  ATTD -  Add ability to delete a staff member.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -129,6 +131,8 @@ public class WolfInns {
                     System.out.println("\t- add a hotel");
                     System.out.println("'" + CMD_MANAGE_HOTEL_DELETE + "'");
                     System.out.println("\t- delete a hotel");
+                    System.out.println("'" + CMD_MANAGE_STAFF_DELETE + "'");
+                    System.out.println("\t- delete a staff member");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -242,6 +246,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Changed state to CHAR(2).
      *                  03/09/18 -  ATTD -  Added on delete rules for foreign keys.
      *                  03/11/18 -  ATTD -  Added amount owed to Stays relation.
+     *                  03/12/18 -  ATTD -  Changed Provided table to set staff ID to NULL when staff member is deleted.
      */
     public static void createTables() {
         
@@ -381,13 +386,13 @@ public class WolfInns {
             jdbc_statement.executeUpdate("CREATE TABLE Provided ("+
                 "ID INT NOT NULL AUTO_INCREMENT,"+
                 "StayID INT NOT NULL,"+
-                "StaffID INT NOT NULL,"+
+                "StaffID INT,"+
                 "ServiceName VARCHAR(255) NOT NULL,"+
                 "PRIMARY KEY(ID),"+
                 // If a stay is deleted, then the service provided record no longer makes sense and should be deleted
                 "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID) ON DELETE CASCADE,"+
-                // If a staff member is deleted, then the service provided record no longer makes sense and should be deleted
-                "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID) ON DELETE CASCADE,"+
+                // If a staff member is deleted, then the service provided record still makes sense but has staff ID as NULL
+                "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID) ON DELETE SET NULL,"+
                 // If a service type is deleted, then the service provided record no longer makes sense and should be deleted
                 "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name) ON DELETE CASCADE"+
             ")");
@@ -821,6 +826,8 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/11/18 -  ATTD -  Changed dedicated presidential suite staff for hotel 9 to avoid staff conflicts.
      *                  03/11/18 -  ATTD -  Removed hotel 9.
+     *                  03/12/18 -  ATTD -  Do not set DRSStaff and DCStaff to NULL explicitly (no need to).
+     *                                      Do not set DRSStaff and DCStaff to non-NULL, for rooms not currently occupied.
      */
     public static void populateRoomsTable() {
         
@@ -833,75 +840,75 @@ public class WolfInns {
             
             // Hotel # 1
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 1, 'ECONOMY', 3, 150, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 1, 'ECONOMY', 3, 150);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 1, 'PRESIDENTIAL_SUITE', 4, 450, 3, 5);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 1, 'PRESIDENTIAL_SUITE', 4, 450);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (3, 1, 'EXECUTIVE_SUITE', 4, 300, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (3, 1, 'EXECUTIVE_SUITE', 4, 300);");
     		// Hotel # 2
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 2, 'DELUXE', 3, 200, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 2, 'DELUXE', 3, 200);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 2, 'ECONOMY', 3, 125, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 2, 'ECONOMY', 3, 125);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (3, 2, 'EXECUTIVE_SUITE', 4, 250, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (3, 2, 'EXECUTIVE_SUITE', 4, 250);");
     		// Hotel # 3
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 3, 'PRESIDENTIAL_SUITE', 3, 550, 17, 18);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 3, 'PRESIDENTIAL_SUITE', 3, 550);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 3, 'ECONOMY', 2, 350, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 3, 'ECONOMY', 2, 350);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (3, 3, 'DELUXE', 3, 450, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (3, 3, 'DELUXE', 3, 450);");
     		// Hotel # 4
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 4, 'ECONOMY', 4, 100, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 4, 'ECONOMY', 4, 100);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 4, 'EXECUTIVE_SUITE', 4, 250, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 4, 'EXECUTIVE_SUITE', 4, 250);");
     		// Hotel # 5
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 5, 'DELUXE', 3, 300, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 5, 'DELUXE', 3, 300);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 5, 'EXECUTIVE_SUITE', 4, 400, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 5, 'EXECUTIVE_SUITE', 4, 400);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (3, 5, 'PRESIDENTIAL_SUITE', 4, 500, 29, 30);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (3, 5, 'PRESIDENTIAL_SUITE', 4, 500);");
     		// Hotel # 6
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 6, 'ECONOMY', 2, 220, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 6, 'ECONOMY', 2, 220);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-		        " (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 6, 'DELUXE', 4, 350, NULL, NULL);");
+		        " (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 6, 'DELUXE', 4, 350);");
     		// Hotel # 7
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 7, 'ECONOMY', 2, 125, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 7, 'ECONOMY', 2, 125);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 7, 'EXECUTIVE_SUITE', 4, 400, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 7, 'EXECUTIVE_SUITE', 4, 400);");
     		// Hotel # 8
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (1, 8, 'ECONOMY', 2, 200, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (1, 8, 'ECONOMY', 2, 200);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (2, 8, 'DELUXE', 3, 250, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (2, 8, 'DELUXE', 3, 250);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-				" (3, 8, 'EXECUTIVE_SUITE', 3, 300, NULL, NULL);");
+				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
+				" (3, 8, 'EXECUTIVE_SUITE', 3, 300);");
     		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
 				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
                 " (4, 8, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);");
@@ -1506,6 +1513,35 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Management task: Delete a staff member
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/12/18 -  ATTD -  Created method.
+     */
+    public static void manageStaffDelete() {
+
+        try {
+            
+            // Declare local variables
+            long staffID = 0;
+            
+            // Get name
+            System.out.print("\nEnter the staff ID\n> ");
+            staffID = Long.parseLong(scanner.nextLine());
+
+            // Call method to actually interact with the DB
+            updateDeleteStaff(staffID, true);
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
     // QUERIES
     
     /** 
@@ -1761,7 +1797,7 @@ public class WolfInns {
      * 2. In case in the future we find some need for mass deletes.
      * 
      * Arguments -  hotelID -       The ID of the hotel
-     *              reportSuccess - True if we should print success message to console (should be false for mass population of hotels)
+     *              reportSuccess - True if we should print success message to console (should be false for mass deletion of hotels)
      * Return -     None
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
@@ -1788,6 +1824,102 @@ public class WolfInns {
         
     }
     
+    /** 
+     * DB Update: Delete Staff Member
+     * 
+     * Arguments -  staffID -       The ID of the staff member
+     *              reportSuccess - True if we should print success message to console (should be false for mass deletion of staff members)
+     * Return -     None
+     * 
+     * Modifications:   03/12/18 -  ATTD -  Created method.
+     */
+    public static void updateDeleteStaff (long staffID, boolean reportSuccess) {
+
+        try {
+            
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+
+                // Declare variables
+                int numStaffBefore = 0;
+                int numStaffAfter = 0;
+                
+                // How many staff members exist before the attempt
+                jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
+                jdbc_result.next();
+                numStaffBefore = jdbc_result.getInt(1);
+                
+                // Remove the staff member from the Staff table
+                jdbc_statement.executeUpdate(
+                    "DELETE " +
+                    "FROM Staff " +
+                    "WHERE ID = " + staffID + " AND ID NOT IN ( " +
+                        "SELECT DRSStaff AS X " +
+                        "FROM Rooms " +
+                        "WHERE (DRSStaff IS NOT NULL) AND ( " +
+                            "RoomNum IN ( " +
+                                "SELECT RoomNum " +
+                                "FROM Stays " +
+                                "WHERE EndDate IS NULL OR CheckOutTime IS NULL " +
+                            ") " +
+                        ") " +
+                        "UNION ALL " +
+                        "SELECT DCStaff AS X " +
+                        "FROM Rooms " +
+                        "WHERE (DCStaff IS NOT NULL) AND ( " +
+                            "RoomNum IN ( " +
+                                "SELECT RoomNum FROM Stays " +
+                                "WHERE EndDate IS NULL OR CheckOutTime IS NULL " +
+                            ") " +
+                        ") " +
+                    ");"
+                );
+                
+                // How many staff members exist after the attempt
+                jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
+                jdbc_result.next();
+                numStaffAfter = jdbc_result.getInt(1);
+                
+                // If success, commit
+                jdbc_connection.commit();
+                
+                // Then, tell the user about the results
+                if (numStaffBefore == numStaffAfter) {
+                    System.out.println(
+                        "\nStaff ID " + 
+                        staffID + 
+                        " was NOT deleted " + 
+                        "(cannot delete staff members who do not exist, or who are currently dedicated to serving a room)\n"
+                    );
+                }
+                else if (reportSuccess) {
+                    System.out.println("\nStaff ID " + staffID + " was deleted!\n");
+                }         
+                
+            }
+            catch (Throwable err) {
+                
+                // Print stack trace
+                err.printStackTrace();
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
     // MAIN
     
     /* MAIN function
@@ -1803,6 +1935,7 @@ public class WolfInns {
      *                  03/09/18 -  ATTD -  Add ability to delete a hotel.
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
+     *                  03/12/18 -  ATTD -  Add ability to delete staff member.
      */
     public static void main(String[] args) {
         
@@ -1943,6 +2076,9 @@ public class WolfInns {
                             break;
                         case CMD_MANAGE_HOTEL_DELETE:
                             manageHotelDelete();
+                            break;
+                        case CMD_MANAGE_STAFF_DELETE:
+                            manageStaffDelete();
                             break;
                         case CMD_MAIN:
                             // Tell the user their options in this new menu
