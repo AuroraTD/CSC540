@@ -248,6 +248,7 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Added amount owed to Stays relation.
      *                  03/12/18 -  ATTD -  Changed Provided table to set staff ID to NULL when staff member is deleted.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/14/18 -  ATTD -  Changed service type names to enum, to match project assumptions.
      */
     public static void createTables() {
         
@@ -278,7 +279,7 @@ public class WolfInns {
     
                 // Create table: ServiceTypes
                 jdbc_statement.executeUpdate("CREATE TABLE ServiceTypes ("+
-                    "Name VARCHAR(255) NOT NULL,"+
+                    "Name ENUM('Phone','Dry Cleaning','Gym','Room Service','Catering','Special Request') NOT NULL,"+
                     "Cost INT NOT NULL,"+
                     "PRIMARY KEY (Name)"+
                 ")");
@@ -390,7 +391,7 @@ public class WolfInns {
                     "ID INT NOT NULL AUTO_INCREMENT,"+
                     "StayID INT NOT NULL,"+
                     "StaffID INT,"+
-                    "ServiceName VARCHAR(255) NOT NULL,"+
+                    "ServiceName ENUM('Phone','Dry Cleaning','Gym','Room Service','Catering','Special Request') NOT NULL,"+
                     "PRIMARY KEY(ID),"+
                     // If a stay is deleted, then the service provided record no longer makes sense and should be deleted
                     "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID) ON DELETE CASCADE,"+
@@ -516,6 +517,7 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      */
     public static void populateServiceTypesTable() {
         
@@ -529,22 +531,22 @@ public class WolfInns {
                 // Populating data for ServiceTypes
                 jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('PHONE_BILL', 25);");
+    				"('Phone', 25);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('DRY_CLEANING', 20);");
+    				"('Dry Cleaning', 20);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('GYM', 35);");
+    				"('Gym', 35);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('ROOM_SERVICE', 25);");
+    				"('Room Service', 25);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('CATERING', 50);");
+    				"('Catering', 50);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('SPECIAL_SERVICE', 40);");
+    				"('Special Request', 40);");
     			
                 // If success, commit
                 jdbc_connection.commit();
@@ -1136,6 +1138,7 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Added another gym stay to stay ID 1, to more fully exercise ability to produce itemized receipt
      *                                      (itemized receipt needs to sum costs for all instances of the same service type).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      */
     public static void populateProvidedTable() {
         
@@ -1149,34 +1152,34 @@ public class WolfInns {
                 // Populating data for Provided
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 7, 'GYM')");
+    				" (1, 7, 'Gym')");
                 jdbc_statement.executeUpdate("INSERT INTO Provided " + 
                     " (StayID, StaffID, ServiceName) VALUES " +
-                    " (1, 7, 'GYM')");
+                    " (1, 7, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 5, 'CATERING')");
+    				" (1, 5, 'Catering')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (2, 11, 'ROOM_SERVICE')");
+    				" (2, 11, 'Room Service')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (3, 19, 'DRY_CLEANING')");
+    				" (3, 19, 'Dry Cleaning')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (4, 26, 'GYM')");
+    				" (4, 26, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (5, 32, 'DRY_CLEANING')");
+    				" (5, 32, 'Dry Cleaning')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (6, 38, 'ROOM_SERVICE')");
+    				" (6, 38, 'Room Service')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (7, 48, 'GYM')");
+    				" (7, 48, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (8, 54, 'DRY_CLEANING')");
+    				" (8, 54, 'Dry Cleaning')");
         		
                 // If success, commit
                 jdbc_connection.commit();
