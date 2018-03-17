@@ -291,12 +291,12 @@ public class WolfInns {
                  */
                 jdbc_statement.executeUpdate("CREATE TABLE Staff ("+
                     "ID INT NOT NULL AUTO_INCREMENT,"+
-                    "Name VARCHAR(225) NOT NULL,"+
+                    "Name VARCHAR(255) NOT NULL,"+
                     "DOB DATE NOT NULL,"+
-                    "JobTitle VARCHAR(225),"+
-                    "Dep VARCHAR(225) NOT NULL,"+
+                    "JobTitle VARCHAR(255),"+
+                    "Dep VARCHAR(255) NOT NULL,"+
                     "PhoneNum BIGINT NOT NULL,"+
-                    "Address VARCHAR(225) NOT NULL,"+
+                    "Address VARCHAR(255) NOT NULL,"+
                     "HotelID INT,"+
                     "PRIMARY KEY(ID)"+
                 ")");
@@ -309,9 +309,9 @@ public class WolfInns {
                  */
                 jdbc_statement.executeUpdate("CREATE TABLE Hotels ("+
                     "ID INT NOT NULL AUTO_INCREMENT,"+
-                    "Name VARCHAR(225) NOT NULL,"+
-                    "StreetAddress VARCHAR(225) NOT NULL,"+
-                    "City VARCHAR(225) NOT NULL,"+
+                    "Name VARCHAR(255) NOT NULL,"+
+                    "StreetAddress VARCHAR(255) NOT NULL,"+
+                    "City VARCHAR(255) NOT NULL,"+
                     "State CHAR(2) NOT NULL,"+
                     "PhoneNum BIGINT Not Null,"+
                     "ManagerID INT Not Null,"+
@@ -341,7 +341,7 @@ public class WolfInns {
                 jdbc_statement.executeUpdate("CREATE TABLE Rooms ("+
                     "RoomNum INT NOT NULL,"+
                     "HotelID INT NOT NULL,"+
-                    "Category VARCHAR(225) NOT NULL,"+
+                    "Category VARCHAR(255) NOT NULL,"+
                     "MaxOcc INT NOT NULL,"+
                     "NightlyRate DOUBLE NOT NULL,"+
                     "DRSStaff INT,"+
