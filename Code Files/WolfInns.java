@@ -249,6 +249,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Changed Provided table to set staff ID to NULL when staff member is deleted.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to enum, to match project assumptions.
+     *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      */
     public static void createTables() {
         
@@ -373,7 +374,7 @@ public class WolfInns {
                     "PaymentMethod ENUM('CASH','CARD') NOT NULL,"+
                     "CardType ENUM('VISA','MASTERCARD','HOTEL'),"+
                     "CardNumber BIGINT,"+
-                    "BillingAddress VARCHAR(255) NOT NULL,"+
+                    "BillingAddress VARCHAR(255),"+
                     "PRIMARY KEY(ID),"+
                     "CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),"+
                     /* If a room is deleted, then the stay no longer makes sense and should be deleted
@@ -1063,6 +1064,7 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Do not set amount owed here (risk of calculating wrong when we calculate by hand).
      *                                      Instead, set by running billing report on the stay.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      */
     public static void populateStaysTable() {
         
@@ -1078,8 +1080,8 @@ public class WolfInns {
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
     				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH', NULL, NULL, '754 East Walt Whitman St. Hopkins, MN 55343');");
+    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
+    				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH');");
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
     				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
@@ -1090,8 +1092,8 @@ public class WolfInns {
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
     				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH', NULL, NULL, '55 Livingston Ave. Selden, NY 11784');");
+    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
+    				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH');");
         		// Stays that are still going on
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
