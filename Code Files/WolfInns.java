@@ -51,11 +51,16 @@ public class WolfInns {
     private static final String JDBC_USER = "smscoggi";
     private static final String JDBC_PASSWORD = "200157888";
     
-    // Declare variables
+    // Declare variables - high level
     private static Connection jdbc_connection;
     private static Statement jdbc_statement;
     private static ResultSet jdbc_result;
     private static String currentMenu;
+    
+    // Declare variables - prepared statements
+    private static PreparedStatement jdbcPrep_insertNewHotel;
+    private static PreparedStatement jdbcPrep_updateNewHotelManager;
+    private static PreparedStatement jdbcPrep_getNewestHotelID;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -173,6 +178,69 @@ public class WolfInns {
             // Establish connection
             jdbc_connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
             jdbc_statement = jdbc_connection.createStatement();
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    /** 
+     * Create prepared statements
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/20/18 -  ATTD -  Created method.
+     */
+    public static void createPreparedStatements() {
+        
+        try {
+            
+            // Declare variables
+            String reusedSQLVar;
+            
+            /* Insert new hotel
+             * Indices to use when calling this prepared statement:
+             * 1 - name
+             * 2 - street address
+             * 3 - city
+             * 4 - state
+             * 5 - phone number
+             * 6 - manager ID
+             * 7 - manager ID (again)
+             */
+            reusedSQLVar = 
+                "INSERT INTO Hotels (Name, StreetAddress, City, State, PhoneNum, ManagerID) " + 
+                "SELECT ?, ?, ?, ?, ?, ? " + 
+                "FROM Staff " + 
+                "WHERE " + 
+                "Staff.ID = ? AND " + 
+                "Staff.ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND " + 
+                "Staff.ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
+            jdbcPrep_insertNewHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update new hotel manager
+             * to give new manager correct job title and hotel assignment
+             * intended to be called in same transaction as insertion of new hotel
+             * TODO: make sure comments and code regarding ID incrementation are TRUE!
+             * therefore the insertion is not yet committed
+             * therefore max ID needs incremented
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Manager', HotelID = (SELECT MAX(ID) FROM Hotels) + 1 " + 
+                "WHERE " + 
+                "ID = (SELECT ManagerID FROM Hotels WHERE ID = (SELECT MAX(ID) FROM Hotels) + 1);";
+            jdbcPrep_updateNewHotelManager = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get the ID of the newest hotel in the DB
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT MAX(ID) FROM Hotels;";
+            jdbcPrep_getNewestHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1878,6 +1946,7 @@ public class WolfInns {
      * Modifications:   03/09/18 -  ATTD -  Created method.
      *                  03/12/18 -  ATTD -  Add missing JDBC commit statement.
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
+     *                  03/20/18 -  ATTD -  Switch to using prepared statements.
      */
     public static void updateInsertHotel (String hotelName, String streetAddress, String city, String state, long phoneNum, int managerID, boolean reportSuccess) {
         
@@ -1887,28 +1956,68 @@ public class WolfInns {
         
         try {
             
+            // TODO: handle chain-reaction (was a hotel left without a manager as a result of this?  react!)
+            
+            // TODO: test with reassigning existing manager
+            
+            // TODO: test with promoting new manager
+            
+            // TODO: test with reasonable values
+            
+            // TODO: test with unreasonable values
+            
+            // TODO: test with promoting a staff member to the existing manager's old hotel who is not assigned to that hotel
+            
+            // TODO: push to branch
+            
+            // TODO: merge branch to development
+            
+            // TODO: signal on trello and slack
+            
+            // TODO: we can't insert new hotel with manager ID FIRST due to unique constraint
+            
+            // TODO: we can't move existing manager to new hotel ID FIRST due to foreign key constraint
+            
+            // TODO: drop constraint and bring it back within transaction?
+            
+            // TODO: once everything is working beautifully, change all "stored procedure" on trello cards to "prepared statement"
+            
             // Start transaction
             jdbc_connection.setAutoCommit(false);
             
             try {
-                
-                // Insert the new hotel into the Hotels table
-                jdbc_statement.executeUpdate("INSERT INTO Hotels "+
-                    " (Name, StreetAddress, City, State, PhoneNum, ManagerID) VALUES " +
-                    " ('" + hotelName + "', '" + streetAddress + "', '" + city + "', '" + state + "', " + phoneNum + ", " + managerID + ");");
-                
-                // We have made a staff member the manager of the hotel - we must update that staff member too
-                jdbc_result = jdbc_statement.executeQuery("SELECT MAX(ID) FROM Hotels;");
-                jdbc_result.next();
-                hotelID = jdbc_result.getInt(1);
-                jdbc_statement.executeUpdate("UPDATE Staff "+
-                        " SET JobTitle = 'Manager', HotelID = " + hotelID + " WHERE ID = " + managerID + ";");            
-                
+
+                /* Insert new hotel, using prepared statement
+                 * Drop disable unique checks to avoid complaint
+                 * This is needed because the hotel may get a manager who is already managing a different hotel
+                 * We will fix this shortly but we need to avoid complaint in the meantime
+                 */
+                jdbc_statement.executeUpdate("SET UNIQUE_CHECKS=0");
+                jdbcPrep_insertNewHotel.setString(1, hotelName);
+                jdbcPrep_insertNewHotel.setString(2, streetAddress);
+                jdbcPrep_insertNewHotel.setString(3, city);
+                jdbcPrep_insertNewHotel.setString(4, state);
+                jdbcPrep_insertNewHotel.setLong(5, phoneNum);
+                jdbcPrep_insertNewHotel.setInt(6, managerID);
+                jdbcPrep_insertNewHotel.setInt(7, managerID);
+                jdbcPrep_insertNewHotel.executeUpdate();
+                // TODO: now need to make the manager's old hotel NOT have them listed as the manager! (if applicable)
+                // TODO: this will leave that old hotel with a NULL value for manager which of course must be corrected immediately
+                // TODO: by correcting it, we'll also need the replacement manager staff record to be updated to promote them to manager
+                // TODO: may need to code update staff basic info, in order to fully support chain manager reaction of insert new hotel
+                jdbc_statement.executeUpdate("SET UNIQUE_CHECKS=1");
+
+                // Update new hotel's manager, using prepared statement
+                jdbcPrep_updateNewHotelManager.executeUpdate();
+
                 // If success, commit
                 jdbc_connection.commit();
                 
                 // Then, tell the user about the success
                 if (reportSuccess) {
+                    jdbc_result = jdbcPrep_getNewestHotelID.executeQuery();
+                    jdbc_result.next();
+                    hotelID = jdbc_result.getInt(1);
                     System.out.println("\n'" + hotelName + "' hotel added (hotel ID: " + hotelID + ")!\n");
                 }
                 
@@ -1920,10 +2029,19 @@ public class WolfInns {
                 // UNIQUE constraint violated
                 if (errorMessage.contains("UC_HMID")) {
                     // Tried to enter an ID for a manager that is already managing some other hotel
-                    System.out.println("\nThis manager cannot manage the '" + 
-                            hotelName + 
-                            "' hotel, because they are already managing another hotel\n");
-                    jdbc_result = jdbc_statement.executeQuery("SELECT ID, Name, hotelID FROM Staff WHERE ID = " + managerID);
+                    System.out.println(
+                        "\nThis manager cannot manage the '" + 
+                        hotelName + 
+                        "' hotel, because they are still managing another hotel\n"
+                    );
+                    jdbc_result = jdbc_statement.executeQuery(
+                        "SELECT " + 
+                        // TODO: why are "AS" not being used?  Query result shows ID, Name, ID, Name.
+                        "Staff.ID AS StaffID, Staff.Name AS StaffName, Hotels.ID AS HotelID, Hotels.Name AS HotelName " + 
+                        "FROM Staff, Hotels WHERE Staff.ID = " + 
+                        managerID + 
+                        " AND Staff.HotelID = Hotels.ID"
+                    );
                     printQueryResultSet(jdbc_result);
                 }
                 // FOREIGN KEY constraint violated
@@ -2099,6 +2217,7 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete staff member.
+     *                  03/20/18 -  ATTD -  Add call to new method for creating prepared statements.
      */
     public static void main(String[] args) {
         
@@ -2114,6 +2233,10 @@ public class WolfInns {
             // Connect to database
             System.out.println("\nConnecting to database...");
             connectToDatabase();
+            
+            // Create prepared statements
+            System.out.println("\nCreating prepared statements...");
+            createPreparedStatements();
             
             // Create tables
             System.out.println("\nCreating tables...");
