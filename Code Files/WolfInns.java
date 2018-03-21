@@ -51,11 +51,19 @@ public class WolfInns {
     private static final String JDBC_USER = "smscoggi";
     private static final String JDBC_PASSWORD = "200157888";
     
-    // Declare variables
+    // Declare variables - high level
     private static Connection jdbc_connection;
     private static Statement jdbc_statement;
     private static ResultSet jdbc_result;
     private static String currentMenu;
+    
+    // Declare variables - prepared statements
+    private static PreparedStatement jdbcPrep_insertNewHotel;
+    private static PreparedStatement jdbcPrep_updateNewHotelManager;
+    private static PreparedStatement jdbcPrep_getNewestHotelID;
+    private static PreparedStatement jdbcPrep_getHotelSummaryForAddress;
+    private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
+    private static PreparedStatement jdbcPrep_getHotelSummaryForStaffMember;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -173,6 +181,103 @@ public class WolfInns {
             // Establish connection
             jdbc_connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD);
             jdbc_statement = jdbc_connection.createStatement();
+            
+        }
+        catch (Throwable err) {
+            err.printStackTrace();
+        }
+        
+    }
+    
+    /** 
+     * Create prepared statements
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/20/18 -  ATTD -  Created method.
+     *                  03/21/18 -  ATTD -  Fix off-by-one error in updating new hotel manager.
+     *                                      Add more prepared statements to use when inserting new hotel.
+     */
+    public static void createPreparedStatements() {
+        
+        try {
+            
+            // Declare variables
+            String reusedSQLVar;
+            
+            /* Insert new hotel
+             * Indices to use when calling this prepared statement:
+             * 1 - name
+             * 2 - street address
+             * 3 - city
+             * 4 - state
+             * 5 - phone number
+             * 6 - manager ID
+             * 7 - manager ID (again)
+             */
+            reusedSQLVar = 
+                "INSERT INTO Hotels (Name, StreetAddress, City, State, PhoneNum, ManagerID) " + 
+                "SELECT ?, ?, ?, ?, ?, ? " + 
+                "FROM Staff " + 
+                "WHERE " + 
+                "Staff.ID = ? AND " + 
+                "Staff.ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND " + 
+                "Staff.ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
+            jdbcPrep_insertNewHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update new hotel manager
+             * to give new manager correct job title and hotel assignment
+             * intended to be called in same transaction as insertion of new hotel
+             * therefore the insertion is not yet committed
+             * therefore max ID needs incremented
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Manager', HotelID = (SELECT MAX(ID) FROM Hotels) " + 
+                "WHERE " + 
+                "ID = (SELECT ManagerID FROM Hotels WHERE ID = (SELECT MAX(ID) FROM Hotels));";
+            jdbcPrep_updateNewHotelManager = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get the ID of the newest hotel in the DB
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT MAX(ID) FROM Hotels;";
+            jdbcPrep_getNewestHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get a summary of info about the hotel which has a particular street address, city, state
+             * Indices to use when calling this prepared statement:
+             * 1 -  street address
+             * 2 -  city
+             * 3 -  state
+             */
+            reusedSQLVar = 
+                "SELECT " + 
+                "StreetAddress, City, State, ID AS HotelID, Name AS HotelName " + 
+                "FROM Hotels WHERE StreetAddress = ? AND City = ? AND State = ?;";
+            jdbcPrep_getHotelSummaryForAddress = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get a summary of info about the hotel which has a particular phone number
+             * Indices to use when calling this prepared statement:
+             * 1 -  phone number
+             */
+            reusedSQLVar = 
+                "SELECT " + 
+                "PhoneNum AS PhoneNumber, ID AS HotelID, Name AS HotelName " + 
+                "FROM Hotels WHERE PhoneNum = ?;";
+            jdbcPrep_getHotelSummaryForPhoneNumber = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get a summary of info about the hotel to which a staff member is assigned
+             * Indices to use when calling this prepared statement:
+             * 1 -  staff ID
+             */
+            reusedSQLVar = 
+                "SELECT " + 
+                "Staff.ID AS StaffID, Staff.Name AS StaffName, Hotels.ID AS HotelID, Hotels.Name AS HotelName " + 
+                "FROM Staff, Hotels WHERE Staff.ID = ?" + 
+                " AND Staff.HotelID = Hotels.ID;";
+            jdbcPrep_getHotelSummaryForStaffMember = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1379,6 +1484,7 @@ public class WolfInns {
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/08/18 -  ATTD -  Made printout slightly prettier.
      *                  03/08/18 -  ATTD -  At the end, print number of records in result set.
+     *                  03/21/18 -  ATTD -  Print column label instead of column name.
      */
     public static void printQueryResultSet(ResultSet resultSetToPrint) {
         
@@ -1399,9 +1505,12 @@ public class WolfInns {
                 metaData = jdbc_result.getMetaData();
                 numColumns = metaData.getColumnCount();
                 
-                // Print column headers
+                /* Print column headers
+                 * use column label instead of column name,
+                 * otherwise you will not see the effect of aliasing
+                 */
                 for (i = 1; i <= numColumns; i++) {
-                    columnName = metaData.getColumnName(i);
+                    columnName = metaData.getColumnLabel(i);
                     System.out.print(padRight(columnName, getNumPadChars(metaData,i)));
                 }
                 System.out.println("");
@@ -1866,6 +1975,9 @@ public class WolfInns {
     /** 
      * DB Update: Insert Hotel
      * 
+     * Note:    This does NOT support chain reaction of moving managers between hotels.
+     *          Manager of new hotel CANNOT be existing manager of another hotel.
+     * 
      * Arguments -  hotelName -     The name of the hotel to insert
      *              streetAddress - The street address of the hotel to insert
      *              city -          The city in which the hotel is located
@@ -1878,38 +1990,48 @@ public class WolfInns {
      * Modifications:   03/09/18 -  ATTD -  Created method.
      *                  03/12/18 -  ATTD -  Add missing JDBC commit statement.
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
+     *                  03/20/18 -  ATTD -  Switch to using prepared statements.
+     *                  03/21/18 -  ATTD -  Debug inserting new hotel with prepared statements.
      */
     public static void updateInsertHotel (String hotelName, String streetAddress, String city, String state, long phoneNum, int managerID, boolean reportSuccess) {
         
         // Declare variables
-        int hotelID;
+        int newHotelID;
         String errorMessage;
         
         try {
-            
+
             // Start transaction
             jdbc_connection.setAutoCommit(false);
             
             try {
+
+                /* Insert new hotel, using prepared statement
+                 * Drop disable unique checks to avoid complaint
+                 * This is needed because the hotel may get a manager who is already managing a different hotel
+                 * We will fix this shortly but we need to avoid complaint in the meantime
+                 */
+                jdbcPrep_insertNewHotel.setString(1, hotelName);
+                jdbcPrep_insertNewHotel.setString(2, streetAddress);
+                jdbcPrep_insertNewHotel.setString(3, city);
+                jdbcPrep_insertNewHotel.setString(4, state);
+                jdbcPrep_insertNewHotel.setLong(5, phoneNum);
+                jdbcPrep_insertNewHotel.setInt(6, managerID);
+                jdbcPrep_insertNewHotel.setInt(7, managerID); 
+                jdbcPrep_insertNewHotel.executeUpdate();
                 
-                // Insert the new hotel into the Hotels table
-                jdbc_statement.executeUpdate("INSERT INTO Hotels "+
-                    " (Name, StreetAddress, City, State, PhoneNum, ManagerID) VALUES " +
-                    " ('" + hotelName + "', '" + streetAddress + "', '" + city + "', '" + state + "', " + phoneNum + ", " + managerID + ");");
-                
-                // We have made a staff member the manager of the hotel - we must update that staff member too
-                jdbc_result = jdbc_statement.executeQuery("SELECT MAX(ID) FROM Hotels;");
-                jdbc_result.next();
-                hotelID = jdbc_result.getInt(1);
-                jdbc_statement.executeUpdate("UPDATE Staff "+
-                        " SET JobTitle = 'Manager', HotelID = " + hotelID + " WHERE ID = " + managerID + ";");            
-                
+                // Update new hotel's manager (job title and hotel assignment), using prepared statement
+                jdbcPrep_updateNewHotelManager.executeUpdate();
+
                 // If success, commit
                 jdbc_connection.commit();
                 
                 // Then, tell the user about the success
                 if (reportSuccess) {
-                    System.out.println("\n'" + hotelName + "' hotel added (hotel ID: " + hotelID + ")!\n");
+                    jdbc_result = jdbcPrep_getNewestHotelID.executeQuery();
+                    jdbc_result.next();
+                    newHotelID = jdbc_result.getInt(1);
+                    System.out.println("\n'" + hotelName + "' hotel added (hotel ID: " + newHotelID + ")!\n");
                 }
                 
             }
@@ -1918,12 +2040,39 @@ public class WolfInns {
                 // Handle SQL errors
                 errorMessage = err.toString();
                 // UNIQUE constraint violated
-                if (errorMessage.contains("UC_HMID")) {
+                if (errorMessage.contains("UC_HACS")) {
+                    // Tried to enter a phone number for the hotel that is already used by a different hotel
+                    System.out.println(
+                        "\nCannot use this address / city / steate for the '" + 
+                        hotelName + 
+                        "' hotel, because it is already used for another hotel\n"
+                    );
+                    jdbcPrep_getHotelSummaryForAddress.setString(1, streetAddress);
+                    jdbcPrep_getHotelSummaryForAddress.setString(2, city);
+                    jdbcPrep_getHotelSummaryForAddress.setString(3, state);
+                    jdbc_result = jdbcPrep_getHotelSummaryForAddress.executeQuery();
+                    printQueryResultSet(jdbc_result);
+                }
+                else if (errorMessage.contains("UC_HPN")) {
+                    // Tried to enter a phone number for the hotel that is already used by a different hotel
+                    System.out.println(
+                        "\nCannot use this phone number for the '" + 
+                        hotelName + 
+                        "' hotel, because it is already used for another hotel\n"
+                    );
+                    jdbcPrep_getHotelSummaryForPhoneNumber.setLong(1, phoneNum);
+                    jdbc_result = jdbcPrep_getHotelSummaryForPhoneNumber.executeQuery();
+                    printQueryResultSet(jdbc_result);
+                }
+                else if (errorMessage.contains("UC_HMID")) {
                     // Tried to enter an ID for a manager that is already managing some other hotel
-                    System.out.println("\nThis manager cannot manage the '" + 
-                            hotelName + 
-                            "' hotel, because they are already managing another hotel\n");
-                    jdbc_result = jdbc_statement.executeQuery("SELECT ID, Name, hotelID FROM Staff WHERE ID = " + managerID);
+                    System.out.println(
+                        "\nThis manager cannot manage the '" + 
+                        hotelName + 
+                        "' hotel, because they are already managing another hotel\n"
+                    );
+                    jdbcPrep_getHotelSummaryForStaffMember.setInt(1, managerID);
+                    jdbc_result = jdbcPrep_getHotelSummaryForStaffMember.executeQuery();
                     printQueryResultSet(jdbc_result);
                 }
                 // FOREIGN KEY constraint violated
@@ -2099,6 +2248,8 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete staff member.
+     *                  03/20/18 -  ATTD -  Add call to new method for creating prepared statements.
+     *                  03/21/18 -  ATTD -  Close more resources during clean-up.
      */
     public static void main(String[] args) {
         
@@ -2114,6 +2265,10 @@ public class WolfInns {
             // Connect to database
             System.out.println("\nConnecting to database...");
             connectToDatabase();
+            
+            // Create prepared statements
+            System.out.println("\nCreating prepared statements...");
+            createPreparedStatements();
             
             // Create tables
             System.out.println("\nCreating tables...");
@@ -2263,6 +2418,15 @@ public class WolfInns {
             
             // Clean up
             scanner.close();
+            jdbc_statement.close();
+            jdbc_result.close();
+            jdbcPrep_insertNewHotel.close();
+            jdbcPrep_updateNewHotelManager.close();
+            jdbcPrep_getNewestHotelID.close();
+            jdbcPrep_getHotelSummaryForAddress.close();
+            jdbcPrep_getHotelSummaryForPhoneNumber.close();
+            jdbcPrep_getHotelSummaryForStaffMember.close();
+            jdbc_connection.close();
         
         }
         catch (Throwable err) {
