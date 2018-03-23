@@ -43,6 +43,7 @@ public class WolfInns {
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
+    private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
     private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
     
@@ -60,10 +61,19 @@ public class WolfInns {
     // Declare variables - prepared statements
     private static PreparedStatement jdbcPrep_insertNewHotel;
     private static PreparedStatement jdbcPrep_updateNewHotelManager;
+    private static PreparedStatement jdbcPrep_udpateHotelName;
+    private static PreparedStatement jdbcPrep_updateHotelStreetAddress;
+    private static PreparedStatement jdbcPrep_updateHotelCity;
+    private static PreparedStatement jdbcPrep_udpateHotelState;
+    private static PreparedStatement jdbcPrep_updateHotelPhoneNum;
+    private static PreparedStatement jdbcPrep_updateHotelManagerID;
+    private static PreparedStatement jdbcPrep_demoteOldManager;
+    private static PreparedStatement jdbcPrep_promoteNewManager;
     private static PreparedStatement jdbcPrep_getNewestHotelID;
     private static PreparedStatement jdbcPrep_getHotelSummaryForAddress;
     private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
     private static PreparedStatement jdbcPrep_getHotelSummaryForStaffMember;
+    private static PreparedStatement jdbcPrep_getHotelByID;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -85,6 +95,8 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to report revenue.
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete a staff member.
+     *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
+     *                                      Use new general error handler.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -137,6 +149,8 @@ public class WolfInns {
                 case CMD_MANAGE:
                     System.out.println("'" + CMD_MANAGE_HOTEL_ADD + "'");
                     System.out.println("\t- add a hotel");
+                    System.out.println("'" + CMD_MANAGE_HOTEL_UPDATE + "'");
+                    System.out.println("\t- update information about a hotel");
                     System.out.println("'" + CMD_MANAGE_HOTEL_DELETE + "'");
                     System.out.println("\t- delete a hotel");
                     System.out.println("'" + CMD_MANAGE_STAFF_DELETE + "'");
@@ -153,7 +167,7 @@ public class WolfInns {
         
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -165,6 +179,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void connectToDatabase() {
         
@@ -184,7 +199,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -198,6 +213,8 @@ public class WolfInns {
      * Modifications:   03/20/18 -  ATTD -  Created method.
      *                  03/21/18 -  ATTD -  Fix off-by-one error in updating new hotel manager.
      *                                      Add more prepared statements to use when inserting new hotel.
+     *                  03/23/18 -  ATTD -  Add support for updating basic information about a hotel.
+     *                                      Use new general error handler.
      */
     public static void createPreparedStatements() {
         
@@ -240,6 +257,93 @@ public class WolfInns {
                 "ID = (SELECT ManagerID FROM Hotels WHERE ID = (SELECT MAX(ID) FROM Hotels));";
             jdbcPrep_updateNewHotelManager = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Update hotel name
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel name
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET Name = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_udpateHotelName = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Update hotel street address
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel street address
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET StreetAddress = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelStreetAddress = jdbc_connection.prepareStatement(reusedSQLVar); 
+
+            /* Update hotel city
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel city
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET City = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelCity = jdbc_connection.prepareStatement(reusedSQLVar); 
+
+            /* Update hotel state
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel state
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET State = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_udpateHotelState = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            /* Update hotel phone number
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel phone number
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET PhoneNum = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelPhoneNum = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            /* Update hotel managerID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel manager ID
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET ManagerID = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Demote the old manager of a given hotel to front desk representative
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Front Desk Representative' " + 
+                "WHERE JobTitle = 'Manager' AND HotelID = ?;";
+            jdbcPrep_demoteOldManager = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Promote a staff member to management of a hotel
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel ID
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Manager', HotelID = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_promoteNewManager = jdbc_connection.prepareStatement(reusedSQLVar);
+
             /* Get the ID of the newest hotel in the DB
              * Indices to use when calling this prepared statement: n/a
              */
@@ -279,9 +383,17 @@ public class WolfInns {
                 " AND Staff.HotelID = Hotels.ID;";
             jdbcPrep_getHotelSummaryForStaffMember = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Get all values of a given tuple (by ID) from the Hotels table
+             * Indices to use when calling this prepared statement:
+             * 1 -  ID
+             */
+            reusedSQLVar = 
+                "SELECT * FROM Hotels WHERE ID = ?;";
+            jdbcPrep_getHotelByID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -296,6 +408,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void dropExistingTables() {
 
@@ -327,7 +440,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -355,6 +468,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to enum, to match project assumptions.
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void createTables() {
         
@@ -515,8 +629,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -528,7 +642,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -545,6 +659,7 @@ public class WolfInns {
      *                  03/07/18 -  MTA -   Populated method.
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateCustomersTable() {
         
@@ -556,6 +671,7 @@ public class WolfInns {
             try {
             
                 // Populating data for Customers
+                // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate("INSERT INTO Customers"+
     				"(SSN, Name, DOB, PhoneNum, Email) VALUES "+
     				"(555284568, 'Isaac Gray', '1982-11-12', '9194562158', 'issac.gray@gmail.com');");
@@ -595,8 +711,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -608,7 +724,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -624,6 +740,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateServiceTypesTable() {
         
@@ -635,6 +752,7 @@ public class WolfInns {
             try {
             
                 // Populating data for ServiceTypes
+                // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
     				"('Phone', 25);");
@@ -662,8 +780,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -675,7 +793,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -693,6 +811,7 @@ public class WolfInns {
      *                  03/10/18 -  ATTD -  Removed explicit setting of hotel ID to null.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateStaffTable() {
         
@@ -706,6 +825,7 @@ public class WolfInns {
                 // Populating data for Staff
                 
         		// Staff for Hotel#1
+                // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Zoe Holmes', '1980-10-02', 'Manager', 'A', 8141113134, '123 6th St. Melbourne, FL 32904');");
@@ -732,6 +852,7 @@ public class WolfInns {
     				"('Nicholas Read', '1981-01-14', 'Catering', 'B', 2564132017, '236 Pumpkin Hill Court Leesburg, VA 20175');");
         		
         		// Staff for Hotel#2
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Dominic Mitchell', '1971-03-13', 'Manager', 'A', 2922497845, '7005 South Franklin St. Somerset, NJ 08873');");
@@ -752,6 +873,7 @@ public class WolfInns {
     				"('Will Rollins', '1982-07-06', 'Gym', 'C', 7071264587, '346 Beacon Lane Quakertown, PA 18951');");
         		
         		// Staff for Hotel#3
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Masen Shepard', '1983-01-09', 'Manager', 'A', 8995412364, '3 Fulton Ave. Bountiful, UT 84010');");
@@ -772,6 +894,7 @@ public class WolfInns {
     				"('Tommy Perry', '1979-06-04', 'Gym', 'B', 5774812456, '785 Bohemia Street Jupiter, FL 33458');");
         		
         		// Staff for Hotel#4
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Joshua Burke', '1972-01-10', 'Manager', 'C', 1245214521, '8947 Briarwood St. Baldwin, NY 11510');");
@@ -792,6 +915,7 @@ public class WolfInns {
     				"('Rudy Cole', '1972-01-09', 'Gym', 'A', 5774812856, '37 Marconi Drive Owensboro, KY 42301');");
         		
         		// Staff for Hotel#5
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Blair Ball', '1981-01-10', 'Manager', 'A', 8854124568, '551 New Saddle Ave. Cape Coral, FL 33904');");
@@ -818,6 +942,7 @@ public class WolfInns {
     				"('Mason West', '1970-10-17', 'Gym', 'C', 6501231245, '798 W. Valley Farms Lane Saint Petersburg, FL 33702');");
         		
         		//Staff for Hotel#6
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Riley Dawson', '1975-01-09', 'Manager', 'C', 1183021245, '898 Ocean Court Hilliard, OH 43026');");
@@ -841,6 +966,7 @@ public class WolfInns {
     				"('Leslie Cook', '1970-10-08', 'Gym', 'B', 6501245126, '59 W. High Ridge Street Iowa City, IA 52240');");
         		
         		//Staff for Hotel#7
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Rory Burke', '1971-01-05', 'Manager', 'B', 7702653764, '9273 Ridge Drive Winter Springs, FL 32708');");
@@ -864,6 +990,7 @@ public class WolfInns {
     				"('Sam Graham', '1977-07-25', 'Gym', 'C', 7226251245, '262 Bayberry St. Dorchester, MA 02125');");
         		
         		//Staff for Hotel#8
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Staff "+
     				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
     				"('Charlie Adams', '1981-01-01', 'Manager', 'C', 6084254152, '9716 Glen Creek Dr. Newark, NJ 07103');");
@@ -894,8 +1021,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -907,7 +1034,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -924,6 +1051,7 @@ public class WolfInns {
      *                  03/09/18 -  ATTD -  Calling method to insert hotels (which also update's new manager's staff info).
      *                  03/11/18 -  ATTD -  Removed 9th hotel.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateHotelsTable() {
         
@@ -952,8 +1080,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -965,7 +1093,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -978,6 +1106,7 @@ public class WolfInns {
      * 
      * Modifications:   03/07/18 -  MTA -   Created method.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void updateHotelIdForStaff() {
     	
@@ -989,6 +1118,7 @@ public class WolfInns {
              try {
              
                  // Update(Assign) HotelId for Staff 
+                 // TODO: use prepared statement instead
                  jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 1 WHERE ID >=1 AND ID <=8;");
                  jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 2 WHERE ID >=9 AND ID <=14;");
                  jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 3 WHERE ID >=15 AND ID <=20;");
@@ -1006,8 +1136,8 @@ public class WolfInns {
              }
              catch (Throwable err) {
                  
-                 // Print stack trace
-                 err.printStackTrace();
+                 // Handle error
+                 handleError(err);
                  // Roll back the entire transaction
                  jdbc_connection.rollback();
                  
@@ -1019,7 +1149,7 @@ public class WolfInns {
              
          }
          catch (Throwable err) {
-             err.printStackTrace();
+             handleError(err);
          }
     }
         
@@ -1037,6 +1167,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Do not set DRSStaff and DCStaff to NULL explicitly (no need to).
      *                                      Do not set DRSStaff and DCStaff to non-NULL, for rooms not currently occupied.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateRoomsTable() {
         
@@ -1050,6 +1181,7 @@ public class WolfInns {
                 // Populating data for Rooms
                 
                 // Hotel # 1
+                // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 1, 'ECONOMY', 3, 150);");
@@ -1060,6 +1192,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (3, 1, 'EXECUTIVE_SUITE', 4, 300);");
         		// Hotel # 2
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 2, 'DELUXE', 3, 200);");
@@ -1070,6 +1203,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (3, 2, 'EXECUTIVE_SUITE', 4, 250);");
         		// Hotel # 3
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 3, 'PRESIDENTIAL_SUITE', 3, 550);");
@@ -1080,6 +1214,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (3, 3, 'DELUXE', 3, 450);");
         		// Hotel # 4
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 4, 'ECONOMY', 4, 100);");
@@ -1087,6 +1222,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (2, 4, 'EXECUTIVE_SUITE', 4, 250);");
         		// Hotel # 5
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 5, 'DELUXE', 3, 300);");
@@ -1097,6 +1233,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (3, 5, 'PRESIDENTIAL_SUITE', 4, 500);");
         		// Hotel # 6
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 6, 'ECONOMY', 2, 220);");
@@ -1104,6 +1241,7 @@ public class WolfInns {
     		        " (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (2, 6, 'DELUXE', 4, 350);");
         		// Hotel # 7
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 7, 'ECONOMY', 2, 125);");
@@ -1111,6 +1249,7 @@ public class WolfInns {
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (2, 7, 'EXECUTIVE_SUITE', 4, 400);");
         		// Hotel # 8
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
     				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
     				" (1, 8, 'ECONOMY', 2, 200);");
@@ -1132,8 +1271,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -1145,7 +1284,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1170,6 +1309,7 @@ public class WolfInns {
      *                                      Instead, set by running billing report on the stay.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateStaysTable() {
         
@@ -1180,7 +1320,8 @@ public class WolfInns {
             
             try {
             
-                // Stays where the guest has already checked out
+                // Stays where the guest has already checked out'
+                // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
     				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
@@ -1200,6 +1341,7 @@ public class WolfInns {
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
     				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH');");
         		// Stays that are still going on
+        		// TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Stays "+
     				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
     				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
@@ -1215,8 +1357,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle Error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -1228,7 +1370,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1247,6 +1389,7 @@ public class WolfInns {
      *                                      (itemized receipt needs to sum costs for all instances of the same service type).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void populateProvidedTable() {
         
@@ -1258,6 +1401,7 @@ public class WolfInns {
             try {
             
                 // Populating data for Provided
+                // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
     				" (1, 7, 'Gym')");
@@ -1297,8 +1441,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
                 
@@ -1310,7 +1454,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1322,6 +1466,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void updateAmountOwedForStays() {
         
@@ -1332,6 +1477,7 @@ public class WolfInns {
             int stayID;
 
             // Find the stays that have actually ended (no transaction needed for a query)
+            // TODO: use prepared statement instead
             local_jdbc_result = jdbc_statement.executeQuery("SELECT ID FROM Stays WHERE EndDate IS NOT NULL");
             
             // Go through and update amount owed for all stays that have actually ended
@@ -1342,7 +1488,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1356,6 +1502,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void generateBillAndReceipt() {
         
@@ -1373,7 +1520,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1387,66 +1534,45 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new attribute / value sanity checking method.
+     *                                      Use new general error handler.
      */
     public static void reportHotelRevenue() {
 
-        String errorMessage;
         try {
             
             // Declare local variables
             int hotelID;
+            String hotelIdAsString = "";
             String startDate = "";
             String endDate = "";
-            boolean okaySoFar;
             
             // Get name
             System.out.print("\nEnter the hotel ID\n> ");
-            hotelID = Integer.parseInt(scanner.nextLine());
-            
-            // Get start date
-            System.out.print("\nEnter the start date\n> ");
-            startDate = scanner.nextLine();
-            /* DBMS seems to accept a malformed date with no complaints
-             * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
-             */
-            okaySoFar = true;
-            if (startDate.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
-                System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot run revenue report)\n");
-                okaySoFar = false;
-            }
-            
-            // Get end date
-            if (okaySoFar) {
-                System.out.print("\nEnter the end date\n> ");
-                endDate = scanner.nextLine();
-                /* DBMS seems to accept a malformed date with no complaints
-                 * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
-                 */
-                if (endDate.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
-                    System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot run revenue report)\n");
-                    okaySoFar = false;
+            hotelIdAsString = scanner.nextLine();
+            if (isValueSane("ID", hotelIdAsString)) {
+                hotelID = Integer.parseInt(hotelIdAsString);
+                // Get start date
+                System.out.print("\nEnter the start date\n> ");
+                startDate = scanner.nextLine();
+                if (isValueSane("StartDate", startDate)) {
+                    // Get end date
+                    System.out.print("\nEnter the end date\n> ");
+                    endDate = scanner.nextLine();
+                    if (isValueSane("EndDate", endDate)) {
+                        // Call method to actually interact with the DB
+                        queryHotelRevenue(hotelID, startDate, endDate);
+                    }
                 }
-            }
-
-            // Call method to actually interact with the DB
-            if (okaySoFar) {
-                queryHotelRevenue(hotelID, startDate, endDate);
             }
             
         }
         catch (Throwable err) {
-            // Handle non-SQL errors
-            errorMessage = err.toString();
-            if (errorMessage.contains("NumberFormatException")) {
-                // Tried to enter a number that wasn't quite a number
-                System.out.println("Hotel ID not entered correctly (cannot run revenue report)\n");
-            }
-            else {
-                err.printStackTrace();
-            }
+            handleError(err);
         }
         
     }
+
     
     /** 
      * Report task: Report all results from a given table
@@ -1455,6 +1581,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void reportEntireTable(String tableName) {
 
@@ -1462,12 +1589,40 @@ public class WolfInns {
             
             // Report entire table (no transaction needed for a query)
             System.out.println("\nEntries in the " + tableName + " table:\n");
+            // TODO: use prepared statement instead
             jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
             printQueryResultSet(jdbc_result);
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Report task: Report all values of a single tuple of the Hotels table, by ID
+     * 
+     * Arguments -  id -        The ID of the tuple.
+     * Return -     None
+     * 
+     * Modifications:   03/23/18 -  ATTD -  Created method.
+     */
+    public static void reportHotelByID(int id) {
+
+        try {
+            
+            // Get entire tuple from table
+            jdbcPrep_getHotelByID.setInt(1, id);
+            jdbc_result = jdbcPrep_getHotelByID.executeQuery();
+            
+            // Print result
+            System.out.println("\nHotel Information:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
         }
         
     }
@@ -1485,6 +1640,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Made printout slightly prettier.
      *                  03/08/18 -  ATTD -  At the end, print number of records in result set.
      *                  03/21/18 -  ATTD -  Print column label instead of column name.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void printQueryResultSet(ResultSet resultSetToPrint) {
         
@@ -1539,7 +1695,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1554,10 +1710,12 @@ public class WolfInns {
      * 
      * Modifications:   03/08/18 -  ATTD -  Created method.
      *                  03/09/18 -  ATTD -  Another minor tweak.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
         
         // Declare constants
+        // TODO: find some smarter way to print query result set, this approach still has the Hotels table printing out funny, for example
         final int NUM_PAD_CHARS_STATE =         6;
         final int NUM_PAD_CHARS_NUMBER =        12;
         final int NUM_PAD_CHARS_DATE_TIME =     11;
@@ -1592,7 +1750,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
         return numPadChars;
@@ -1608,6 +1766,7 @@ public class WolfInns {
      * Return -     stringOut -         The padded string
      * 
      * Modifications:   03/08/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static String padRight(String stringIn, int numDesiredChars) {
         
@@ -1619,7 +1778,7 @@ public class WolfInns {
             stringOut = String.format("%1$-" + numDesiredChars + "s", stringIn); 
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
         return stringOut;
@@ -1635,10 +1794,11 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/08/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new attribute / value sanity checking method.
+     *                                      Use new general error handler.
      */
     public static void manageHotelAdd() {
-        
-        String errorMessage; 
+
         try {
             
             // Declare local variables
@@ -1647,105 +1807,109 @@ public class WolfInns {
             String city = "";
             String state = "";
             String phoneNumAsString = "";
+            String managerIdAsString = "";
             long phoneNum = 0;
             int managerID = 0;
-            boolean okaySoFar = true;
             
             // Get name
             System.out.print("\nEnter the hotel name\n> ");
             hotelName = scanner.nextLine();
-            // Don't know of a way to have DBMS check string length (CHECK not supported)
-            if (hotelName.length() == 0) {
-                System.out.println("Hotel name not entered (cannot add hotel)\n");
-                okaySoFar = false;
-            }
-            
-            // Get street address
-            if (okaySoFar) {
+            if (isValueSane("Name", hotelName)) {
+                // Get street address
                 System.out.print("\nEnter the hotel's street address\n> ");
                 streetAddress = scanner.nextLine();
-                // Don't know of a way to have DBMS check string length (CHECK not supported)
-                if (streetAddress.length() == 0) {
-                    System.out.println("Street address not entered (cannot add hotel)\n");
-                    okaySoFar = false;
+                if (isValueSane("StreetAddress", streetAddress)) {
+                    // Get city
+                    System.out.print("\nEnter the hotel's city\n> ");
+                    city = scanner.nextLine();
+                    if (isValueSane("City", city)) {
+                        // Get state
+                        System.out.print("\nEnter the hotel's state\n> ");
+                        state = scanner.nextLine();
+                        if (isValueSane("State", state)) {
+                            // Get phone number
+                            System.out.print("\nEnter the hotel's phone number\n> ");
+                            phoneNumAsString = scanner.nextLine();
+                            if (isValueSane("PhoneNum", phoneNumAsString)) {
+                                phoneNum = Long.parseLong(phoneNumAsString);
+                                // Get manager
+                                System.out.print("\nEnter the hotel's manager's staff ID\n> ");
+                                managerIdAsString = scanner.nextLine();
+                                if (isValueSane("ManagerID", managerIdAsString)) {
+                                    managerID = Integer.parseInt(managerIdAsString);
+                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                    updateInsertHotel(hotelName, streetAddress, city, state, phoneNum, managerID, true);
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-
-            // Get city
-            if (okaySoFar) {
-                System.out.print("\nEnter the hotel's city\n> ");
-                city = scanner.nextLine();
-                // Don't know of a way to have DBMS check string length (CHECK not supported)
-                if (city.length() == 0) {
-                    System.out.println("City not entered (cannot add hotel)\n");
-                    okaySoFar = false;
-                }
-            }
-            
-            // Get state
-            if (okaySoFar) {
-                System.out.print("\nEnter the hotel's state\n> ");
-                state = scanner.nextLine();
-                // Don't know of a way to have DBMS check string length (CHECK not supported)
-                if (state.length() != 2) {
-                    System.out.println("State '" + state + "' malformed, should have 2 letters (cannot add hotel)\n");
-                    okaySoFar = false;
-                }
-            }
-
-            // Get phone number
-            if (okaySoFar) {
-                System.out.print("\nEnter the hotel's phone number\n> ");
-                phoneNumAsString = scanner.nextLine();
-                if (phoneNumAsString.length() != 10) {
-                    System.out.println("Phone number '" + phoneNumAsString + "' malformed, should have 10 digits (cannot add hotel)\n");
-                    okaySoFar = false;
-                }
-                else {
-                    phoneNum = Long.parseLong(phoneNumAsString);
-                }
-            }
-
-            // Get manager
-            if (okaySoFar) {
-                System.out.print("\nEnter the hotel's manager's staff ID\n> ");
-                managerID = Integer.parseInt(scanner.nextLine());
-                /* Don't know of a way to have DBMS check that manager isn't dedicated to a presidential suite (ASSERTION not supported)
-                 *  (no transaction needed for a query)
-                 */
-                jdbc_result = jdbc_statement.executeQuery("SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
-                        "FROM Staff, Rooms WHERE Staff.ID = " + 
-                        managerID + 
-                        " AND (Rooms.DRSStaff = " + managerID + " OR Rooms.DCStaff = " + managerID + ")");
-                
-                if (jdbc_result.next()) {
-                    System.out.println("\nThis manager cannot manage the '" + 
-                            hotelName + 
-                            "' hotel, because they are already dedicated to serving a presidential suite\n");
-                    jdbc_result.beforeFirst();
-                    printQueryResultSet(jdbc_result);
-                    okaySoFar = false;
-                }
-            }
-
-            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-            if (okaySoFar) {
-                updateInsertHotel(hotelName, streetAddress, city, state, phoneNum, managerID, true);
             }
             
         }
         catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Management task: Change information about a hotel
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/23/18 -  ATTD -  Created method.
+     */
+    public static void manageHotelUpdate() {
+
+        try {
+
+            // Declare local variables
+            String hotelIdAsString = "";
+            String attributeToChange = "";
+            String valueToChangeTo;
+            int hotelID = 0;
+            boolean userWantsToStop = false;
             
-            // Handle non-SQL errors
-            errorMessage = err.toString();
-            if (errorMessage.contains("NumberFormatException")) {
-                // Tried to enter a number that wasn't quite a number
-                System.out.println("This needs to be a number (cannot add hotel)\n");
-            }
-            else {
-                err.printStackTrace();
+            // Print hotels to console so user has some context
+            reportEntireTable("Hotels");
+            
+            // Get hotel ID
+            System.out.print("\nEnter the hotel ID for the hotel you wish to make changes for\n> ");
+            hotelIdAsString = scanner.nextLine();
+            if (isValueSane("ID", hotelIdAsString)) {
+                hotelID = Integer.parseInt(hotelIdAsString);
+                // Print just that hotel to console so user has some context
+                reportHotelByID(hotelID);
+                // Keep updating values until the user wants to stop
+                while (userWantsToStop == false) {
+                    // Get name of attribute they want to change
+                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                    attributeToChange = scanner.nextLine();
+                    if (isValueSane("AnyAttr", attributeToChange)) {
+                        // Get value they want to change the attribute to
+                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                        valueToChangeTo = scanner.nextLine();
+                        if (isValueSane("AnyAttr", valueToChangeTo)) {
+                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                            updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
+                        }
+                        else {
+                            userWantsToStop = true;
+                        }
+                    }
+                    else {
+                        userWantsToStop = true;
+                    }
+                }
+                // Report results of all the updates
+                reportHotelByID(hotelID);
             }
             
+        }
+        catch (Throwable err) {
+            handleError(err);
         }
         
     }
@@ -1757,6 +1921,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void manageHotelDelete() {
 
@@ -1774,7 +1939,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1786,6 +1951,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/12/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void manageStaffDelete() {
 
@@ -1803,8 +1969,88 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
+        
+    }
+    
+    // SANITY CHECK VALUES
+    
+    /** 
+     * Given a value, and an indication of its intended meaning, determine if it's "sane"
+     * This method exists in part because the version of MariaDB suggested for use in this project
+     * supports neither CHECK nor ASSERTION
+     * 
+     * Arguments -  attributeName - The name of the attribute ("PhoneNum", "Address", etc)
+     *              proposedValue - The proposed value for the attribute (as a string)
+     * Return -     okaySoFar -     True if the value seems sane at first glance
+     * 
+     * Modifications:   03/23/18 -  ATTD -  Created method.
+     */
+    public static boolean isValueSane(String attributeName, String proposedValue) {
+        
+        // Declare local variables
+        boolean okaySoFar = true;
+        
+        try {
+            
+            if (okaySoFar && attributeName.length() == 0) {
+                System.out.println("Attribute not entered (cannot proceed)\n");
+                okaySoFar = false;
+            }
+            if (okaySoFar && proposedValue.length() == 0) {
+                System.out.println("Value not entered (cannot proceed)\n");
+                okaySoFar = false;
+            }
+            /* Check for malformed state
+             * DBMS seems to accept a malformed date with no complaints
+             * even though we define as CHAR(2)
+             */
+            if (okaySoFar && attributeName.equals("State") && proposedValue.length() != 2) {
+                System.out.println("State '" + proposedValue + "' malformed, should have 2 letters (cannot proceed)\n");
+                okaySoFar = false;
+            }
+            // Check for malformed phone number
+            if (okaySoFar && attributeName.equals("PhoneNum") && proposedValue.length() != 10) {
+                System.out.println("Phone number '" + proposedValue + "' malformed, should have 10 digits (cannot proceed)\n");
+                okaySoFar = false;
+            }
+            /* Check for malformed date
+             * DBMS seems to accept a malformed date with no complaints
+             * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
+             */
+            if (okaySoFar && (attributeName.contains("Date") || attributeName.equals("DOB") ) && proposedValue.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
+                System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot proceed)\n");
+                okaySoFar = false;
+            }
+            /* Check for "bad" manager
+             * Don't know of a way to have DBMS check that manager isn't dedicated to a presidential suite (ASSERTION not supported)
+             */
+            if (okaySoFar && attributeName.equals("ManagerID")) {
+                // TODO: use prepared statement instead
+                jdbc_result = jdbc_statement.executeQuery(
+                        "SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
+                        "FROM Staff, Rooms " + 
+                        "WHERE Staff.ID = " + 
+                        Integer.parseInt(proposedValue) + 
+                        " AND (Rooms.DRSStaff = " + Integer.parseInt(proposedValue) + " OR Rooms.DCStaff = " + Integer.parseInt(proposedValue) + ")");
+                
+                if (jdbc_result.next()) {
+                    System.out.println("\nThis manager cannot be used, because they are already dedicated to serving a presidential suite\n");
+                    jdbc_result.beforeFirst();
+                    printQueryResultSet(jdbc_result);
+                    okaySoFar = false;
+                }
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+            okaySoFar = false;
+        }
+        
+        // Return
+        return okaySoFar;
         
     }
     
@@ -1824,6 +2070,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void queryItemizedReceipt (int stayID, boolean reportResults) {
 
@@ -1841,6 +2088,7 @@ public class WolfInns {
             try {
                 
                 // Generate an itemized receipt for the stay
+                // TODO: use prepared statement instead
                 itemizedReceiptSQL = 
                         "(" + 
                             "SELECT 'NIGHT' AS Item, Nights AS Qty, NightlyRate AS ItemCost, Nights * NightlyRate AS TotalCost " + 
@@ -1878,12 +2126,14 @@ public class WolfInns {
                 }
                 
                 // Calculate the total amount owed, both before and after the possible hotel credit card discount
+                // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
                         "SELECT SUM(TotalCost) FROM (" + 
                         itemizedReceiptSQL + 
                         ") AS ItemizedReceipt;");
                 jdbc_result.next();
                 amountOwedBeforeDiscount = jdbc_result.getDouble(1);
+                // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
                         "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
                         stayID + 
@@ -1894,6 +2144,7 @@ public class WolfInns {
                 amountOwedAfterDiscount = jdbc_result.getDouble(1);
                 
                 // Update the stay with the total amount owed
+                // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate("UPDATE Stays SET AmountOwed = " + amountOwedAfterDiscount + " WHERE ID = " + stayID);
                 
                 // If success, commit
@@ -1909,13 +2160,10 @@ public class WolfInns {
                 
             }
             catch (Throwable err) {
-                
-                // Print stack trace
-                err.printStackTrace();
-
+                // Handle error
+                handleError(err);
                 // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
+                jdbc_connection.rollback(); 
             }
             finally {
                 // Restore normal auto-commit mode
@@ -1924,7 +2172,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1938,6 +2186,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void queryHotelRevenue (int hotelID, String queryStartDate, String queryEndDate) {
 
@@ -1952,6 +2201,7 @@ public class WolfInns {
              * So we always look at the end date for the customer's stay
              * No transaction needed for a query
              */
+            // TODO: use prepared statement instead
             jdbc_result = jdbc_statement.executeQuery("SELECT SUM(AmountOwed) " + 
                     "FROM Stays " +
                     "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
@@ -1965,7 +2215,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
         
     }
@@ -1992,12 +2242,12 @@ public class WolfInns {
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
      *                  03/20/18 -  ATTD -  Switch to using prepared statements.
      *                  03/21/18 -  ATTD -  Debug inserting new hotel with prepared statements.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void updateInsertHotel (String hotelName, String streetAddress, String city, String state, long phoneNum, int managerID, boolean reportSuccess) {
         
         // Declare variables
         int newHotelID;
-        String errorMessage;
         
         try {
 
@@ -2037,52 +2287,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Handle SQL errors
-                errorMessage = err.toString();
-                // UNIQUE constraint violated
-                if (errorMessage.contains("UC_HACS")) {
-                    // Tried to enter a phone number for the hotel that is already used by a different hotel
-                    System.out.println(
-                        "\nCannot use this address / city / steate for the '" + 
-                        hotelName + 
-                        "' hotel, because it is already used for another hotel\n"
-                    );
-                    jdbcPrep_getHotelSummaryForAddress.setString(1, streetAddress);
-                    jdbcPrep_getHotelSummaryForAddress.setString(2, city);
-                    jdbcPrep_getHotelSummaryForAddress.setString(3, state);
-                    jdbc_result = jdbcPrep_getHotelSummaryForAddress.executeQuery();
-                    printQueryResultSet(jdbc_result);
-                }
-                else if (errorMessage.contains("UC_HPN")) {
-                    // Tried to enter a phone number for the hotel that is already used by a different hotel
-                    System.out.println(
-                        "\nCannot use this phone number for the '" + 
-                        hotelName + 
-                        "' hotel, because it is already used for another hotel\n"
-                    );
-                    jdbcPrep_getHotelSummaryForPhoneNumber.setLong(1, phoneNum);
-                    jdbc_result = jdbcPrep_getHotelSummaryForPhoneNumber.executeQuery();
-                    printQueryResultSet(jdbc_result);
-                }
-                else if (errorMessage.contains("UC_HMID")) {
-                    // Tried to enter an ID for a manager that is already managing some other hotel
-                    System.out.println(
-                        "\nThis manager cannot manage the '" + 
-                        hotelName + 
-                        "' hotel, because they are already managing another hotel\n"
-                    );
-                    jdbcPrep_getHotelSummaryForStaffMember.setInt(1, managerID);
-                    jdbc_result = jdbcPrep_getHotelSummaryForStaffMember.executeQuery();
-                    printQueryResultSet(jdbc_result);
-                }
-                // FOREIGN KEY constraint violated
-                else if (errorMessage.contains("FK_HMID")) {
-                    // Tried to enter an ID for a manager that does not exist
-                    System.out.println("\nThere is no staff member with the ID '" + managerID + "' (cannot add hotel)\n");
-                }
-                else {
-                    err.printStackTrace();
-                }
+                // Handle error
+                handleError(err);
                 
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
@@ -2095,7 +2301,98 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * DB Update: Change Hotel Information
+     * 
+     * Arguments -  hotelID -           The ID of the hotel to update
+     *              attributeToChange - The attribute to update
+     *              valueToChangeTo -   The value to update this attribute to (as a string)
+     * Return -     None
+     * 
+     * Modifications:   03/23/18 -  ATTD -  Created method.
+     */
+    public static void updateChangeHotelInfo (int hotelID, String attributeToChange, String valueToChangeTo) {
+        
+        try {
+
+            // Safeguard - make sure changes will commit
+            jdbc_connection.setAutoCommit(true);
+            
+            // Update hotel info, using prepared statement
+            switch (attributeToChange) {
+                case "Name":
+                    jdbcPrep_udpateHotelName.setString(1, valueToChangeTo);
+                    jdbcPrep_udpateHotelName.setInt(2, hotelID);
+                    jdbcPrep_udpateHotelName.executeUpdate();
+                    break;
+                case "StreetAddress":
+                    jdbcPrep_updateHotelStreetAddress.setString(1, valueToChangeTo);
+                    jdbcPrep_updateHotelStreetAddress.setInt(2, hotelID);
+                    jdbcPrep_updateHotelStreetAddress.executeUpdate();
+                    break;
+                case "City":
+                    jdbcPrep_updateHotelCity.setString(1, valueToChangeTo);
+                    jdbcPrep_updateHotelCity.setInt(2, hotelID);
+                    jdbcPrep_updateHotelCity.executeUpdate();
+                    break;
+                case "State":
+                    jdbcPrep_udpateHotelState.setString(1, valueToChangeTo);
+                    jdbcPrep_udpateHotelState.setInt(2, hotelID);
+                    jdbcPrep_udpateHotelState.executeUpdate();
+                    break;
+                case "PhoneNum":
+                    jdbcPrep_updateHotelPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
+                    jdbcPrep_updateHotelPhoneNum.setInt(2, hotelID);
+                    jdbcPrep_updateHotelPhoneNum.executeUpdate();
+                    break;
+                case "ManagerID":
+                    /* This one is a special case
+                     * 1 -  Demote old manager to front desk representative
+                     * 2 -  Actually update the manager ID of the hotel
+                     * 3 -  Update new manager to have the correct job title and hotel assignment
+                     */
+                    jdbc_connection.setAutoCommit(false);
+                    try {
+                        // Demote old manager
+                        jdbcPrep_demoteOldManager.setInt(1, hotelID);
+                        jdbcPrep_demoteOldManager.executeUpdate();
+                        // Update hotel manager ID
+                        jdbcPrep_updateHotelManagerID.setLong(1, Integer.parseInt(valueToChangeTo));
+                        jdbcPrep_updateHotelManagerID.setInt(2, hotelID);
+                        jdbcPrep_updateHotelManagerID.executeUpdate();
+                        // Promote new manager
+                        jdbcPrep_promoteNewManager.setInt(1, hotelID);
+                        jdbcPrep_promoteNewManager.setInt(2, Integer.parseInt(valueToChangeTo));
+                        jdbcPrep_promoteNewManager.executeUpdate();
+                        // If success, commit
+                        jdbc_connection.commit();
+                    }
+                    catch (Throwable err) {
+                        // Handle error
+                        handleError(err);
+                        // Roll back the entire transaction
+                        jdbc_connection.rollback(); 
+                    }
+                    finally {
+                        // Restore normal auto-commit mode
+                        jdbc_connection.setAutoCommit(true);
+                    }
+                    break;
+                default:
+                    System.out.println(
+                        "\nCannot update the '" + attributeToChange + "' attribute of a hotel, because this is not a recognized attribute for Wolf Inns hotels\n"
+                    );
+                    break;
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);            
         }
         
     }
@@ -2113,6 +2410,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void updateDeleteHotel (long hotelID, boolean reportSuccess) {
 
@@ -2121,6 +2419,7 @@ public class WolfInns {
             /* Remove the hotel from the Hotels table
              * No need to explicitly set up a transaction, because only one SQL command is needed
              */
+            // TODO: use prepared statement instead
             jdbc_statement.executeUpdate("DELETE FROM Hotels "+
                 "WHERE ID = " + hotelID);
             
@@ -2131,7 +2430,7 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+             handleError(err);
         }
         
     }
@@ -2144,6 +2443,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/12/18 -  ATTD -  Created method.
+     *                  03/23/18 -  ATTD -  Use new general error handler.
      */
     public static void updateDeleteStaff (long staffID, boolean reportSuccess) {
 
@@ -2159,11 +2459,13 @@ public class WolfInns {
                 int numStaffAfter = 0;
                 
                 // How many staff members exist before the attempt
+                // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
                 jdbc_result.next();
                 numStaffBefore = jdbc_result.getInt(1);
                 
                 // Remove the staff member from the Staff table
+                // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate(
                     "DELETE " +
                     "FROM Staff " +
@@ -2190,6 +2492,7 @@ public class WolfInns {
                 );
                 
                 // How many staff members exist after the attempt
+                // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
                 jdbc_result.next();
                 numStaffAfter = jdbc_result.getInt(1);
@@ -2213,8 +2516,8 @@ public class WolfInns {
             }
             catch (Throwable err) {
                 
-                // Print stack trace
-                err.printStackTrace();
+                // Handle error
+                handleError(err);
                 
                 // Roll back the entire transaction
                 jdbc_connection.rollback();
@@ -2227,7 +2530,123 @@ public class WolfInns {
             
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * General error handler
+     * Turn obscure error stack into human-understandable feedback
+     * 
+     * Arguments -  err -   An error object.
+     * Return -     None
+     * 
+     * Modifications:   03/23/18 -  ATTD -  Created method.
+     */
+    public static void handleError(Throwable err) {
+        
+        // Declare variables
+        String errorMessage;
+        
+        try {
+            
+            // Handle specific errors
+            errorMessage = err.toString();
+            
+            // HOTELS constraint violated
+            if (errorMessage.contains("UC_HACS")) {
+                System.out.println(
+                    "\nCannot use this address / city / state for the hotel, because it is already used for another hotel\n"
+                );
+            }
+            else if (errorMessage.contains("UC_HPN")) {
+                System.out.println(
+                    "\nCannot use this phone number for the hotel, because it is already used for another hotel\n"
+                );
+            }
+            else if (errorMessage.contains("UC_HMID")) {
+                System.out.println(
+                    "\nCannot use this manager for the hotel, because they are already managing another hotel\n"
+                );
+            }
+            else if (errorMessage.contains("FK_HMID")) {
+                System.out.println(
+                        "\nCannot use this manager for the hotel, because they are not registered as a Wolf Inns staff member\n"
+                    );
+            }
+            
+            // STAFF constraint violated
+            else if (errorMessage.contains("FK_STAFFHID")) {
+                System.out.println(
+                    "\nCannot assign the staff member to this hotel, because it is not registered as a Wolf Inns hotel\n"
+                );
+            }
+            
+            // ROOMS constraint violated
+            else if (errorMessage.contains("FK_ROOMHID")) {
+                System.out.println(
+                    "\nCannot assign the room to this hotel, because it is not registered as a Wolf Inns hotel\n"
+                );
+            }
+            else if (errorMessage.contains("FK_ROOMDRSID")) {
+                System.out.println(
+                    "\nCannot assign this staff member as dedicated room service staff, because they are not registered as a Wolf Inns staff member\n"
+                );
+            }
+            else if (errorMessage.contains("FK_ROOMDCID")) {
+                System.out.println(
+                    "\nCannot assign this staff member as dedicated catering staff, because they are not registered as a Wolf Inns staff member\n"
+                );
+            }
+            
+            // STAYS constraint violated
+            else if (errorMessage.contains("UC_STAYKEY")) {
+                System.out.println(
+                    "\nCannot use this combination of start date / check in time / room number / hotel ID the stay, because it is already used for another stay\n"
+                );
+            }
+            else if (errorMessage.contains("FK_STAYRID")) {
+                System.out.println(
+                    "\nCannot use this combination of room number / hotel ID the stay, because it is not registered as a Wolf Inns hotel room\n"
+                );
+            }
+            else if (errorMessage.contains("FK_STAYCSSN")) {
+                System.out.println(
+                    "\nCannot use this customer SSN the stay, because there is no registered Wolf Inns customer with that SSN\n"
+                );
+            }
+            
+            // PROVIDED constraint violated
+            else if (errorMessage.contains("FK_PROVSTAYID")) {
+                System.out.println(
+                    "\nCannot use this stay ID for the provided service, because it is not registerd as a Wolf Inns customer stay\n"
+                );
+            }
+            else if (errorMessage.contains("FK_PROVSTAFFID")) {
+                System.out.println(
+                    "\nCannot use this staff member for the provided service, because they are not registerd as a Wolf Inns staff member\n"
+                );
+            }
+            else if (errorMessage.contains("FK_PROVSERV")) {
+                System.out.println(
+                    "\nCannot use this service name for the provided service, because it is not registerd as a Wolf Inns available service\n"
+                );
+            }
+            
+            // Number format error
+            else if (errorMessage.contains("NumberFormatException")) {
+                System.out.println("Cannot use this value because it it not a number\n");
+            }
+            
+            // Don't know what happened, best we can do is print the stack trace as-is
+            else {
+                err.printStackTrace();
+            }
+            
+        }
+        catch (Throwable e) {
+            e.printStackTrace();
         }
         
     }
@@ -2250,6 +2669,8 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Add ability to delete staff member.
      *                  03/20/18 -  ATTD -  Add call to new method for creating prepared statements.
      *                  03/21/18 -  ATTD -  Close more resources during clean-up.
+     *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
+     *                                      Use new general error handler.
      */
     public static void main(String[] args) {
         
@@ -2392,6 +2813,9 @@ public class WolfInns {
                         case CMD_MANAGE_HOTEL_ADD:
                             manageHotelAdd();
                             break;
+                        case CMD_MANAGE_HOTEL_UPDATE:
+                            manageHotelUpdate();
+                            break;
                         case CMD_MANAGE_HOTEL_DELETE:
                             manageHotelDelete();
                             break;
@@ -2422,15 +2846,24 @@ public class WolfInns {
             jdbc_result.close();
             jdbcPrep_insertNewHotel.close();
             jdbcPrep_updateNewHotelManager.close();
+            jdbcPrep_udpateHotelName.close();
+            jdbcPrep_updateHotelStreetAddress.close();
+            jdbcPrep_updateHotelCity.close();
+            jdbcPrep_udpateHotelState.close();
+            jdbcPrep_updateHotelPhoneNum.close();
+            jdbcPrep_updateHotelManagerID.close();
+            jdbcPrep_demoteOldManager.close();
+            jdbcPrep_promoteNewManager.close();
             jdbcPrep_getNewestHotelID.close();
             jdbcPrep_getHotelSummaryForAddress.close();
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
+            jdbcPrep_getHotelByID.close();
             jdbc_connection.close();
         
         }
         catch (Throwable err) {
-            err.printStackTrace();
+            handleError(err);
         }
 
     }
