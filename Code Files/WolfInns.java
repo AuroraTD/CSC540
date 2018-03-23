@@ -67,6 +67,8 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_udpateHotelState;
     private static PreparedStatement jdbcPrep_updateHotelPhoneNum;
     private static PreparedStatement jdbcPrep_updateHotelManagerID;
+    private static PreparedStatement jdbcPrep_demoteOldManager;
+    private static PreparedStatement jdbcPrep_promoteNewManager;
     private static PreparedStatement jdbcPrep_getNewestHotelID;
     private static PreparedStatement jdbcPrep_getHotelSummaryForAddress;
     private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
@@ -319,8 +321,29 @@ public class WolfInns {
                 "UPDATE Hotels " + 
                 "SET ManagerID = ? " + 
                 "WHERE ID = ?;";
-            jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar); 
+            jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Demote the old manager of a given hotel to front desk representative
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Front Desk Representative' " + 
+                "WHERE JobTitle = 'Manager' AND HotelID = ?;";
+            jdbcPrep_demoteOldManager = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Promote a staff member to management of a hotel
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel ID
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = 'Manager', HotelID = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_promoteNewManager = jdbc_connection.prepareStatement(reusedSQLVar);
+
             /* Get the ID of the newest hotel in the DB
              * Indices to use when calling this prepared statement: n/a
              */
@@ -2137,13 +2160,10 @@ public class WolfInns {
                 
             }
             catch (Throwable err) {
-                
                 // Handle error
                 handleError(err);
-
                 // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
+                jdbc_connection.rollback(); 
             }
             finally {
                 // Restore normal auto-commit mode
@@ -2331,9 +2351,37 @@ public class WolfInns {
                     jdbcPrep_updateHotelPhoneNum.executeUpdate();
                     break;
                 case "ManagerID":
-                    jdbcPrep_updateHotelManagerID.setLong(1, Integer.parseInt(valueToChangeTo));
-                    jdbcPrep_updateHotelManagerID.setInt(2, hotelID);
-                    jdbcPrep_updateHotelManagerID.executeUpdate();
+                    /* This one is a special case
+                     * 1 -  Demote old manager to front desk representative
+                     * 2 -  Actually update the manager ID of the hotel
+                     * 3 -  Update new manager to have the correct job title and hotel assignment
+                     */
+                    jdbc_connection.setAutoCommit(false);
+                    try {
+                        // Demote old manager
+                        jdbcPrep_demoteOldManager.setInt(1, hotelID);
+                        jdbcPrep_demoteOldManager.executeUpdate();
+                        // Update hotel manager ID
+                        jdbcPrep_updateHotelManagerID.setLong(1, Integer.parseInt(valueToChangeTo));
+                        jdbcPrep_updateHotelManagerID.setInt(2, hotelID);
+                        jdbcPrep_updateHotelManagerID.executeUpdate();
+                        // Promote new manager
+                        jdbcPrep_promoteNewManager.setInt(1, hotelID);
+                        jdbcPrep_promoteNewManager.setInt(2, Integer.parseInt(valueToChangeTo));
+                        jdbcPrep_promoteNewManager.executeUpdate();
+                        // If success, commit
+                        jdbc_connection.commit();
+                    }
+                    catch (Throwable err) {
+                        // Handle error
+                        handleError(err);
+                        // Roll back the entire transaction
+                        jdbc_connection.rollback(); 
+                    }
+                    finally {
+                        // Restore normal auto-commit mode
+                        jdbc_connection.setAutoCommit(true);
+                    }
                     break;
                 default:
                     System.out.println(
@@ -2798,10 +2846,19 @@ public class WolfInns {
             jdbc_result.close();
             jdbcPrep_insertNewHotel.close();
             jdbcPrep_updateNewHotelManager.close();
+            jdbcPrep_udpateHotelName.close();
+            jdbcPrep_updateHotelStreetAddress.close();
+            jdbcPrep_updateHotelCity.close();
+            jdbcPrep_udpateHotelState.close();
+            jdbcPrep_updateHotelPhoneNum.close();
+            jdbcPrep_updateHotelManagerID.close();
+            jdbcPrep_demoteOldManager.close();
+            jdbcPrep_promoteNewManager.close();
             jdbcPrep_getNewestHotelID.close();
             jdbcPrep_getHotelSummaryForAddress.close();
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
+            jdbcPrep_getHotelByID.close();
             jdbc_connection.close();
         
         }
