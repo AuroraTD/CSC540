@@ -61,12 +61,17 @@ public class WolfInns {
     // Declare variables - prepared statements
     private static PreparedStatement jdbcPrep_insertNewHotel;
     private static PreparedStatement jdbcPrep_updateNewHotelManager;
-    private static PreparedStatement jdbcPrep_udpateHotelInfo;
+    private static PreparedStatement jdbcPrep_udpateHotelName;
+    private static PreparedStatement jdbcPrep_updateHotelStreetAddress;
+    private static PreparedStatement jdbcPrep_updateHotelCity;
+    private static PreparedStatement jdbcPrep_udpateHotelState;
+    private static PreparedStatement jdbcPrep_updateHotelPhoneNum;
+    private static PreparedStatement jdbcPrep_updateHotelManagerID;
     private static PreparedStatement jdbcPrep_getNewestHotelID;
     private static PreparedStatement jdbcPrep_getHotelSummaryForAddress;
     private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
     private static PreparedStatement jdbcPrep_getHotelSummaryForStaffMember;
-    private static PreparedStatement jdbcPrep_getTupleByID;
+    private static PreparedStatement jdbcPrep_getHotelByID;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -250,16 +255,71 @@ public class WolfInns {
                 "ID = (SELECT ManagerID FROM Hotels WHERE ID = (SELECT MAX(ID) FROM Hotels));";
             jdbcPrep_updateNewHotelManager = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            /* Update hotel information
+            /* Update hotel name
              * Indices to use when calling this prepared statement: 
-             * 1 -  hotel ID to change
-             * 3 -  value to change that attribute to
+             * 1 -  hotel name
+             * 2 -  hotel ID
              */
             reusedSQLVar = 
                 "UPDATE Hotels " + 
-                "SET ? = ? " + 
+                "SET Name = ? " + 
                 "WHERE ID = ?;";
-            jdbcPrep_udpateHotelInfo = jdbc_connection.prepareStatement(reusedSQLVar);
+            jdbcPrep_udpateHotelName = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Update hotel street address
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel street address
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET StreetAddress = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelStreetAddress = jdbc_connection.prepareStatement(reusedSQLVar); 
+
+            /* Update hotel city
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel city
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET City = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelCity = jdbc_connection.prepareStatement(reusedSQLVar); 
+
+            /* Update hotel state
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel state
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET State = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_udpateHotelState = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            /* Update hotel phone number
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel phone number
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET PhoneNum = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelPhoneNum = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            /* Update hotel managerID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel manager ID
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET ManagerID = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar); 
             
             /* Get the ID of the newest hotel in the DB
              * Indices to use when calling this prepared statement: n/a
@@ -300,14 +360,13 @@ public class WolfInns {
                 " AND Staff.HotelID = Hotels.ID;";
             jdbcPrep_getHotelSummaryForStaffMember = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            /* Get all values of a given tuple (by ID) from a given table
+            /* Get all values of a given tuple (by ID) from the Hotels table
              * Indices to use when calling this prepared statement:
-             * 1 -  table name
-             * 2 -  ID
+             * 1 -  ID
              */
             reusedSQLVar = 
-                "SELECT * FROM ? WHERE ID + ?;";
-            jdbcPrep_getTupleByID = jdbc_connection.prepareStatement(reusedSQLVar);
+                "SELECT * FROM Hotels WHERE ID = ?;";
+            jdbcPrep_getHotelByID = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1519,26 +1578,23 @@ public class WolfInns {
     }
     
     /** 
-     * Report task: Report all values of a single tuple, by ID
-     *              (only useful for tables that have "ID" as primary key)
+     * Report task: Report all values of a single tuple of the Hotels table, by ID
      * 
-     * Arguments -  tableName - The table to print a tuple for
-     *              id -        The ID of the tuple.
+     * Arguments -  id -        The ID of the tuple.
      * Return -     None
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      */
-    public static void reportTupleByID(String tableName, int id) {
+    public static void reportHotelByID(int id) {
 
         try {
             
             // Get entire tuple from table
-            jdbcPrep_getTupleByID.setString(1, tableName);
-            jdbcPrep_getTupleByID.setInt(2, id);
-            jdbc_result = jdbcPrep_insertNewHotel.executeQuery();
+            jdbcPrep_getHotelByID.setInt(1, id);
+            jdbc_result = jdbcPrep_getHotelByID.executeQuery();
             
             // Print result
-            System.out.println("\n" + tableName + " table ID " + id + ":\n");
+            System.out.println("\nHotel Information:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -1636,6 +1692,7 @@ public class WolfInns {
     public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
         
         // Declare constants
+        // TODO: find some smarter way to print query result set, this approach still has the Hotels table printing out funny, for example
         final int NUM_PAD_CHARS_STATE =         6;
         final int NUM_PAD_CHARS_NUMBER =        12;
         final int NUM_PAD_CHARS_DATE_TIME =     11;
@@ -1801,8 +1858,7 @@ public class WolfInns {
             if (isValueSane("ID", hotelIdAsString)) {
                 hotelID = Integer.parseInt(hotelIdAsString);
                 // Print just that hotel to console so user has some context
-                System.out.print("\nInformation for hotel ID '" + hotelID + "':\n> ");
-                reportTupleByID("Hotels", hotelID);
+                reportHotelByID(hotelID);
                 // Keep updating values until the user wants to stop
                 while (userWantsToStop == false) {
                     // Get name of attribute they want to change
@@ -1825,8 +1881,7 @@ public class WolfInns {
                     }
                 }
                 // Report results of all the updates
-                System.out.print("\nInformation for hotel ID '" + hotelID + "':\n> ");
-                reportTupleByID("Hotels", hotelID);
+                reportHotelByID(hotelID);
             }
             
         }
@@ -1929,7 +1984,7 @@ public class WolfInns {
              * even though we define as CHAR(2)
              */
             if (okaySoFar && attributeName.equals("State") && proposedValue.length() != 2) {
-                System.out.println("State '" + proposedValue + "' malformed, should have 2 letters (proceed)\n");
+                System.out.println("State '" + proposedValue + "' malformed, should have 2 letters (cannot proceed)\n");
                 okaySoFar = false;
             }
             // Check for malformed phone number
@@ -2244,20 +2299,48 @@ public class WolfInns {
     public static void updateChangeHotelInfo (int hotelID, String attributeToChange, String valueToChangeTo) {
         
         try {
+
+            // Safeguard - make sure changes will commit
+            jdbc_connection.setAutoCommit(true);
             
             // Update hotel info, using prepared statement
-            jdbcPrep_udpateHotelInfo.setInt(1, hotelID);
-            jdbcPrep_udpateHotelInfo.setString(2, attributeToChange);
-            if (attributeToChange.equals("PhoneNum")) {
-                jdbcPrep_udpateHotelInfo.setLong(3, Long.parseLong(valueToChangeTo));
+            switch (attributeToChange) {
+                case "Name":
+                    jdbcPrep_udpateHotelName.setString(1, valueToChangeTo);
+                    jdbcPrep_udpateHotelName.setInt(2, hotelID);
+                    jdbcPrep_udpateHotelName.executeUpdate();
+                    break;
+                case "StreetAddress":
+                    jdbcPrep_updateHotelStreetAddress.setString(1, valueToChangeTo);
+                    jdbcPrep_updateHotelStreetAddress.setInt(2, hotelID);
+                    jdbcPrep_updateHotelStreetAddress.executeUpdate();
+                    break;
+                case "City":
+                    jdbcPrep_updateHotelCity.setString(1, valueToChangeTo);
+                    jdbcPrep_updateHotelCity.setInt(2, hotelID);
+                    jdbcPrep_updateHotelCity.executeUpdate();
+                    break;
+                case "State":
+                    jdbcPrep_udpateHotelState.setString(1, valueToChangeTo);
+                    jdbcPrep_udpateHotelState.setInt(2, hotelID);
+                    jdbcPrep_udpateHotelState.executeUpdate();
+                    break;
+                case "PhoneNum":
+                    jdbcPrep_updateHotelPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
+                    jdbcPrep_updateHotelPhoneNum.setInt(2, hotelID);
+                    jdbcPrep_updateHotelPhoneNum.executeUpdate();
+                    break;
+                case "ManagerID":
+                    jdbcPrep_updateHotelManagerID.setLong(1, Integer.parseInt(valueToChangeTo));
+                    jdbcPrep_updateHotelManagerID.setInt(2, hotelID);
+                    jdbcPrep_updateHotelManagerID.executeUpdate();
+                    break;
+                default:
+                    System.out.println(
+                        "\nCannot update the '" + attributeToChange + "' attribute of a hotel, because this is not a recognized attribute for Wolf Inns hotels\n"
+                    );
+                    break;
             }
-            else if (attributeToChange.equals("ManagerID")) {
-                jdbcPrep_udpateHotelInfo.setInt(3, Integer.parseInt(valueToChangeTo));
-            }
-            else {
-                jdbcPrep_udpateHotelInfo.setString(3, valueToChangeTo);
-            }
-            jdbcPrep_udpateHotelInfo.executeUpdate();
             
         }
         catch (Throwable err) {
