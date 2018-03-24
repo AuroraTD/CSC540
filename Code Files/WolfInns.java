@@ -74,6 +74,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
     private static PreparedStatement jdbcPrep_getHotelSummaryForStaffMember;
     private static PreparedStatement jdbcPrep_getHotelByID;
+    private static PreparedStatement jdbcPrep_deleteHotel;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -215,6 +216,7 @@ public class WolfInns {
      *                                      Add more prepared statements to use when inserting new hotel.
      *                  03/23/18 -  ATTD -  Add support for updating basic information about a hotel.
      *                                      Use new general error handler.
+     *                  03/24/18 -  ATTD -  Add support for deleting a hotel.
      */
     public static void createPreparedStatements() {
         
@@ -390,6 +392,15 @@ public class WolfInns {
             reusedSQLVar = 
                 "SELECT * FROM Hotels WHERE ID = ?;";
             jdbcPrep_getHotelByID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Delete a hotel (by ID)
+             * Indices to use when calling this prepared statement:
+             * 1 -  ID
+             */
+            reusedSQLVar = 
+                "DELETE FROM Hotels WHERE ID = ? AND ID NOT IN " + 
+                "(SELECT HotelID FROM Stays WHERE CheckOutTime IS NULL OR EndDate IS NULL);";
+            jdbcPrep_deleteHotel = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1711,11 +1722,14 @@ public class WolfInns {
      * Modifications:   03/08/18 -  ATTD -  Created method.
      *                  03/09/18 -  ATTD -  Another minor tweak.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  ATTD -  Tweaked (didn't perfect).
      */
     public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
         
         // Declare constants
         // TODO: find some smarter way to print query result set, this approach still has the Hotels table printing out funny, for example
+        final int NUM_PAD_CHARS_ID =            5;
+        final int NUM_PAD_CHARS_DEP =           5;
         final int NUM_PAD_CHARS_STATE =         6;
         final int NUM_PAD_CHARS_NUMBER =        12;
         final int NUM_PAD_CHARS_DATE_TIME =     11;
@@ -1732,11 +1746,11 @@ public class WolfInns {
 
             columnType = metaData.getColumnTypeName(colNum);
             columnName = metaData.getColumnName(colNum);
-            if (columnType == "INTEGER" || columnType == "BIGINT" || columnType == "DOUBLE") {
-                numPadChars = NUM_PAD_CHARS_NUMBER;
+            if (columnName.equals("ID")) {
+                numPadChars = NUM_PAD_CHARS_ID;
             }
-            else if (columnType == "DATE" || columnType == "TIME") {
-                numPadChars = NUM_PAD_CHARS_DATE_TIME;
+            else if (columnName.equals("Dep")) {
+                numPadChars = NUM_PAD_CHARS_DEP;
             }
             else if (columnName.equals("Address")) {
                 numPadChars = NUM_PAD_CHARS_FULL_ADDRESS;
@@ -1746,6 +1760,12 @@ public class WolfInns {
             }
             else if (columnName.equals("Name")) {
                 numPadChars = NUM_PAD_CHARS_NAME;
+            }
+            else if (columnType == "INTEGER" || columnType == "BIGINT" || columnType == "DOUBLE") {
+                numPadChars = NUM_PAD_CHARS_NUMBER;
+            }
+            else if (columnType == "DATE" || columnType == "TIME") {
+                numPadChars = NUM_PAD_CHARS_DATE_TIME;
             }
             
         }
@@ -1922,17 +1942,22 @@ public class WolfInns {
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  ATTD -  Provide more context for user.
+     *                                      Change hotel ID from long to int.
      */
     public static void manageHotelDelete() {
 
         try {
             
             // Declare local variables
-            long hotelID = 0;
+            int hotelID = 0;
             
-            // Get name
-            System.out.print("\nEnter the hotel ID\n> ");
-            hotelID = Long.parseLong(scanner.nextLine());
+            // Print hotels to console so user has some context
+            reportEntireTable("Hotels");
+            
+            // Get ID of hotel to delete
+            System.out.print("\nEnter the hotel ID for the hotel you wish to delete\n> ");
+            hotelID = Integer.parseInt(scanner.nextLine());
 
             // Call method to actually interact with the DB
             updateDeleteHotel(hotelID, true);
@@ -2411,21 +2436,35 @@ public class WolfInns {
      * 
      * Modifications:   03/09/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  ATTD -  Use prepared statement.
+     *                                      Do not claim success unless the hotel actually got deleted.
      */
-    public static void updateDeleteHotel (long hotelID, boolean reportSuccess) {
+    public static void updateDeleteHotel (int hotelID, boolean reportSuccess) {
 
         try {
 
             /* Remove the hotel from the Hotels table
              * No need to explicitly set up a transaction, because only one SQL command is needed
              */
-            // TODO: use prepared statement instead
-            jdbc_statement.executeUpdate("DELETE FROM Hotels "+
-                "WHERE ID = " + hotelID);
+            jdbcPrep_deleteHotel.setInt(1, hotelID);
+            jdbcPrep_deleteHotel.executeUpdate();
             
-            // Tell the user about the success
-            if (reportSuccess) {
-                System.out.println("\nHotel ID " + hotelID + " deleted!\n");
+            // Did the deletion succeed?
+            jdbcPrep_getHotelByID.setInt(1, hotelID);
+            jdbc_result = jdbcPrep_getHotelByID.executeQuery();
+            if (jdbc_result.next()) {
+                // Always complain about a failure (never fail silently)
+                System.out.println(
+                    "\nHotel ID " + 
+                    hotelID + 
+                    " was NOT deleted (this can happen if a customer is currently staying in the hotel)\n"
+                );
+            }
+            else {
+                // Tell the user about the success, if we're supposed to
+                if (reportSuccess) {
+                    System.out.println("\nHotel ID " + hotelID + " deleted!\n");
+                }
             }
             
         }
@@ -2671,6 +2710,7 @@ public class WolfInns {
      *                  03/21/18 -  ATTD -  Close more resources during clean-up.
      *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
      *                                      Use new general error handler.
+     *                  03/24/18 -  ATTD -  Close prepared statement for deleting a hotel.
      */
     public static void main(String[] args) {
         
@@ -2859,6 +2899,7 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
             jdbcPrep_getHotelByID.close();
+            jdbcPrep_deleteHotel.close();
             jdbc_connection.close();
         
         }
