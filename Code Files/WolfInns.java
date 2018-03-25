@@ -45,6 +45,7 @@ public class WolfInns {
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
+    private static final String CMD_MANAGE_STAFF_ADD =      "ADDSTAFF";
     private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
     
     private static final String CMD_MANAGE_ROOM_ADD =       "ADDROOM";
@@ -62,7 +63,7 @@ public class WolfInns {
     private static ResultSet jdbc_result;
     private static String currentMenu;
     
-    // Declare variables - prepared statements
+    // Declare variables - prepared statements - HOTELS
     private static PreparedStatement jdbcPrep_insertNewHotel;
     private static PreparedStatement jdbcPrep_updateNewHotelManager;
     private static PreparedStatement jdbcPrep_udpateHotelName;
@@ -83,6 +84,10 @@ public class WolfInns {
     // Declare variables - prepared statements - Rooms
     private static PreparedStatement jdbcPrep_insertNewRoom;
     private static PreparedStatement jdbcPrep_isValidRoomNumber;	// while adding a new room
+    
+    // Declare variables - prepared statements - STAFF
+    private static PreparedStatement jdbcPrep_insertNewStaff;
+    private static PreparedStatement jdbcPrep_getNewestStaffID;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -105,8 +110,13 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete a staff member.
      *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
+<<<<<<< HEAD
      *                                      Use new general error handler. 
      *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room
+=======
+     *                                      Use new general error handler.
+     *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
+>>>>>>> refs/remotes/origin/Development
      */
     public static void printAvailableCommands(String menu) {
         
@@ -163,6 +173,8 @@ public class WolfInns {
                     System.out.println("\t- update information about a hotel");
                     System.out.println("'" + CMD_MANAGE_HOTEL_DELETE + "'");
                     System.out.println("\t- delete a hotel");
+                    System.out.println("'" + CMD_MANAGE_STAFF_ADD + "'");
+                    System.out.println("\t- add a staff member");
                     System.out.println("'" + CMD_MANAGE_STAFF_DELETE + "'");
                     System.out.println("\t- delete a staff member");
                     
@@ -234,6 +246,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Add support for updating basic information about a hotel.
      *                                      Use new general error handler.
      *                  03/24/18 -  ATTD -  Add support for deleting a hotel.
+     *                  03/24/18 -  ATTD -  Add support for adding a new staff member.
      */
     public static void createPreparedStatements() {
         
@@ -418,6 +431,27 @@ public class WolfInns {
                 "DELETE FROM Hotels WHERE ID = ? AND ID NOT IN " + 
                 "(SELECT HotelID FROM Stays WHERE CheckOutTime IS NULL OR EndDate IS NULL);";
             jdbcPrep_deleteHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Insert new staff member
+             * Indices to use when calling this prepared statement:
+             * 1 - name
+             * 2 - date of birth
+             * 3 - job title
+             * 4 - department
+             * 5 - phone number
+             * 6 - address
+             * 7 - hotel ID
+             */
+            reusedSQLVar = 
+                "INSERT INTO Staff (Name, DOB, JobTitle, Dep, PhoneNum, Address, HotelID) " + 
+                "VALUES (?, ?, ?, ?, ?, ?, ?);";
+            jdbcPrep_insertNewStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get the ID of the newest staff member in the DB
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT MAX(ID) FROM Staff;";
+            jdbcPrep_getNewestStaffID = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -841,6 +875,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  ATTD -  Call insert new staff member method, rather than having SQL directly in this method.
      */
     public static void populateStaffTable() {
         
@@ -853,194 +888,76 @@ public class WolfInns {
             
                 // Populating data for Staff
                 
-        		// Staff for Hotel#1
-                // TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Zoe Holmes', '1980-10-02', 'Manager', 'A', 8141113134, '123 6th St. Melbourne, FL 32904');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Katelyn Weeks', '1970-04-20', 'Front Desk Representative', 'B', 6926641058, '123 6th St. Melbourne, FL 32904');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Abby Huffman', '1990-12-14', 'Room Service', 'C', 6738742135, '71 Pilgrim Avenue Chevy Chase, MD 20815');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Oliver Gibson', '1985-05-12', 'Room Service', 'A', 1515218329, '70 Bowman St. South Windsor, CT 06074');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Michael Day', '1983-02-25', 'Catering', 'B', 3294931245, '4 Goldfield Rd. Honolulu, HI 96815');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('David Adams', '1985-01-17', 'Dry Cleaning', 'C', 9194153214, '44 Shirley Ave. West Chicago, IL 60185');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Ishaan Goodman', '1993-04-19', 'Gym', 'A', 5203201425, '514 S. Magnolia St. Orlando, FL 32806');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Nicholas Read', '1981-01-14', 'Catering', 'B', 2564132017, '236 Pumpkin Hill Court Leesburg, VA 20175');");
-        		
-        		// Staff for Hotel#2
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Dominic Mitchell', '1971-03-13', 'Manager', 'A', 2922497845, '7005 South Franklin St. Somerset, NJ 08873');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Oliver Lucas', '1961-05-11', 'Front Desk Representative', 'A', 2519881245, '7 Edgefield St. Augusta, GA 30906');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Molly Thomas', '1987-07-10', 'Room Service', 'B', 5425871245, '541 S. Holly Street Norcross, GA 30092');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    		        "('Caitlin Cole', '1989-08-15', 'Catering', 'B', 4997845612, '7 Ivy Ave. Traverse City, MI 49684');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Victoria Medina', '1989-02-04', 'Dry Cleaning', 'C', 1341702154, '8221 Trenton St. Jamestown, NY 14701');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Will Rollins', '1982-07-06', 'Gym', 'C', 7071264587, '346 Beacon Lane Quakertown, PA 18951');");
-        		
-        		// Staff for Hotel#3
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Masen Shepard', '1983-01-09', 'Manager', 'A', 8995412364, '3 Fulton Ave. Bountiful, UT 84010');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Willow Roberts', '1987-02-08', 'Front Desk Representative', 'A', 5535531245, '7868 N. Lees Creek Street Chandler, AZ 85224');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Maddison Davies', '1981-03-07', 'Room Service', 'A', 6784561245, '61 New Road Ithaca, NY 14850');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Crystal Barr', '1989-04-06', 'Catering', 'B', 4591247845, '9094 6th Ave. Macomb, MI 48042');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Dayana Tyson', '1980-05-05', 'Dry Cleaning', 'B', 4072134587, '837 W. 10th St. Jonesboro, GA 30236');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Tommy Perry', '1979-06-04', 'Gym', 'B', 5774812456, '785 Bohemia Street Jupiter, FL 33458');");
-        		
-        		// Staff for Hotel#4
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Joshua Burke', '1972-01-10', 'Manager', 'C', 1245214521, '8947 Briarwood St. Baldwin, NY 11510');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Bobby Matthews', '1982-02-14', 'Front Desk Representative', 'C', 5771812456, '25 W. Dogwood Lane Bemidji, MN 56601');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Pedro Cohen', '1983-04-24', 'Room Service', 'C', 8774812456, '9708 Brickyard Ave. Elyria, OH 44035');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Alessandro Beck', '1981-06-12', 'Catering', 'A', 5774812452, '682 Glen Ridge St. Leesburg, VA 20175');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Emily Petty', '1984-08-19', 'Dry Cleaning', 'A', 5772812456, '7604 Courtland St. Easley, SC 29640');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Rudy Cole', '1972-01-09', 'Gym', 'A', 5774812856, '37 Marconi Drive Owensboro, KY 42301');");
-        		
-        		// Staff for Hotel#5
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Blair Ball', '1981-01-10', 'Manager', 'A', 8854124568, '551 New Saddle Ave. Cape Coral, FL 33904');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Billy Lopez', '1982-05-11', 'Front Desk Representative', 'B', 5124562123, '99 Miles Road Danbury, CT 06810');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Lee Ward', '1983-06-12', 'Room Service', 'B', 9209124562, '959 S. Tailwater St. Ridgewood, NJ 07450');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Ryan Parker', '1972-08-13', 'Catering', 'B', 1183024152, '157 State Dr. Attleboro, MA 02703');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Glen Elliott', '1971-09-14', 'Catering', 'B', 6502134785, '9775 Clinton Dr. Thornton, CO 80241');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Ash Harrison', '1977-02-15', 'Dry Cleaning', 'C', 9192451365, '9924 Jefferson Ave. Plainfield, NJ 07060');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Leslie Little', '1979-12-16', 'Gym', 'C', 9192014512, '7371 Pin Oak St. Dalton, GA 30721');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Mason West', '1970-10-17', 'Gym', 'C', 6501231245, '798 W. Valley Farms Lane Saint Petersburg, FL 33702');");
-        		
-        		//Staff for Hotel#6
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Riley Dawson', '1975-01-09', 'Manager', 'C', 1183021245, '898 Ocean Court Hilliard, OH 43026');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Gabe Howard', '1987-03-01', 'Front Desk Representative', 'A', 6501421523, '914 Edgefield Dr. Hartselle, AL 35640');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Jessie Nielsen', '1982-06-02', 'Room Service', 'A', 7574124587, '7973 Edgewood Road Gallatin, TN 37066');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Gabe Carlson', '1983-08-03', 'Room Service', 'A', 5771245865, '339 Pine Lane Tampa, FL 33604');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Carmen Lee', '1976-01-04', 'Catering', 'A', 9885234562, '120 Longbranch Drive Port Richey, FL 34668');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    		        "(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Mell Tran', '1979-06-05', 'Dry Cleaning', 'A', 9162451245, '32 Pearl St. Peoria, IL 61604');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Leslie Cook', '1970-10-08', 'Gym', 'B', 6501245126, '59 W. High Ridge Street Iowa City, IA 52240');");
-        		
-        		//Staff for Hotel#7
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Rory Burke', '1971-01-05', 'Manager', 'B', 7702653764, '9273 Ridge Drive Winter Springs, FL 32708');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Macy Fuller', '1972-02-07', 'Front Desk Representative', 'B', 7485612345, '676 Myers Street Baldwin, NY 11510');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Megan Lloyd', '1973-03-01', 'Room Service', 'B', 7221452315, '849 George Lane Park Ridge, IL 60068');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Grace Francis', '1974-04-09', 'Catering', 'B', 3425612345, '282 Old York Court Mechanicsburg, PA 17050');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Macy Fuller', '1975-05-02', 'Dry Cleaning', 'C', 4665127845, '57 Shadow Brook St. Hudson, NH 03051');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Cory Hoover', '1976-06-12', 'Gym', 'C', 9252210735, '892 Roosevelt Street Ithaca, NY 14850');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Sam Graham', '1977-07-25', 'Gym', 'C', 7226251245, '262 Bayberry St. Dorchester, MA 02125');");
-        		
-        		//Staff for Hotel#8
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Charlie Adams', '1981-01-01', 'Manager', 'C', 6084254152, '9716 Glen Creek Dr. Newark, NJ 07103');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Kiran West', '1985-02-02', 'Front Desk Representative', 'C', 9623154125, '68 Smith Dr. Lexington, NC 27292');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Franky John', '1986-03-03', 'Room Service', 'A', 8748544152, '6 Shirley Road Fairborn, OH 45324');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Charlie Bell', '1985-04-04', 'Room Service', 'A', 9845124562, '66 Elm Street Jupiter, FL 33458');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Jamie Young', '1986-06-05', 'Catering', 'A', 9892145214, '8111 Birch Hill Avenue Ravenna, OH 44266');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Jackie Miller', '1978-08-06', 'Dry Cleaning', 'A', 9795486234, '9895 Redwood Court Glenview, IL 60025');");
-        		jdbc_statement.executeUpdate("INSERT INTO Staff "+
-    				"(Name, DOB, JobTitle, Dep, PhoneNum, Address) VALUES "+
-    				"('Jude Cole', '1979-03-07', 'Gym', 'A', 9195642251, '8512 Cambridge Ave. Lake In The Hills, IL 60156');");
+             // Staff for Hotel#1
+                updateInsertStaff ("Zoe Holmes", "1980-10-02", "Manager", "A", 8141113134L, "123 6th St. Melbourne, FL 32904", 0, false);
+                updateInsertStaff ("Katelyn Weeks", "1970-04-20", "Front Desk Representative", "B", 6926641058L, "123 6th St. Melbourne, FL 32904", 0, false);
+                updateInsertStaff ("Abby Huffman", "1990-12-14", "Room Service", "C", 6738742135L, "71 Pilgrim Avenue Chevy Chase, MD 20815", 0, false);
+                updateInsertStaff ("Oliver Gibson", "1985-05-12", "Room Service", "A", 1515218329L, "70 Bowman St. South Windsor, CT 06074", 0, false);
+                updateInsertStaff ("Michael Day", "1983-02-25", "Catering", "B", 3294931245L, "4 Goldfield Rd. Honolulu, HI 96815", 0, false);
+                updateInsertStaff ("David Adams", "1985-01-17", "Dry Cleaning", "C", 9194153214L, "44 Shirley Ave. West Chicago, IL 60185", 0, false);
+                updateInsertStaff ("Ishaan Goodman", "1993-04-19", "Gym", "A", 5203201425L, "514 S. Magnolia St. Orlando, FL 32806", 0, false);
+                updateInsertStaff ("Nicholas Read", "1981-01-14", "Catering", "B", 2564132017L, "236 Pumpkin Hill Court Leesburg, VA 20175", 0, false);
+
+                // Staff for Hotel#2
+                updateInsertStaff ("Dominic Mitchell", "1971-03-13", "Manager", "A", 2922497845L, "7005 South Franklin St. Somerset, NJ 08873", 0, false);
+                updateInsertStaff ("Oliver Lucas", "1961-05-11", "Front Desk Representative", "A", 2519881245L, "7 Edgefield St. Augusta, GA 30906", 0, false);
+                updateInsertStaff ("Molly Thomas", "1987-07-10", "Room Service", "B", 5425871245L, "541 S. Holly Street Norcross, GA 30092", 0, false);
+                updateInsertStaff ("Caitlin Cole", "1989-08-15", "Catering", "B", 4997845612L, "7 Ivy Ave. Traverse City, MI 49684", 0, false);
+                updateInsertStaff ("Victoria Medina", "1989-02-04", "Dry Cleaning", "C", 1341702154L, "8221 Trenton St. Jamestown, NY 14701", 0, false);
+                updateInsertStaff ("Will Rollins", "1982-07-06", "Gym", "C", 7071264587L, "346 Beacon Lane Quakertown, PA 18951", 0, false);
+
+                // Staff for Hotel#3
+                updateInsertStaff ("Masen Shepard", "1983-01-09", "Manager", "A", 8995412364L, "3 Fulton Ave. Bountiful, UT 84010", 0, false);
+                updateInsertStaff ("Willow Roberts", "1987-02-08", "Front Desk Representative", "A", 5535531245L, "7868 N. Lees Creek Street Chandler, AZ 85224", 0, false);
+                updateInsertStaff ("Maddison Davies", "1981-03-07", "Room Service", "A", 6784561245L, "61 New Road Ithaca, NY 14850", 0, false);
+                updateInsertStaff ("Crystal Barr", "1989-04-06", "Catering", "B", 4591247845L, "9094 6th Ave. Macomb, MI 48042", 0, false);
+                updateInsertStaff ("Dayana Tyson", "1980-05-05", "Dry Cleaning", "B", 4072134587L, "837 W. 10th St. Jonesboro, GA 30236", 0, false);
+                updateInsertStaff ("Tommy Perry", "1979-06-04", "Gym", "B", 5774812456L, "785 Bohemia Street Jupiter, FL 33458", 0, false);
+
+                // Staff for Hotel#4
+                updateInsertStaff ("Joshua Burke", "1972-01-10", "Manager", "C", 1245214521L, "8947 Briarwood St. Baldwin, NY 11510", 0, false);
+                updateInsertStaff ("Bobby Matthews", "1982-02-14", "Front Desk Representative", "C", 5771812456L, "25 W. Dogwood Lane Bemidji, MN 56601", 0, false);
+                updateInsertStaff ("Pedro Cohen", "1983-04-24", "Room Service", "C", 8774812456L, "9708 Brickyard Ave. Elyria, OH 44035", 0, false);
+                updateInsertStaff ("Alessandro Beck", "1981-06-12", "Catering", "A", 5774812452L, "682 Glen Ridge St. Leesburg, VA 20175", 0, false);
+                updateInsertStaff ("Emily Petty", "1984-08-19", "Dry Cleaning", "A", 5772812456L, "7604 Courtland St. Easley, SC 29640", 0, false);
+                updateInsertStaff ("Rudy Cole", "1972-01-09", "Gym", "A", 5774812856L, "37 Marconi Drive Owensboro, KY 42301", 0, false);
+
+                // Staff for Hotel#5
+                updateInsertStaff ("Blair Ball", "1981-01-10", "Manager", "A", 8854124568L, "551 New Saddle Ave. Cape Coral, FL 33904", 0, false);
+                updateInsertStaff ("Billy Lopez", "1982-05-11", "Front Desk Representative", "B", 5124562123L, "99 Miles Road Danbury, CT 06810", 0, false);
+                updateInsertStaff ("Lee Ward", "1983-06-12", "Room Service", "B", 9209124562L, "959 S. Tailwater St. Ridgewood, NJ 07450", 0, false);
+                updateInsertStaff ("Ryan Parker", "1972-08-13", "Catering", "B", 1183024152L, "157 State Dr. Attleboro, MA 02703", 0, false);
+                updateInsertStaff ("Glen Elliott", "1971-09-14", "Catering", "B", 6502134785L, "9775 Clinton Dr. Thornton, CO 80241", 0, false);
+                updateInsertStaff ("Ash Harrison", "1977-02-15", "Dry Cleaning", "C", 9192451365L, "9924 Jefferson Ave. Plainfield, NJ 07060", 0, false);
+                updateInsertStaff ("Leslie Little", "1979-12-16", "Gym", "C", 9192014512L, "7371 Pin Oak St. Dalton, GA 30721", 0, false);
+                updateInsertStaff ("Mason West", "1970-10-17", "Gym", "C", 6501231245L, "798 W. Valley Farms Lane Saint Petersburg, FL 33702", 0, false);
+
+                //Staff for Hotel#6
+                updateInsertStaff ("Riley Dawson", "1975-01-09", "Manager", "C", 1183021245L, "898 Ocean Court Hilliard, OH 43026", 0, false);
+                updateInsertStaff ("Gabe Howard", "1987-03-01", "Front Desk Representative", "A", 6501421523L, "914 Edgefield Dr. Hartselle, AL 35640", 0, false);
+                updateInsertStaff ("Jessie Nielsen", "1982-06-02", "Room Service", "A", 7574124587L, "7973 Edgewood Road Gallatin, TN 37066", 0, false);
+                updateInsertStaff ("Gabe Carlson", "1983-08-03", "Room Service", "A", 5771245865L, "339 Pine Lane Tampa, FL 33604", 0, false);
+                updateInsertStaff ("Carmen Lee", "1976-01-04", "Catering", "A", 9885234562L, "120 Longbranch Drive Port Richey, FL 34668", 0, false);
+                updateInsertStaff ("Mell Tran", "1979-06-05", "Dry Cleaning", "A", 9162451245L, "32 Pearl St. Peoria, IL 61604", 0, false);
+                updateInsertStaff ("Leslie Cook", "1970-10-08", "Gym", "B", 6501245126L, "59 W. High Ridge Street Iowa City, IA 52240", 0, false);
+
+                //Staff for Hotel#7
+                updateInsertStaff ("Rory Burke", "1971-01-05", "Manager", "B", 7702653764L, "9273 Ridge Drive Winter Springs, FL 32708", 0, false);
+                updateInsertStaff ("Macy Fuller", "1972-02-07", "Front Desk Representative", "B", 7485612345L, "676 Myers Street Baldwin, NY 11510", 0, false);
+                updateInsertStaff ("Megan Lloyd", "1973-03-01", "Room Service", "B", 7221452315L, "849 George Lane Park Ridge, IL 60068", 0, false);
+                updateInsertStaff ("Grace Francis", "1974-04-09", "Catering", "B", 3425612345L, "282 Old York Court Mechanicsburg, PA 17050", 0, false);
+                updateInsertStaff ("Macy Fuller", "1975-05-02", "Dry Cleaning", "C", 4665127845L, "57 Shadow Brook St. Hudson, NH 03051", 0, false);
+                updateInsertStaff ("Cory Hoover", "1976-06-12", "Gym", "C", 9252210735L, "892 Roosevelt Street Ithaca, NY 14850", 0, false);
+                updateInsertStaff ("Sam Graham", "1977-07-25", "Gym", "C", 7226251245L, "262 Bayberry St. Dorchester, MA 02125", 0, false);
+
+                //Staff for Hotel#8
+                updateInsertStaff ("Charlie Adams", "1981-01-01", "Manager", "C", 6084254152L, "9716 Glen Creek Dr. Newark, NJ 07103", 0, false);
+                updateInsertStaff ("Kiran West", "1985-02-02", "Front Desk Representative", "C", 9623154125L, "68 Smith Dr. Lexington, NC 27292", 0, false);
+                updateInsertStaff ("Franky John", "1986-03-03", "Room Service", "A", 8748544152L, "6 Shirley Road Fairborn, OH 45324", 0, false);
+                updateInsertStaff ("Charlie Bell", "1985-04-04", "Room Service", "A", 9845124562L, "66 Elm Street Jupiter, FL 33458", 0, false);
+                updateInsertStaff ("Jamie Young", "1986-06-05", "Catering", "A", 9892145214L, "8111 Birch Hill Avenue Ravenna, OH 44266", 0, false);
+                updateInsertStaff ("Jackie Miller", "1978-08-06", "Dry Cleaning", "A", 9795486234L, "9895 Redwood Court Glenview, IL 60025", 0, false);
+                updateInsertStaff ("Jude Cole", "1979-03-07", "Gym", "A", 9195642251L, "8512 Cambridge Ave. Lake In The Hills, IL 60156", 0, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -2083,6 +2000,74 @@ public class WolfInns {
     }
     
     /** 
+     * Management task: Add a new staff member
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/24/18 -  ATTD -  Created method.
+     */
+    public static void manageStaffAdd() {
+
+        try {
+            
+            // Declare local variables
+            String name = "";
+            String dob = "";
+            String jobTitle = "";
+            String department = "";
+            String phoneNumAsString = "";
+            String address = "";
+            String hotelIdAsString = "";
+            long phoneNum = 0;
+            int hotelID = 0;
+            
+            // Get name
+            System.out.print("\nEnter the new staff member's name\n> ");
+            name = scanner.nextLine();
+            if (isValueSane("Name", name)) {
+                // Get date of birth
+                System.out.print("\nEnter the new staff member's date of birth\n> ");
+                dob = scanner.nextLine();
+                if (isValueSane("DOB", dob)) {
+                    // Get job title
+                    System.out.print("\nEnter the new staff member's job title\n> ");
+                    jobTitle = scanner.nextLine();
+                    if (isValueSane("JobTitle", jobTitle)) {
+                        // Get department
+                        System.out.print("\nEnter the new staff member's department\n> ");
+                        department = scanner.nextLine();
+                        if (isValueSane("Dep", department)) {
+                            // Get phone number
+                            System.out.print("\nEnter the new staff member's phone number\n> ");
+                            phoneNumAsString = scanner.nextLine();
+                            if (isValueSane("PhoneNum", phoneNumAsString)) {
+                                phoneNum = Long.parseLong(phoneNumAsString);
+                                // Get address
+                                System.out.print("\nEnter the new staff member's full address\n> ");
+                                address = scanner.nextLine();
+                                if (isValueSane("Address", address)) {
+                                    // Get hotel ID
+                                    System.out.print("\nEnter the new staff member's hotel ID (or press <Enter> if they are not assigned to any particular hotel)\n> ");
+                                    hotelIdAsString = scanner.nextLine();
+                                    hotelID = hotelIdAsString.length() == 0 ? 0 : Integer.parseInt(hotelIdAsString);
+                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                    updateInsertStaff(name, dob, jobTitle, department, phoneNum, address, hotelID, true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
      * Management task: Delete a staff member
      * 
      * Arguments -  None
@@ -2117,7 +2102,7 @@ public class WolfInns {
     /** 
      * Given a value, and an indication of its intended meaning, determine if it's "sane"
      * This method exists in part because the version of MariaDB suggested for use in this project
-     * supports neither CHECK nor ASSERTION
+     * supports neither CHECK nor ASSERTION!
      * 
      * Arguments -  attributeName - The name of the attribute ("PhoneNum", "Address", etc)
      *              proposedValue - The proposed value for the attribute (as a string)
@@ -2643,6 +2628,85 @@ public class WolfInns {
     }
     
     /** 
+     * DB Update: Insert Staff Member
+     * 
+     * Arguments -  name -          The name of the new staff member
+     *              dob -           The date of birth of the new staff member
+     *              jobTitle -      The job title of the new staff member
+     *              department -    The department of the new staff member
+     *              phoneNum -      The phone number of the new staff member
+     *              address -       The address of the new staff member
+     *              hotelID -       The ID of the hotel to which the staff member is assigned (OR zero if not assigned to any hotel)
+     *              reportSuccess - True if we should print success message to console (should be false for mass population of hotels)
+     * Return -     None
+     * 
+     * Modifications:   03/24/18 -  ATTD -  Created method.
+     */
+    public static void updateInsertStaff (String name, String dob, String jobTitle, String department, long phoneNum, String address, int hotelID, boolean reportSuccess) {
+        
+        // Declare variables
+        int newStaffID;
+        
+        try {
+
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+
+                /* Insert new staff member, using prepared statement
+                 * If a zero is passed for hotel ID,
+                 * that means the new staff member isn't to be assigned to any particular hotel,
+                 * so set hotel ID in the tuple to NULL
+                 */
+                jdbcPrep_insertNewStaff.setString(1, name);
+                jdbcPrep_insertNewStaff.setString(2, dob);
+                jdbcPrep_insertNewStaff.setString(3, jobTitle);
+                jdbcPrep_insertNewStaff.setString(4, department);
+                jdbcPrep_insertNewStaff.setLong(5, phoneNum);
+                jdbcPrep_insertNewStaff.setString(6, address);
+                if (hotelID == 0) {
+                    jdbcPrep_insertNewStaff.setNull(7, java.sql.Types.INTEGER);
+                }
+                else {
+                    jdbcPrep_insertNewStaff.setInt(7, hotelID); 
+                }
+                jdbcPrep_insertNewStaff.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                // Then, tell the user about the success
+                if (reportSuccess) {
+                    jdbc_result = jdbcPrep_getNewestStaffID.executeQuery();
+                    jdbc_result.next();
+                    newStaffID = jdbc_result.getInt(1);
+                    System.out.println("\n'" + name + "' staff member added (staff ID: " + newStaffID + ")!\n");
+                }
+                
+            }
+            catch (Throwable err) {
+                
+                // Handle error
+                handleError(err);
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
      * DB Update: Delete Staff Member
      * 
      * Arguments -  staffID -       The ID of the staff member
@@ -2860,6 +2924,8 @@ public class WolfInns {
         
         try {
             
+            // TODO: Manjusha noted an issue that revealed - we do not yet know how to tell the user about primary key problem (non-unique insert attempted)
+            
             // Handle specific errors
             errorMessage = err.toString();
             
@@ -3021,6 +3087,7 @@ public class WolfInns {
      *                                      Use new general error handler.
      *                  03/24/18 -  MTA -   Add ability to add room.
      *                  03/24/18 -  ATTD -  Close prepared statement for deleting a hotel.
+     *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
      */
     public static void main(String[] args) {
         
@@ -3169,6 +3236,9 @@ public class WolfInns {
                         case CMD_MANAGE_HOTEL_DELETE:
                             manageHotelDelete();
                             break;
+                        case CMD_MANAGE_STAFF_ADD:
+                            manageStaffAdd();
+                            break;
                         case CMD_MANAGE_STAFF_DELETE:
                             manageStaffDelete();
                             break;
@@ -3217,10 +3287,12 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForAddress.close();
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
-            jdbcPrep_getHotelByID.close();
+            jdbcPrep_getHotelByID.close(); 
             jdbcPrep_deleteHotel.close(); 
             jdbcPrep_insertNewRoom.close();
-            jdbcPrep_isValidRoomNumber.close();
+            jdbcPrep_isValidRoomNumber.close(); 
+            jdbcPrep_insertNewStaff.close();
+            jdbcPrep_getNewestStaffID.close(); 
             jdbc_connection.close();
         
         }
