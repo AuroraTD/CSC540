@@ -110,13 +110,9 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete a staff member.
      *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
-<<<<<<< HEAD
-     *                                      Use new general error handler. 
-     *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room
-=======
-     *                                      Use new general error handler.
+											Use new general error handler. 
+     *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room 
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
->>>>>>> refs/remotes/origin/Development
      */
     public static void printAvailableCommands(String menu) {
         
