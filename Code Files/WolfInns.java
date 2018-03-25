@@ -47,6 +47,10 @@ public class WolfInns {
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
     private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
     
+    private static final String CMD_MANAGE_ROOM_ADD =       "ADDROOM";
+    private static final String CMD_MANAGE_ROOM_UPDATE =    "UPDATEROOM";
+    private static final String CMD_MANAGE_ROOM_DELETE =    "DELETEROOM"; 
+    
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
     private static final String JDBC_USER = "smscoggi";
@@ -74,7 +78,11 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getHotelSummaryForPhoneNumber;
     private static PreparedStatement jdbcPrep_getHotelSummaryForStaffMember;
     private static PreparedStatement jdbcPrep_getHotelByID;
-    private static PreparedStatement jdbcPrep_deleteHotel;
+    private static PreparedStatement jdbcPrep_deleteHotel;  
+    
+    // Declare variables - prepared statements - Rooms
+    private static PreparedStatement jdbcPrep_insertNewRoom;
+    private static PreparedStatement jdbcPrep_isValidRoomNumber;	// while adding a new room
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -97,7 +105,8 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Add ability to generate bill for customer stay.
      *                  03/12/18 -  ATTD -  Add ability to delete a staff member.
      *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
-     *                                      Use new general error handler.
+     *                                      Use new general error handler. 
+     *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room
      */
     public static void printAvailableCommands(String menu) {
         
@@ -156,6 +165,14 @@ public class WolfInns {
                     System.out.println("\t- delete a hotel");
                     System.out.println("'" + CMD_MANAGE_STAFF_DELETE + "'");
                     System.out.println("\t- delete a staff member");
+                    
+                    System.out.println("'" + CMD_MANAGE_ROOM_ADD + "'");
+                    System.out.println("\t- add a room");
+                    System.out.println("'" + CMD_MANAGE_ROOM_UPDATE + "'");
+                    System.out.println("\t- update details of the room");
+                    System.out.println("'" + CMD_MANAGE_ROOM_DELETE + "'");
+                    System.out.println("\t- delete a room");
+                    
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -480,6 +497,7 @@ public class WolfInns {
      *                  03/14/18 -  ATTD -  Changed service type names to enum, to match project assumptions.
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  MTA -   Name the primary key constraints.
      */
     public static void createTables() {
         
@@ -505,14 +523,14 @@ public class WolfInns {
                     "DOB DATE NOT NULL,"+
                     "PhoneNum BIGINT NOT NULL,"+
                     "Email VARCHAR(255) NOT NULL,"+
-                    "PRIMARY KEY (SSN)"+
+                    "CONSTRAINT PK_CUSTOMERS PRIMARY KEY (SSN)"+
                 ")");
     
                 // Create table: ServiceTypes
                 jdbc_statement.executeUpdate("CREATE TABLE ServiceTypes ("+
                     "Name ENUM('Phone','Dry Cleaning','Gym','Room Service','Catering','Special Request') NOT NULL,"+
                     "Cost INT NOT NULL,"+
-                    "PRIMARY KEY (Name)"+
+                    "CONSTRAINT PK_SERVICE_TYPES PRIMARY KEY (Name)"+
                 ")");
     
                 /* Create table: Staff
@@ -528,7 +546,7 @@ public class WolfInns {
                     "PhoneNum BIGINT NOT NULL,"+
                     "Address VARCHAR(255) NOT NULL,"+
                     "HotelID INT,"+
-                    "PRIMARY KEY(ID)"+
+                    "CONSTRAINT PK_STAFF PRIMARY KEY(ID)"+
                 ")");
     
                 /* Create table: Hotels
@@ -545,7 +563,7 @@ public class WolfInns {
                     "State CHAR(2) NOT NULL,"+
                     "PhoneNum BIGINT Not Null,"+
                     "ManagerID INT Not Null,"+
-                    "Primary Key(ID),"+
+                    "CONSTRAINT PK_HOTELS Primary Key(ID),"+
                     "CONSTRAINT UC_HACS UNIQUE (StreetAddress, City, State),"+
                     "CONSTRAINT UC_HPN UNIQUE (PhoneNum),"+
                     "CONSTRAINT UC_HMID UNIQUE (ManagerID),"+
@@ -576,7 +594,7 @@ public class WolfInns {
                     "NightlyRate DOUBLE NOT NULL,"+
                     "DRSStaff INT,"+
                     "DCStaff INT,"+
-                    "PRIMARY KEY(RoomNum,HotelID),"+
+                    "CONSTRAINT PK_ROOMS PRIMARY KEY(RoomNum,HotelID),"+
                     // If a hotel is deleted, then the rooms within it should also be deleted
                     "CONSTRAINT FK_ROOMHID FOREIGN KEY (HotelID) REFERENCES Hotels(ID) ON DELETE CASCADE,"+
                     /* If a staff member dedicated to a room is deleted by the end of a transaction
@@ -605,7 +623,7 @@ public class WolfInns {
                     "CardType ENUM('VISA','MASTERCARD','HOTEL'),"+
                     "CardNumber BIGINT,"+
                     "BillingAddress VARCHAR(255),"+
-                    "PRIMARY KEY(ID),"+
+                    "CONSTRAINT PK_STAYS PRIMARY KEY(ID),"+
                     "CONSTRAINT UC_STAYKEY UNIQUE (StartDate, CheckInTime,RoomNum, HotelID),"+
                     /* If a room is deleted, then the stay no longer makes sense and should be deleted
                      * Need to handle room/hotel together as a single foreign key
@@ -623,7 +641,7 @@ public class WolfInns {
                     "StayID INT NOT NULL,"+
                     "StaffID INT,"+
                     "ServiceName ENUM('Phone','Dry Cleaning','Gym','Room Service','Catering','Special Request') NOT NULL,"+
-                    "PRIMARY KEY(ID),"+
+                    "CONSTRAINT PK_PROVIDED PRIMARY KEY(ID),"+
                     // If a stay is deleted, then the service provided record no longer makes sense and should be deleted
                     "CONSTRAINT FK_PROVSTAYID FOREIGN KEY (StayID) REFERENCES Stays(ID) ON DELETE CASCADE,"+
                     // If a staff member is deleted, then the service provided record still makes sense but has staff ID as NULL
@@ -1969,6 +1987,101 @@ public class WolfInns {
         
     }
     
+    /**
+     * Task: Manage Rooms
+     * 
+     * Operation: Add a room
+     * 
+     * Arguments -  None
+     * Returns -    None
+     * 
+     * Modifications: 03/24/18 - MTA - Added functionality to add new room
+     */
+    public static void manageRoomAdd() {
+    	
+    	try { 
+    		  
+    		String hotelId = getValidDataFromUser("RoomHotelId", "\nEnter the hotel id for which you are adding new room\n> ");
+    		
+    		String roomNumber = getValidDataFromUser("RoomNumber", "\nEnter the room number\n> ", hotelId); 
+    		
+    		String category = getValidDataFromUser("RoomCategory", "\nEnter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' \n>");
+               
+    		String maxOccupancy = getValidDataFromUser("RoomMaxOccupancy", "\nEnter the room's maximum occupancy\n> "); 
+    		
+    		String nightlyRate = getValidDataFromUser("RoomNightlyRate", "\nEnter the room's nightly rate\n> "); 
+              
+            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate));
+           
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+    
+    /**
+     * Task: Helper method to get data from user
+     * 
+     * Arguments: fieldName - Name of the field (used while checking if entered data is sane)
+     *            message - The message asking user to enter the data 
+     *            params(Optional) - Extra parameters needed to validate the sanity 
+     * 
+     * Returns: Valid user entered data 
+     * 
+     * Modifications: 03/24/18 - MTA - Added method
+     */
+    public static String getValidDataFromUser (String fieldName, String message, String...params ) {
+    	
+    	boolean isValid = true;
+    	
+    	// Ask user to enter the data
+    	System.out.println(message);  
+    	String value = scanner.nextLine(); 
+    	
+    	// Check if valid
+    	if (fieldName.equalsIgnoreCase("RoomNumber")) {
+    		// Extra checks for Room Number
+    		isValid = isValueSane(fieldName, value) && isRoomNumberAvailable(Integer.parseInt(params[0]), Integer.parseInt(value));
+    	} else {
+    		isValid = isValueSane(fieldName, value);
+    	} 
+        
+    	// If invalid, let user re-enter the value
+        while(!isValid) {
+        	System.out.println("Re-" + message);
+        	value = scanner.nextLine(); 
+        	if (fieldName.equalsIgnoreCase("RoomNumber")) {
+        		// Extra checks for Room Number
+        		isValid = isValueSane(fieldName, value) && isRoomNumberAvailable(Integer.parseInt(params[0]), Integer.parseInt(value));
+        	} else {
+        		isValid = isValueSane(fieldName, value);
+        	}
+        } 
+        
+        // Now the data is valid, return it
+        return value;
+    }
+    
+    /**
+     * Task: Manage
+     * Operation: Update room details
+     * 
+     * Modifications: 03/24/18 - MTA - Added functionality to update room details
+     */
+    public static void manageRoomUpdate() {
+    	
+    }
+    
+    /**
+     * Task: Manage
+     * Operation: Delete a room
+     * 
+     * Modifications: 03/24/18 - MTA - Added functionality to delete room
+     */
+    public static void manageRoomDelete() {
+    	
+    }
+    
     /** 
      * Management task: Delete a staff member
      * 
@@ -2068,6 +2181,61 @@ public class WolfInns {
                 }
             }
             
+            /* ******************************** VALIDATIONS FOR ADDING NEW ROOM ************************************* */
+           
+            // Check if entered hotel id for room is valid ( i.e non-negative number) 
+            try{
+            	 if (attributeName.equalsIgnoreCase("RoomHotelId") && Integer.parseInt(proposedValue) <= 0) {
+           		     System.out.println("\nERROR: Hotel ID should be a positive number");
+                	 okaySoFar = false;
+                 }  
+            } catch(NumberFormatException nfe) {
+            	System.out.println("\nERROR: Hotel ID should be a number");
+            }
+            
+            // Check if entered room number is valid ( i.e non-negative number)
+            try{
+            	 if (attributeName.equalsIgnoreCase("RoomNumber") && Integer.parseInt(proposedValue) <= 0) {
+            		 System.out.println("\nERROR: Room Number should be a positive number");
+                 	 okaySoFar = false;
+                 }  
+            } catch(NumberFormatException nfe) {
+            	System.out.println("\nERROR: Room number should be a number");
+            }  
+            
+            // Check if entered room category is valid ( i.e 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' )
+            if (attributeName.equalsIgnoreCase("RoomCategory") && 
+        	     !(proposedValue.equals("Economy") || proposedValue.equals("Deluxe") || proposedValue.equals("Executive Suite") || proposedValue.equals("Presidential Suite"))) {
+        		 	System.out.println("\nERROR: Allowed values for room category are 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' ");
+        		 	okaySoFar = false; 
+            } 
+            
+            // Check if entered room max occupancy is valid ( i.e non-negative number)
+            try{
+            	 if (attributeName.equalsIgnoreCase("RoomMaxOccupancy")) {
+            		 if (Integer.parseInt(proposedValue) <= 0) {
+            			 System.out.println("\nERROR: Room Max Occupancy should be a positive number");
+                      	 okaySoFar = false; 	
+            		 } 
+            		 if (Integer.parseInt(proposedValue) > 4) {
+            			 System.out.println("\nERROR: Maximum allowed value for Room Occupancy is 4");
+                      	 okaySoFar = false; 	
+            		 } 
+                 }
+            } catch(NumberFormatException nfe) {
+            	System.out.println("\nERROR: Room Max Occupancy should be a number");
+            }
+             
+            // Check if entered Room Nightly rate is valid ( i.e non-negative number)
+            try{
+            	 if (attributeName.equalsIgnoreCase("RoomNightlyRate") && Integer.parseInt(proposedValue) <= 0) {
+            		 System.out.println("\nERROR: Room Nightly rate should be a positive number");
+                 	 okaySoFar = false;
+                 }
+            } catch(NumberFormatException nfe) {
+            	System.out.println("\nERROR: Room Nightly rate should be a number");
+            }
+             
         }
         catch (Throwable err) {
             handleError(err);
@@ -2572,6 +2740,106 @@ public class WolfInns {
             handleError(err);
         }
         
+    } 
+    
+    /** 
+     * DB Update: Add new room
+     * 
+     * Arguments -  roomNumber    - Room number 
+     *              hotelId       - Hotel to which the room belongs
+     *              category      - Room Category ('Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite')
+     *              maxOccupancy  - Max Occupancy for the room
+     *              nightlyRate   - Nightly rate for the room
+     * Return -     None
+     * 
+     * Modifications:   03/24/18 -  MTA -  Added method. 
+     */
+    public static void addRoom( int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate) {
+    
+        try {
+
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+            	
+            	String insertRoomSQL = "INSERT INTO Rooms (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES (? , ?, ?, ?, ?); ";
+            	jdbcPrep_insertNewRoom = jdbc_connection.prepareStatement(insertRoomSQL);
+  
+            	jdbcPrep_insertNewRoom.setInt(1, roomNumber);
+            	jdbcPrep_insertNewRoom.setInt(2, hotelId);
+            	jdbcPrep_insertNewRoom.setString(3, category);
+            	jdbcPrep_insertNewRoom.setInt(4, maxOccupancy);
+            	jdbcPrep_insertNewRoom.setInt(5, nightlyRate);  
+                 
+            	jdbcPrep_insertNewRoom.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                System.out.println("\n'Room has been successfully added to the database! \n");        
+            } 
+            catch (Throwable ex) {
+                
+                // Handle pk violation
+            	if (ex.getMessage().matches("(.*)Duplicate entry(.*)for key 'PRIMARY'(.*)")) { 
+            		handleError(ex, "PK_ROOMS");
+            	} else {
+            		handleError(ex);	
+            	} 
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+    
+    /** 
+     * DB Check: When adding new room, check if room number entered by the user is already associated with some other room in this hotel
+     * 
+     * Arguments -  roomNumber    - Room number entered by user
+     *              hotelId       - Hotel Id entered by user 
+     * Return -     boolean       - True if the room number is already associated with some other room in this hotel
+     * 
+     * Modifications:   03/24/18 -  MTA -  Added method. 
+     */
+    public static boolean isRoomNumberAvailable(int hotelId, int roomNumber) {  
+    	
+        try {
+        	
+			 String sql = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";
+			 
+			 jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(sql); 
+			 jdbcPrep_isValidRoomNumber.setInt(1, hotelId);
+			 jdbcPrep_isValidRoomNumber.setInt(2, roomNumber);   
+			 
+			 ResultSet rs = jdbcPrep_isValidRoomNumber.executeQuery();
+			 int cnt = 0;
+			 
+			 while (rs.next()) {
+				cnt = rs.getInt("CNT"); 	
+			 }
+			 
+			 if (cnt > 0) {
+				 System.out.println("ERROR: This room number is already associated with different room in this hotel");
+				 return false;
+			 }   
+			 
+        }
+        catch (Throwable err) {
+            handleError(err);
+        } 
+        
+        return true; 
     }
     
     /** 
@@ -2579,11 +2847,13 @@ public class WolfInns {
      * Turn obscure error stack into human-understandable feedback
      * 
      * Arguments -  err -   An error object.
+     *           -  pkViolation - Name of the primary key constraint being violated
      * Return -     None
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
+     *                  03/24/18 -  MTA -   Handle primary key violation.
      */
-    public static void handleError(Throwable err) {
+    public static void handleError(Throwable err, String... pkViolation) {
         
         // Declare variables
         String errorMessage;
@@ -2614,11 +2884,21 @@ public class WolfInns {
                         "\nCannot use this manager for the hotel, because they are not registered as a Wolf Inns staff member\n"
                     );
             }
+            else if (errorMessage.contains("PK_HOTELS")) {
+                System.out.println(
+                    "\nCannot use this ID for the hotel, because it is already used for another hotel\n"
+                );
+            }
             
             // STAFF constraint violated
             else if (errorMessage.contains("FK_STAFFHID")) {
                 System.out.println(
                     "\nCannot assign the staff member to this hotel, because it is not registered as a Wolf Inns hotel\n"
+                );
+            }
+            else if (errorMessage.contains("PK_STAFF")) {
+                System.out.println(
+                    "\nCannot use this ID for the Staff, because it is already used for another staff member\n"
                 );
             }
             
@@ -2638,6 +2918,11 @@ public class WolfInns {
                     "\nCannot assign this staff member as dedicated catering staff, because they are not registered as a Wolf Inns staff member\n"
                 );
             }
+            else if (errorMessage.contains("PK_ROOMS") || pkViolation[0].contains("PK_ROOMS")) {
+            	System.out.println(
+                    "\nCannot use this room number for the hotel, because it is already used for another room\n"
+                );
+            }
             
             // STAYS constraint violated
             else if (errorMessage.contains("UC_STAYKEY")) {
@@ -2655,7 +2940,12 @@ public class WolfInns {
                     "\nCannot use this customer SSN the stay, because there is no registered Wolf Inns customer with that SSN\n"
                 );
             }
-            
+            else if (errorMessage.contains("PK_STAYS")) {
+            	System.out.println(
+                    "\nCannot use this ID for the stay, because it is already used for another stay\n"
+                );
+            }
+                        
             // PROVIDED constraint violated
             else if (errorMessage.contains("FK_PROVSTAYID")) {
                 System.out.println(
@@ -2672,6 +2962,25 @@ public class WolfInns {
                     "\nCannot use this service name for the provided service, because it is not registerd as a Wolf Inns available service\n"
                 );
             }
+            else if (errorMessage.contains("PK_PROVIDED")) {
+                System.out.println(
+                    "\nCannot use this ID for the service provided, because it is already used for another provided service\n"
+                );
+            }
+            
+            // Customer constraint violated
+            else if (errorMessage.contains("PK_CUSTOMERS")) {
+                System.out.println(
+                    "\nCannot use this SSN for the customer, because it is already used for another customer\n"
+                );
+            }
+            
+            // Service Type constraint violated
+            else if (errorMessage.contains("PK_SERVICE_TYPES")) {
+                System.out.println(
+                    "\nCannot use this name for the service type, because it is already used for another service type\n"
+                );
+            } 
             
             // Number format error
             else if (errorMessage.contains("NumberFormatException")) {
@@ -2710,6 +3019,7 @@ public class WolfInns {
      *                  03/21/18 -  ATTD -  Close more resources during clean-up.
      *                  03/23/18 -  ATTD -  Add ability to update basic information about a hotel.
      *                                      Use new general error handler.
+     *                  03/24/18 -  MTA -   Add ability to add room.
      *                  03/24/18 -  ATTD -  Close prepared statement for deleting a hotel.
      */
     public static void main(String[] args) {
@@ -2862,6 +3172,15 @@ public class WolfInns {
                         case CMD_MANAGE_STAFF_DELETE:
                             manageStaffDelete();
                             break;
+                        case CMD_MANAGE_ROOM_ADD:
+                        	manageRoomAdd();
+                            break;
+                        case CMD_MANAGE_ROOM_UPDATE:
+                        	manageRoomUpdate();
+                            break;
+                        case CMD_MANAGE_ROOM_DELETE:
+                        	manageRoomDelete();
+                            break;
                         case CMD_MAIN:
                             // Tell the user their options in this new menu
                             printAvailableCommands(CMD_MAIN);
@@ -2899,7 +3218,9 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
             jdbcPrep_getHotelByID.close();
-            jdbcPrep_deleteHotel.close();
+            jdbcPrep_deleteHotel.close(); 
+            jdbcPrep_insertNewRoom.close();
+            jdbcPrep_isValidRoomNumber.close();
             jdbc_connection.close();
         
         }
