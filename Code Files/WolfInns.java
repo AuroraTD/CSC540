@@ -83,7 +83,12 @@ public class WolfInns {
     
     // Declare variables - prepared statements - Rooms
     private static PreparedStatement jdbcPrep_insertNewRoom;
-    private static PreparedStatement jdbcPrep_isValidRoomNumber;	// while adding a new room
+    private static PreparedStatement jdbcPrep_updateRoom;
+    private static PreparedStatement jdbcPrep_deleteRoom;
+    private static PreparedStatement jdbcPrep_isValidRoomNumber; 
+    private static PreparedStatement jdbcPrep_isRoomCurrentlyOccupied;
+    private static PreparedStatement jdbcPrep_isValidHotelId;
+    private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum; 
     
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
@@ -1110,6 +1115,7 @@ public class WolfInns {
      *                                      Do not set DRSStaff and DCStaff to non-NULL, for rooms not currently occupied.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  MTA -   Using prepared statements to populate the data.
      */
     public static void populateRoomsTable() {
         
@@ -1122,88 +1128,45 @@ public class WolfInns {
             
                 // Populating data for Rooms
                 
-                // Hotel # 1
-                // TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 1, 'ECONOMY', 3, 150);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 1, 'PRESIDENTIAL_SUITE', 4, 450);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (3, 1, 'EXECUTIVE_SUITE', 4, 300);");
-        		// Hotel # 2
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 2, 'DELUXE', 3, 200);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 2, 'ECONOMY', 3, 125);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (3, 2, 'EXECUTIVE_SUITE', 4, 250);");
+                // Hotel # 1   
+        		addRoom(1, 1, "ECONOMY", 3, 150, false);
+        		addRoom(2, 1, "PRESIDENTIAL_SUITE", 4, 450, false);
+        		addRoom(3, 1, "EXECUTIVE_SUITE", 4, 300, false);
+        		
+        		// Hotel # 2 
+        		addRoom(1, 2, "DELUXE", 3, 200, false);
+        		addRoom(2, 2, "ECONOMY", 3, 125,false);
+        		addRoom(3, 2, "EXECUTIVE_SUITE", 4, 250, false);
+        		  
         		// Hotel # 3
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 3, 'PRESIDENTIAL_SUITE', 3, 550);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 3, 'ECONOMY', 2, 350);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (3, 3, 'DELUXE', 3, 450);");
+        		addRoom(1, 3, "PRESIDENTIAL_SUITE", 3, 550, false);
+        		addRoom(2, 3, "ECONOMY", 2, 350, false);
+        		addRoom(3, 3, "DELUXE", 3, 450, false);
+        		 
         		// Hotel # 4
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 4, 'ECONOMY', 4, 100);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 4, 'EXECUTIVE_SUITE', 4, 250);");
+        		addRoom(1, 4, "ECONOMY", 4, 100, false);
+        		addRoom(2, 4, "EXECUTIVE_SUITE", 4, 250, false); 
+        		 
         		// Hotel # 5
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 5, 'DELUXE', 3, 300);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 5, 'EXECUTIVE_SUITE', 4, 400);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (3, 5, 'PRESIDENTIAL_SUITE', 4, 500);");
+        		addRoom(1, 5, "DELUXE", 3, 300, false); 
+        		addRoom(2, 5, "EXECUTIVE_SUITE", 4, 400, false); 
+        		addRoom(3, 5, "PRESIDENTIAL_SUITE", 4, 500, false); 
+        		 
         		// Hotel # 6
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 6, 'ECONOMY', 2, 220);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    		        " (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 6, 'DELUXE', 4, 350);");
+        		addRoom(1, 6, "ECONOMY", 2, 220, false); 
+        		addRoom(2, 6, "DELUXE", 4, 350, false); 
+        		 
         		// Hotel # 7
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 7, 'ECONOMY', 2, 125);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 7, 'EXECUTIVE_SUITE', 4, 400);");
+        		addRoom(1, 7, "ECONOMY", 2, 125, false); 
+        		addRoom(2, 7, "EXECUTIVE_SUITE", 4, 400, false); 
+        		 
         		// Hotel # 8
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (1, 8, 'ECONOMY', 2, 200);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (2, 8, 'DELUXE', 3, 250);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES " +
-    				" (3, 8, 'EXECUTIVE_SUITE', 3, 300);");
-        		jdbc_statement.executeUpdate("INSERT INTO Rooms "+
-    				" (RoomNum, HotelID, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff) VALUES " +
-                    " (4, 8, 'PRESIDENTIAL_SUITE', 4, 450, 51, 53);");
+        		addRoom(1, 8, "ECONOMY", 2, 200, false); 
+        		addRoom(2, 8, "DELUXE", 3, 250, false); 
+        		addRoom(3, 8, "EXECUTIVE_SUITE", 3, 300, false); 
+        		addRoom(4, 8, "PRESIDENTIAL_SUITE", 4, 450, false); 	
+        		updateRoom(4, 8, "DRSStaff", "51", false);
+        		updateRoom(4, 8, "DCStaff", "53", false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1569,6 +1532,37 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Report task:   Report all values of a single tuple of the Rooms table, by hotelId and RoomNum
+     * 
+     * Arguments -    hotelId       - Hotel to which the room belongs
+     * 				  roomNumber    - Room number  
+     * Return -       None
+     * 
+     * Modifications: 03/25/18 -  MTA -  Created method.
+     */
+    public static void reportRoomByHotelIdRoomNum(int hotelId, int roomNum) {
+
+        try {
+            
+        	String selectRoomSql = "SELECT * FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
+        	jdbcPrep_getRoomByHotelIDRoomNum = jdbc_connection.prepareStatement(selectRoomSql);
+        	 
+        	jdbcPrep_getRoomByHotelIDRoomNum.setInt(1, roomNum);
+        	jdbcPrep_getRoomByHotelIDRoomNum.setInt(2, hotelId);
+            jdbc_result = jdbcPrep_getRoomByHotelIDRoomNum.executeQuery();
+            
+            // Print result
+            System.out.println("\nInformation:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
     // PRINT
     
     /** 
@@ -1909,71 +1903,29 @@ public class WolfInns {
      * Returns -    None
      * 
      * Modifications: 03/24/18 - MTA - Added functionality to add new room
+     * 				  03/25/18 - MTA - Fix the category type
      */
     public static void manageRoomAdd() {
     	
     	try { 
     		  
-    		String hotelId = getValidDataFromUser("RoomHotelId", "\nEnter the hotel id for which you are adding new room\n> ");
+    		String hotelId = getValidDataFromUser("ADD_ROOM", "RoomHotelId", "Enter the hotel id for which you are adding new room\n> ");
     		
-    		String roomNumber = getValidDataFromUser("RoomNumber", "\nEnter the room number\n> ", hotelId); 
+    		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNumber", "Enter the room number\n> ", hotelId); 
     		
-    		String category = getValidDataFromUser("RoomCategory", "\nEnter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' \n>");
+    		String category = getValidDataFromUser("ADD_ROOM","RoomCategory", "Enter the room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
                
-    		String maxOccupancy = getValidDataFromUser("RoomMaxOccupancy", "\nEnter the room's maximum occupancy\n> "); 
+    		String maxOccupancy = getValidDataFromUser("ADD_ROOM","RoomMaxOccupancy", "Enter the room's maximum occupancy\n> "); 
     		
-    		String nightlyRate = getValidDataFromUser("RoomNightlyRate", "\nEnter the room's nightly rate\n> "); 
+    		String nightlyRate = getValidDataFromUser("ADD_ROOM", "RoomNightlyRate", "Enter the room's nightly rate\n> "); 
               
-            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate));
+            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category.toUpperCase(), Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
            
         }
         catch (Throwable err) {
             handleError(err);
         }
-    }
-    
-    /**
-     * Task: Helper method to get data from user
-     * 
-     * Arguments: fieldName - Name of the field (used while checking if entered data is sane)
-     *            message - The message asking user to enter the data 
-     *            params(Optional) - Extra parameters needed to validate the sanity 
-     * 
-     * Returns: Valid user entered data 
-     * 
-     * Modifications: 03/24/18 - MTA - Added method
-     */
-    public static String getValidDataFromUser (String fieldName, String message, String...params ) {
-    	
-    	boolean isValid = true;
-    	
-    	// Ask user to enter the data
-    	System.out.println(message);  
-    	String value = scanner.nextLine(); 
-    	
-    	// Check if valid
-    	if (fieldName.equalsIgnoreCase("RoomNumber")) {
-    		// Extra checks for Room Number
-    		isValid = isValueSane(fieldName, value) && isRoomNumberAvailable(Integer.parseInt(params[0]), Integer.parseInt(value));
-    	} else {
-    		isValid = isValueSane(fieldName, value);
-    	} 
-        
-    	// If invalid, let user re-enter the value
-        while(!isValid) {
-        	System.out.println("Re-" + message);
-        	value = scanner.nextLine(); 
-        	if (fieldName.equalsIgnoreCase("RoomNumber")) {
-        		// Extra checks for Room Number
-        		isValid = isValueSane(fieldName, value) && isRoomNumberAvailable(Integer.parseInt(params[0]), Integer.parseInt(value));
-        	} else {
-        		isValid = isValueSane(fieldName, value);
-        	}
-        } 
-        
-        // Now the data is valid, return it
-        return value;
-    }
+    } 
     
     /**
      * Task: Manage
@@ -1982,7 +1934,49 @@ public class WolfInns {
      * Modifications: 03/24/18 - MTA - Added functionality to update room details
      */
     public static void manageRoomUpdate() {
-    	
+    	try {
+    		boolean userWantsToStop = false; 
+    		 
+            // Print hotels to console so user has some context
+            reportEntireTable("Rooms");
+            
+            String hotelId = getValidDataFromUser("UPDATE_ROOM", "RoomHotelId", "Enter the hotel ID for the room you wish to make changes for\n> ");
+            String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNumber", "Enter the room number you wish to make changes for\n> ", hotelId); 
+            
+            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
+                
+            while(!userWantsToStop) { 
+            	
+            	// Get the attribute the user wants to update
+                System.out.print("\nChoose the attribute you wish to change\n1. Room Category\n2. Max Occupancy\n3. Nightly Rate\n4. Exit\n> ");
+                int attributeToChange = Integer.parseInt(scanner.nextLine());
+            	
+            	switch(attributeToChange){
+	             	case 1:
+	             		String category = getValidDataFromUser("UPDATE_ROOM","RoomCategory", "Enter the new value for room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
+	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
+	             		break;
+	             	case 2:
+	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","RoomMaxOccupancy", "Enter the new value for room's maximum occupancy\n> ");
+	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
+	             		break;
+	             	case 3:
+	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "RoomNightlyRate", "Enter the new value for room's nightly rate\n> ");
+	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
+	             		break;
+	             	case 4:
+	             		userWantsToStop = true;
+	             		break;
+	             	default: System.out.println("Please choose a number between 1 to 4"); 
+	            } 
+            } 
+                
+            // Report results of all the updates
+            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber)); 
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
     }
     
     /**
@@ -1993,7 +1987,110 @@ public class WolfInns {
      */
     public static void manageRoomDelete() {
     	
+    	try { 
+             
+            // Print hotels to console so user has some context
+            reportEntireTable("Rooms");
+            
+            // Get hotelid and roomnumber to be deleted
+            String hotelId = getValidDataFromUser("DELETE_ROOM", "RoomHotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
+    		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNumber", "Enter the roomNumber you wish to delete\n> ", hotelId);
+
+            // Call method to actually interact with the DB
+            deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    	
+    } 
+    
+    /**
+     * Task: Helper method to get data from user
+     * 
+     * Arguments: operation - Operation the user is performing (ADD_ROOM / UPDATE_ROOM / DELETE_ROOM)  
+     * 			  fieldName - Name of the field (used while checking if entered data is sane)
+     *            message - The message asking user to enter the data 
+     *            params(Optional) - Extra parameters needed to validate the sanity 
+     * 
+     * Returns: Valid user entered data 
+     * 
+     * Modifications: 03/24/18 - MTA - Added method
+     */
+    public static String getValidDataFromUser (String operation, String fieldName, String message, String...params ){
+    	
+    	boolean isValid = false;    
+    	int attempt = 0;
+    	String value = "";
+    	
+    	// Repeat till user enters a correct field value
+        while(!isValid) {
+        	// Ask user to enter/re-enter the data
+        	String messagePrefix = (attempt == 0) ? "\n" : "\nRe-";
+        	System.out.println(messagePrefix + message); 
+        	value = scanner.nextLine(); 
+        	
+        	if (fieldName.equalsIgnoreCase("RoomHotelId")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+    			if (isSane) {  
+    				// Extra checks for Hotel Id when deleting room:
+        			// 1. Check if the entered hotel id is valid
+        			boolean isValidHotelId = isValidHotelId(Integer.parseInt(value));
+        			if (isValidHotelId) { 
+        				isValid = true;  
+        			} else {
+        				System.out.println("ERROR: The entered hotel id does not exist in database");
+        			}  
+    			}  
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("RoomNumber") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM"))) {
+        		boolean isSane = isValueSane(fieldName, value); 
+    			if (isSane) {  
+    				// Extra checks for Room Number when deleting/updating room :
+        			// 1. Check if the entered room number is present for given hotel
+        			boolean isAssociated = isValidRoomForHotel(Integer.parseInt(params[0]), Integer.parseInt(value));
+        			if (isAssociated) { 
+        				// 2. Make sure there are no guests staying in this room currently
+    	    			boolean isRoomOccupied = isRoomCurrentlyOccupied(Integer.parseInt(params[0]), Integer.parseInt(value));
+    	    			if (!isRoomOccupied) {
+    	    				isValid = true;  
+    	    			} else { 
+    	    				System.out.println("ERROR: The room is currently occupied, hence cannot be modified"); 
+    	    			} 
+        			} else { 
+        				System.out.println("ERROR: The room number is not associated with this hotel");   
+        			}  
+    			}  
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("RoomNumber") && operation.equals("ADD_ROOM")) {
+        		 
+        		boolean isSane = isValueSane(fieldName, value); 
+    			if (isSane) { 
+    				// Extra checks for Room Number when adding room:
+    				// 1.check if the entered room number is not already present for given hotel
+        			boolean isAssociated = isValidRoomForHotel(Integer.parseInt(params[0]), Integer.parseInt(value));
+        			if (!isAssociated) { 
+        				isValid = true; 
+        			} else {
+        				System.out.println("ERROR: This room number is already associated with different room in this hotel");  
+        			}
+    			}     
+        	}  
+        	
+        	else {
+        		isValid = isValueSane(fieldName, value);
+        	}
+        	
+        	attempt++;
+        } 
+        
+        // Now the data is valid, return it
+        return value;
     }
+    
     
     /** 
      * Management task: Add a new staff member
@@ -2172,6 +2269,7 @@ public class WolfInns {
                  }  
             } catch(NumberFormatException nfe) {
             	System.out.println("\nERROR: Hotel ID should be a number");
+            	okaySoFar = false;
             }
             
             // Check if entered room number is valid ( i.e non-negative number)
@@ -2182,12 +2280,13 @@ public class WolfInns {
                  }  
             } catch(NumberFormatException nfe) {
             	System.out.println("\nERROR: Room number should be a number");
+            	okaySoFar = false;
             }  
             
             // Check if entered room category is valid ( i.e 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' )
             if (attributeName.equalsIgnoreCase("RoomCategory") && 
-        	     !(proposedValue.equals("Economy") || proposedValue.equals("Deluxe") || proposedValue.equals("Executive Suite") || proposedValue.equals("Presidential Suite"))) {
-        		 	System.out.println("\nERROR: Allowed values for room category are 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' ");
+        	     !(proposedValue.equalsIgnoreCase("ECONOMY") || proposedValue.equalsIgnoreCase("DELUXE") || proposedValue.equalsIgnoreCase("EXECUTIVE_SUITE") || proposedValue.equalsIgnoreCase("PRESIDENTIAL_SUITE"))) {
+        		 	System.out.println("\nERROR: Allowed values for room category are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' ");
         		 	okaySoFar = false; 
             } 
             
@@ -2205,6 +2304,7 @@ public class WolfInns {
                  }
             } catch(NumberFormatException nfe) {
             	System.out.println("\nERROR: Room Max Occupancy should be a number");
+            	okaySoFar = false;
             }
              
             // Check if entered Room Nightly rate is valid ( i.e non-negative number)
@@ -2215,6 +2315,7 @@ public class WolfInns {
                  }
             } catch(NumberFormatException nfe) {
             	System.out.println("\nERROR: Room Nightly rate should be a number");
+            	okaySoFar = false;
             }
              
         }
@@ -2810,11 +2911,13 @@ public class WolfInns {
      *              category      - Room Category ('Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite')
      *              maxOccupancy  - Max Occupancy for the room
      *              nightlyRate   - Nightly rate for the room
+     *              reportSuccess - True if need to print success message after method completes
      * Return -     None
      * 
      * Modifications:   03/24/18 -  MTA -  Added method. 
+     * 					03/25/18 -  MTA -  Updated method signature.
      */
-    public static void addRoom( int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate) {
+    public static void addRoom( int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate, boolean reportSuccess){
     
         try {
 
@@ -2837,7 +2940,10 @@ public class WolfInns {
                 // If success, commit
                 jdbc_connection.commit();
                 
-                System.out.println("\n'Room has been successfully added to the database! \n");        
+                if (reportSuccess)
+                {
+                	System.out.println("\nRoom has been successfully added to the database! \n");
+                } 
             } 
             catch (Throwable ex) {
                 
@@ -2855,6 +2961,120 @@ public class WolfInns {
             finally {
                 // Restore normal auto-commit mode
                 jdbc_connection.setAutoCommit(true);
+                jdbcPrep_insertNewRoom.close();
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+    
+	/** 
+	 * DB Update: Update room details
+	 * 
+	 * Arguments -  roomNumber    - Room number 
+	 *              hotelId       - Hotel to which the room belongs
+	 *              columnName    - Name of the column for Rooms table that is being updated 
+	 *              columnValue   - Value of column for Rooms table that is being updated 
+	 *              reportSuccess - True if need to print success message after method completes 
+	 * Return -     None
+	 * 
+	 * Modifications:   03/25/18 -  MTA -  Added method. 
+	 */
+	public static void updateRoom( int roomNumber, int hotelId, String columnName, String columnValue, boolean reportSuccess){
+	
+	    try {
+	
+	        // Start transaction
+	        jdbc_connection.setAutoCommit(false);
+	        
+	        try {
+	        	
+	        	String updateRoomSQL = "UPDATE Rooms SET " + columnName + " = ? WHERE RoomNum = ? AND hotelID = ?; ";
+	        	jdbcPrep_updateRoom = jdbc_connection.prepareStatement(updateRoomSQL);
+	        	    
+	        	jdbcPrep_updateRoom.setString(1, columnValue); 
+	        	jdbcPrep_updateRoom.setInt(2, roomNumber);
+	        	jdbcPrep_updateRoom.setInt(3, hotelId);  
+                 
+	        	jdbcPrep_updateRoom.executeUpdate();
+	
+	            // If success, commit
+	            jdbc_connection.commit();
+	            
+	            if (reportSuccess)
+	            {
+	            	System.out.println("\nRoom details were successfully updated! \n");        	
+	            } 
+	        } 
+	        catch (Throwable ex) {
+	             
+	        	handleError(ex);	
+	        	 
+	            // Roll back the entire transaction
+	            jdbc_connection.rollback();
+	            
+	        }
+	        finally {
+	            // Restore normal auto-commit mode
+	            jdbc_connection.setAutoCommit(true);
+	            jdbcPrep_updateRoom.close();
+	        }
+	        
+	    }
+	    catch (Throwable err) {
+	        handleError(err);
+	    }
+	}
+    
+    /** 
+     * DB Update: Delete room
+     * 
+     * Arguments -  hotelId       - Hotel to which the room belongs
+     * 				roomNumber    - Room number  
+     *              reportSuccess - True if need to print success message after method completes
+     * Return -     None
+     * 
+     * Modifications:   03/25/18 -  MTA -  Added method. 
+     */
+    public static void deleteRoom(int hotelId, int roomNumber, boolean reportSuccess) {
+    	try {
+
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+            	 
+            	String deleteRoomSQL = "DELETE FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
+            	jdbcPrep_deleteRoom = jdbc_connection.prepareStatement(deleteRoomSQL);
+  
+            	jdbcPrep_deleteRoom.setInt(1, roomNumber);
+            	jdbcPrep_deleteRoom.setInt(2, hotelId); 
+            	
+            	jdbcPrep_deleteRoom.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                if (reportSuccess)
+                {
+                	System.out.println("\nRoom has been successfully deleted from the database! \n");        	
+                } 
+            } 
+            catch (Throwable ex) {
+                
+                handleError(ex);	 
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+                // Close prepared statement to enable caching
+                jdbcPrep_deleteRoom.close();
             }
             
         }
@@ -2864,42 +3084,140 @@ public class WolfInns {
     }
     
     /** 
-     * DB Check: When adding new room, check if room number entered by the user is already associated with some other room in this hotel
+     * DB Check: Check if room number is associated with given hotel
      * 
-     * Arguments -  roomNumber    - Room number entered by user
-     *              hotelId       - Hotel Id entered by user 
-     * Return -     boolean       - True if the room number is already associated with some other room in this hotel
-     * 
+     * Arguments -  roomNumber    - Room number
+     *              hotelId       - Hotel Id 
+     * Return -     boolean       - True if the room number is associated with given hotel
+      * 
      * Modifications:   03/24/18 -  MTA -  Added method. 
      */
-    public static boolean isRoomNumberAvailable(int hotelId, int roomNumber) {  
+    public static boolean isValidRoomForHotel(int hotelId, int roomNumber){  
     	
-        try {
-        	
-			 String sql = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";
-			 
-			 jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(sql); 
-			 jdbcPrep_isValidRoomNumber.setInt(1, hotelId);
-			 jdbcPrep_isValidRoomNumber.setInt(2, roomNumber);   
-			 
-			 ResultSet rs = jdbcPrep_isValidRoomNumber.executeQuery();
-			 int cnt = 0;
-			 
-			 while (rs.next()) {
-				cnt = rs.getInt("CNT"); 	
-			 }
-			 
-			 if (cnt > 0) {
-				 System.out.println("ERROR: This room number is already associated with different room in this hotel");
-				 return false;
-			 }   
-			 
+    	try {  
+    		
+	        try {
+	        	
+				 String sql = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";
+				 
+				 jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(sql); 
+				 jdbcPrep_isValidRoomNumber.setInt(1, hotelId);
+				 jdbcPrep_isValidRoomNumber.setInt(2, roomNumber);   
+				 
+				 ResultSet rs = jdbcPrep_isValidRoomNumber.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        } 
+	        finally { 
+				jdbcPrep_isValidRoomNumber.close(); 
+	        }
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
         }
-        catch (Throwable err) {
-            handleError(err);
-        } 
         
-        return true; 
+        return false; 
+    }
+    
+    /** 
+     * DB Check: Check if given hotel id exists in the database
+     * 
+     * Arguments -  hotelId       - Hotel Id  
+     * Return -     boolean       - True if the hotel id exists
+     * 
+     * Modifications:   03/25/18 -  MTA -  Added method. 
+     */
+    public static boolean isValidHotelId(int hotelId) {
+    	try {   
+	        
+    		try {  
+				 String sql = "SELECT COUNT(*) AS CNT FROM Hotels WHERE ID = ? ;";
+				 
+				 jdbcPrep_isValidHotelId = jdbc_connection.prepareStatement(sql); 
+				 jdbcPrep_isValidHotelId.setInt(1, hotelId); 
+				 
+				 ResultSet rs = jdbcPrep_isValidHotelId.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        } 
+	        finally { 
+	        	jdbcPrep_isValidHotelId.close(); 
+	        }
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    /** 
+     * DB Check: Check if room number for given hotel is currently occupied
+     * 
+     * Arguments -  roomNumber    - Room number
+     *              hotelId       - Hotel Id 
+     * Return -     boolean       - True if the room number for given hotel is currently occupied by guests
+     * 
+     * Modifications:   03/25/18 -  MTA -  Added method. 
+     */
+    public static boolean isRoomCurrentlyOccupied(int hotelId, int roomNumber){  
+    	
+    	try {  
+    		
+	        try {
+	        	
+				 String sql = "SELECT COUNT(*) AS CNT FROM Stays WHERE hotelID = ? AND RoomNum = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
+				 
+				 jdbcPrep_isRoomCurrentlyOccupied = jdbc_connection.prepareStatement(sql); 
+				 jdbcPrep_isRoomCurrentlyOccupied.setInt(1, hotelId);
+				 jdbcPrep_isRoomCurrentlyOccupied.setInt(2, roomNumber);   
+				 
+				 ResultSet rs = jdbcPrep_isRoomCurrentlyOccupied.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        } 
+	        finally { 
+	        	jdbcPrep_isRoomCurrentlyOccupied.close(); 
+	        }
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
     }
     
     /** 
@@ -2980,7 +3298,7 @@ public class WolfInns {
                     "\nCannot assign this staff member as dedicated catering staff, because they are not registered as a Wolf Inns staff member\n"
                 );
             }
-            else if (errorMessage.contains("PK_ROOMS") || pkViolation[0].contains("PK_ROOMS")) {
+            else if (errorMessage.contains("PK_ROOMS") || (pkViolation.length > 0 && pkViolation[0].contains("PK_ROOMS"))) {
             	System.out.println(
                     "\nCannot use this room number for the hotel, because it is already used for another room\n"
                 );
@@ -3284,9 +3602,7 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForPhoneNumber.close();
             jdbcPrep_getHotelSummaryForStaffMember.close();
             jdbcPrep_getHotelByID.close(); 
-            jdbcPrep_deleteHotel.close(); 
-            jdbcPrep_insertNewRoom.close();
-            jdbcPrep_isValidRoomNumber.close(); 
+            jdbcPrep_deleteHotel.close();
             jdbcPrep_insertNewStaff.close();
             jdbcPrep_getNewestStaffID.close(); 
             jdbc_connection.close();
