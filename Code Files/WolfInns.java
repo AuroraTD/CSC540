@@ -46,6 +46,7 @@ public class WolfInns {
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
     private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
     private static final String CMD_MANAGE_STAFF_ADD =      "ADDSTAFF";
+    private static final String CMD_MANAGE_STAFF_UPDATE =   "UPDATESTAFF";
     private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
     
     private static final String CMD_MANAGE_ROOM_ADD =       "ADDROOM";
@@ -93,6 +94,15 @@ public class WolfInns {
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
     private static PreparedStatement jdbcPrep_getNewestStaffID;
+    private static PreparedStatement jdbcPrep_updateStaffName;
+    private static PreparedStatement jdbcPrep_updateStaffDOB;
+    private static PreparedStatement jdbcPrep_updateStaffJobTitle;
+    private static PreparedStatement jdbcPrep_updateStaffDepartment;
+    private static PreparedStatement jdbcPrep_updateStaffPhoneNum;
+    private static PreparedStatement jdbcPrep_updateStaffAddress;
+    private static PreparedStatement jdbcPrep_updateStaffHotelID;
+    private static PreparedStatement jdbcPrep_updateStaffRangeHotelID;
+    private static PreparedStatement jdbcPrep_getStaffByID;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -118,6 +128,7 @@ public class WolfInns {
 											Use new general error handler. 
      *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room 
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
+     *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -176,6 +187,8 @@ public class WolfInns {
                     System.out.println("\t- delete a hotel");
                     System.out.println("'" + CMD_MANAGE_STAFF_ADD + "'");
                     System.out.println("\t- add a staff member");
+                    System.out.println("'" + CMD_MANAGE_STAFF_UPDATE + "'");
+                    System.out.println("\t- update information about a staff member");
                     System.out.println("'" + CMD_MANAGE_STAFF_DELETE + "'");
                     System.out.println("\t- delete a staff member");
                     
@@ -248,6 +261,8 @@ public class WolfInns {
      *                                      Use new general error handler.
      *                  03/24/18 -  ATTD -  Add support for deleting a hotel.
      *                  03/24/18 -  ATTD -  Add support for adding a new staff member.
+     *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
+     *                  03/27/18 -  ATTD -  Add prepared statement for updating staff hotel ID by staff ID range.
      */
     public static void createPreparedStatements() {
         
@@ -453,6 +468,105 @@ public class WolfInns {
              */
             reusedSQLVar = "SELECT MAX(ID) FROM Staff;";
             jdbcPrep_getNewestStaffID = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Update staff member name
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff name
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET Name = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffName = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member date of birth
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff date of birth
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET DOB = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffDOB = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member job title
+             * Any staff member currently dedicated to serving a presidential suite may not have their job title changed
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff job title
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET JobTitle = ? " + 
+                "WHERE ID = ? AND " + 
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
+            jdbcPrep_updateStaffJobTitle = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member department
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff department
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET Dep = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffDepartment = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member phone number
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff phone number
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET PhoneNum = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffPhoneNum = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member address
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff address
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET Address = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffAddress = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member assigned hotel ID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff hotel ID
+             * 2 -  staff ID
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET HotelID = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateStaffHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update staff member assigned hotel ID, by range of staff ID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  staff hotel ID
+             * 2 -  staff ID min (inclusive)
+             * 3 -  staff ID max (inclusive)
+             */
+            reusedSQLVar = 
+                "UPDATE Staff " + 
+                "SET HotelID = ? WHERE " + 
+                "ID >= ? AND ID <= ?;";
+            jdbcPrep_updateStaffRangeHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get all values of a given tuple (by ID) from the Staff table
+             * Indices to use when calling this prepared statement:
+             * 1 -  ID
+             */
+            reusedSQLVar = 
+                "SELECT * FROM Staff WHERE ID = ?;";
+            jdbcPrep_getStaffByID = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1054,6 +1168,7 @@ public class WolfInns {
      * Modifications:   03/07/18 -  MTA -   Created method.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/27/18 -  ATTD -  Use prepared statement.
      */
     public static void updateHotelIdForStaff() {
     	
@@ -1063,18 +1178,47 @@ public class WolfInns {
              jdbc_connection.setAutoCommit(false);
              
              try {
-             
-                 // Update(Assign) HotelId for Staff 
-                 // TODO: use prepared statement instead
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 1 WHERE ID >=1 AND ID <=8;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 2 WHERE ID >=9 AND ID <=14;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 3 WHERE ID >=15 AND ID <=20;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 4 WHERE ID >=21 AND ID <=26;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 5 WHERE ID >=27 AND ID <=34;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 6 WHERE ID >=35 AND ID <=41;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 7 WHERE ID >=42 AND ID <=48;");
-                 jdbc_statement.executeUpdate("UPDATE Staff SET HotelID = 8 WHERE ID >=49 AND ID <=55;");
                  
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 1);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 8);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 2);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 9);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 14);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 3);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 15);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 20);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 21);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 26);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 5);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 27);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 34);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 6);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 35);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 41);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 7);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 42);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 48);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 8);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 49);
+                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 55);
+                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+
                  // If success, commit
                  jdbc_connection.commit();
     			
@@ -1478,7 +1622,6 @@ public class WolfInns {
         
     }
 
-    
     /** 
      * Report task: Report all results from a given table
      * 
@@ -1523,6 +1666,33 @@ public class WolfInns {
             
             // Print result
             System.out.println("\nHotel Information:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Report task: Report all values of a single tuple of the Staff table, by ID
+     * 
+     * Arguments -  id -        The ID of the tuple.
+     * Return -     None
+     * 
+     * Modifications:   03/26/18 -  ATTD -  Created method.
+     */
+    public static void reportStaffByID(int id) {
+
+        try {
+            
+            // Get entire tuple from table
+            jdbcPrep_getStaffByID.setInt(1, id);
+            jdbc_result = jdbcPrep_getStaffByID.executeQuery();
+            
+            // Print result
+            System.out.println("\nStaff Member Information:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -2091,7 +2261,6 @@ public class WolfInns {
         return value;
     }
     
-    
     /** 
      * Management task: Add a new staff member
      * 
@@ -2151,6 +2320,67 @@ public class WolfInns {
                         }
                     }
                 }
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Management task: Change information about a staff member
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/26/18 -  ATTD -  Created method.
+     */
+    public static void manageStaffUpdate() {
+
+        try {
+
+            // Declare local variables
+            String staffIdAsString = "";
+            String attributeToChange = "";
+            String valueToChangeTo;
+            int staffID = 0;
+            boolean userWantsToStop = false;
+            
+            // Print staff to console so user has some context
+            reportEntireTable("Staff");
+            
+            // Get hotel ID
+            System.out.print("\nEnter the staff ID for the staff member you wish to make changes for\n> ");
+            staffIdAsString = scanner.nextLine();
+            if (isValueSane("ID", staffIdAsString)) {
+                staffID = Integer.parseInt(staffIdAsString);
+                // Print just that staff member to console so user has some context
+                reportStaffByID(staffID);
+                // Keep updating values until the user wants to stop
+                while (userWantsToStop == false) {
+                    // Get name of attribute they want to change
+                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                    attributeToChange = scanner.nextLine();
+                    if (isValueSane("AnyAttr", attributeToChange)) {
+                        // Get value they want to change the attribute to
+                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                        valueToChangeTo = scanner.nextLine();
+                        if (isValueSane("AnyAttr", valueToChangeTo)) {
+                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                            updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
+                        }
+                        else {
+                            userWantsToStop = true;
+                        }
+                    }
+                    else {
+                        userWantsToStop = true;
+                    }
+                }
+                // Report results of all the updates
+                reportStaffByID(staffID);
             }
             
         }
@@ -2804,6 +3034,71 @@ public class WolfInns {
     }
     
     /** 
+     * DB Update: Change Staff Information
+     * 
+     * Arguments -  staffID -           The ID of the staff member to update
+     *              attributeToChange - The attribute to update
+     *              valueToChangeTo -   The value to update this attribute to (as a string)
+     * Return -     None
+     * 
+     * Modifications:   03/27/18 -  ATTD -  Created method.
+     */
+    public static void updateChangeStaffInfo (int staffID, String attributeToChange, String valueToChangeTo) {
+        
+        try {
+
+            // Update hotel info, using prepared statement
+            switch (attributeToChange) {
+                case "Name":
+                    jdbcPrep_updateStaffName.setString(1, valueToChangeTo);
+                    jdbcPrep_updateStaffName.setInt(2, staffID);
+                    jdbcPrep_updateStaffName.executeUpdate();
+                    break;
+                case "DOB":
+                    jdbcPrep_updateStaffDOB.setDate(1, java.sql.Date.valueOf(valueToChangeTo));
+                    jdbcPrep_updateStaffDOB.setInt(2, staffID);
+                    jdbcPrep_updateStaffDOB.executeUpdate();
+                    break;
+                case "JobTitle":
+                    jdbcPrep_updateStaffJobTitle.setString(1, valueToChangeTo);
+                    jdbcPrep_updateStaffJobTitle.setInt(2, staffID);
+                    jdbcPrep_updateStaffJobTitle.executeUpdate();
+                    break;
+                case "Dep":
+                    jdbcPrep_updateStaffDepartment.setString(1, valueToChangeTo);
+                    jdbcPrep_updateStaffDepartment.setInt(2, staffID);
+                    jdbcPrep_updateStaffDepartment.executeUpdate();
+                    break;
+                case "PhoneNum":
+                    jdbcPrep_updateStaffPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
+                    jdbcPrep_updateStaffPhoneNum.setInt(2, staffID);
+                    jdbcPrep_updateStaffPhoneNum.executeUpdate();
+                    break;
+                case "Address":
+                    jdbcPrep_updateStaffAddress.setString(1, valueToChangeTo);
+                    jdbcPrep_updateStaffAddress.setInt(2, staffID);
+                    jdbcPrep_updateStaffAddress.executeUpdate();
+                    break;
+                case "HotelID":
+                    jdbcPrep_updateStaffHotelID.setInt(1, Integer.parseInt(valueToChangeTo));
+                    jdbcPrep_updateStaffHotelID.setInt(2, staffID);
+                    jdbcPrep_updateStaffHotelID.executeUpdate();
+                    break;
+                default:
+                    System.out.println(
+                        "\nCannot update the '" + attributeToChange + "' attribute of a staff member, because this is not a recognized attribute for Wolf Inns staff\n"
+                    );
+                    break;
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);            
+        }
+        
+    }
+    
+    /** 
      * DB Update: Delete Staff Member
      * 
      * Arguments -  staffID -       The ID of the staff member
@@ -3402,6 +3697,7 @@ public class WolfInns {
      *                  03/24/18 -  MTA -   Add ability to add room.
      *                  03/24/18 -  ATTD -  Close prepared statement for deleting a hotel.
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
+     *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      */
     public static void main(String[] args) {
         
@@ -3553,6 +3849,9 @@ public class WolfInns {
                         case CMD_MANAGE_STAFF_ADD:
                             manageStaffAdd();
                             break;
+                        case CMD_MANAGE_STAFF_UPDATE:
+                            manageStaffUpdate();
+                            break;
                         case CMD_MANAGE_STAFF_DELETE:
                             manageStaffDelete();
                             break;
@@ -3605,6 +3904,15 @@ public class WolfInns {
             jdbcPrep_deleteHotel.close();
             jdbcPrep_insertNewStaff.close();
             jdbcPrep_getNewestStaffID.close(); 
+            jdbcPrep_updateStaffName.close(); 
+            jdbcPrep_updateStaffDOB.close(); 
+            jdbcPrep_updateStaffJobTitle.close(); 
+            jdbcPrep_updateStaffDepartment.close(); 
+            jdbcPrep_updateStaffPhoneNum.close(); 
+            jdbcPrep_updateStaffAddress.close(); 
+            jdbcPrep_updateStaffHotelID.close();
+            jdbcPrep_updateStaffRangeHotelID.close();
+            jdbcPrep_getStaffByID.close();
             jdbc_connection.close();
         
         }
