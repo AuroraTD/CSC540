@@ -103,6 +103,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateStaffHotelID;
     private static PreparedStatement jdbcPrep_updateStaffRangeHotelID;
     private static PreparedStatement jdbcPrep_getStaffByID;
+    private static PreparedStatement jdbcPrep_deleteStaff;  
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -263,6 +264,7 @@ public class WolfInns {
      *                  03/24/18 -  ATTD -  Add support for adding a new staff member.
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      *                  03/27/18 -  ATTD -  Add prepared statement for updating staff hotel ID by staff ID range.
+     *                                      Use prepared statement to delete staff.
      */
     public static void createPreparedStatements() {
         
@@ -440,6 +442,7 @@ public class WolfInns {
             jdbcPrep_getHotelByID = jdbc_connection.prepareStatement(reusedSQLVar);
             
             /* Delete a hotel (by ID)
+             * Any hotel, room, customer, staff member, or service type associated with a current guest stay may not be deleted
              * Indices to use when calling this prepared statement:
              * 1 -  ID
              */
@@ -493,6 +496,7 @@ public class WolfInns {
             
             /* Update staff member job title
              * Any staff member currently dedicated to serving a presidential suite may not have their job title changed
+             * Since we set DCStaff and DRSStaff to NULL when a room is released, we needn't look at the Stays table
              * Indices to use when calling this prepared statement: 
              * 1 -  staff job title
              * 2 -  staff ID
@@ -501,7 +505,8 @@ public class WolfInns {
                 "UPDATE Staff " + 
                 "SET JobTitle = ? " + 
                 "WHERE ID = ? AND " + 
-                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND " + 
+                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
             jdbcPrep_updateStaffJobTitle = jdbc_connection.prepareStatement(reusedSQLVar);
             
             /* Update staff member department
@@ -567,6 +572,19 @@ public class WolfInns {
             reusedSQLVar = 
                 "SELECT * FROM Staff WHERE ID = ?;";
             jdbcPrep_getStaffByID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Delete a staff member (by ID)
+             * Any hotel, room, customer, staff member, or service type associated with a current guest stay may not be deleted
+             * Since we set DCStaff and DRSStaff to NULL when a room is released, we needn't look at the Stays table
+             * Indices to use when calling this prepared statement:
+             * 1 -  ID
+             */
+            reusedSQLVar = 
+                "DELETE FROM Staff " + 
+                "WHERE ID = ? AND " + 
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL) AND " + 
+                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL);";
+            jdbcPrep_deleteStaff = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -2399,17 +2417,22 @@ public class WolfInns {
      * 
      * Modifications:   03/12/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/27/18 -  ATTD -  Provide more context for user.
+     *                                      Change staff ID from long to int.
      */
     public static void manageStaffDelete() {
 
         try {
             
             // Declare local variables
-            long staffID = 0;
+            int staffID = 0;
             
-            // Get name
-            System.out.print("\nEnter the staff ID\n> ");
-            staffID = Long.parseLong(scanner.nextLine());
+            // Print staff members to console so user has some context
+            reportEntireTable("Staff");
+            
+            // Get ID of staff members to delete
+            System.out.print("\nEnter the staff ID for the staff member you wish to delete\n> ");
+            staffID = Integer.parseInt(scanner.nextLine());
 
             // Call method to actually interact with the DB
             updateDeleteStaff(staffID, true);
@@ -3108,88 +3131,36 @@ public class WolfInns {
      * 
      * Modifications:   03/12/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  03/24/18 -  ATTD -  Use prepared statement.
+     *                                      Do not claim success unless the staff member actually got deleted.
      */
-    public static void updateDeleteStaff (long staffID, boolean reportSuccess) {
+    public static void updateDeleteStaff (int staffID, boolean reportSuccess) {
 
         try {
             
-            // Start transaction
-            jdbc_connection.setAutoCommit(false);
+            /* Remove the staff member from the Staff table
+             * No need to explicitly set up a transaction, because only one SQL command is needed
+             */
+            jdbcPrep_deleteStaff.setInt(1, staffID);
+            jdbcPrep_deleteStaff.executeUpdate();
             
-            try {
-
-                // Declare variables
-                int numStaffBefore = 0;
-                int numStaffAfter = 0;
-                
-                // How many staff members exist before the attempt
-                // TODO: use prepared statement instead
-                jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
-                jdbc_result.next();
-                numStaffBefore = jdbc_result.getInt(1);
-                
-                // Remove the staff member from the Staff table
-                // TODO: use prepared statement instead
-                jdbc_statement.executeUpdate(
-                    "DELETE " +
-                    "FROM Staff " +
-                    "WHERE ID = " + staffID + " AND ID NOT IN ( " +
-                        "SELECT DRSStaff AS X " +
-                        "FROM Rooms " +
-                        "WHERE (DRSStaff IS NOT NULL) AND ( " +
-                            "RoomNum IN ( " +
-                                "SELECT RoomNum " +
-                                "FROM Stays " +
-                                "WHERE EndDate IS NULL OR CheckOutTime IS NULL " +
-                            ") " +
-                        ") " +
-                        "UNION ALL " +
-                        "SELECT DCStaff AS X " +
-                        "FROM Rooms " +
-                        "WHERE (DCStaff IS NOT NULL) AND ( " +
-                            "RoomNum IN ( " +
-                                "SELECT RoomNum FROM Stays " +
-                                "WHERE EndDate IS NULL OR CheckOutTime IS NULL " +
-                            ") " +
-                        ") " +
-                    ");"
+            // Did the deletion succeed?
+            jdbcPrep_getStaffByID.setInt(1, staffID);
+            jdbc_result = jdbcPrep_getStaffByID.executeQuery();
+            if (jdbc_result.next()) {
+                // Always complain about a failure (never fail silently)
+                System.out.println(
+                    "\nStaff ID " + 
+                    staffID + 
+                    " was NOT deleted " + 
+                    "(this can happen if the staff member is currently dedicated to serving a room in which a guest is staying)\n"
                 );
-                
-                // How many staff members exist after the attempt
-                // TODO: use prepared statement instead
-                jdbc_result = jdbc_statement.executeQuery("SELECT count(*) FROM Staff");
-                jdbc_result.next();
-                numStaffAfter = jdbc_result.getInt(1);
-                
-                // If success, commit
-                jdbc_connection.commit();
-                
-                // Then, tell the user about the results
-                if (numStaffBefore == numStaffAfter) {
-                    System.out.println(
-                        "\nStaff ID " + 
-                        staffID + 
-                        " was NOT deleted " + 
-                        "(cannot delete staff members who do not exist, or who are currently dedicated to serving a room)\n"
-                    );
+            }
+            else {
+                // Tell the user about the success, if we're supposed to
+                if (reportSuccess) {
+                    System.out.println("\nStaff ID " + staffID + " deleted!\n");
                 }
-                else if (reportSuccess) {
-                    System.out.println("\nStaff ID " + staffID + " was deleted!\n");
-                }         
-                
-            }
-            catch (Throwable err) {
-                
-                // Handle error
-                handleError(err);
-                
-                // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
-            }
-            finally {
-                // Restore normal auto-commit mode
-                jdbc_connection.setAutoCommit(true);
             }
             
         }
@@ -3699,6 +3670,7 @@ public class WolfInns {
      *                  03/24/18 -  ATTD -  Close prepared statement for deleting a hotel.
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
+     *                  03/27/18 -  ATTD -  Use prepared statement to delete staff.
      */
     public static void main(String[] args) {
         
@@ -3914,6 +3886,7 @@ public class WolfInns {
             jdbcPrep_updateStaffHotelID.close();
             jdbcPrep_updateStaffRangeHotelID.close();
             jdbcPrep_getStaffByID.close();
+            jdbcPrep_deleteStaff.close();
             jdbc_connection.close();
         
         }
