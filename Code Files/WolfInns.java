@@ -1975,6 +1975,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
+     *                  03/17/18 -  ATTD -  Fix copy-paste error keeping proposed values from being sanity-checked.
      */
     public static void manageHotelUpdate() {
 
@@ -2006,7 +2007,7 @@ public class WolfInns {
                         // Get value they want to change the attribute to
                         System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                         valueToChangeTo = scanner.nextLine();
-                        if (isValueSane("AnyAttr", valueToChangeTo)) {
+                        if (isValueSane(attributeToChange, valueToChangeTo)) {
                             // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
                             updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
                         }
@@ -2367,7 +2368,7 @@ public class WolfInns {
                         // Get value they want to change the attribute to
                         System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                         valueToChangeTo = scanner.nextLine();
-                        if (isValueSane("AnyAttr", valueToChangeTo)) {
+                        if (isValueSane(attributeToChange, valueToChangeTo)) {
                             // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
                             updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
                         }
@@ -2553,7 +2554,7 @@ public class WolfInns {
             handleError(err);
             okaySoFar = false;
         }
-        
+
         // Return
         return okaySoFar;
         
