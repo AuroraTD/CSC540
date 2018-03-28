@@ -17,6 +17,7 @@
 import java.util.Scanner;
 import java.sql.*;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 
 // WolfInns class
 public class WolfInns {
@@ -27,9 +28,12 @@ public class WolfInns {
     
     private static final String CMD_MAIN =                  "MAIN";
     private static final String CMD_QUIT =                  "QUIT";
+    private static final String CMD_FRONTDESK =             "FRONTDESK";
     private static final String CMD_BILLING =               "BILLING";
     private static final String CMD_REPORTS =               "REPORTS";
     private static final String CMD_MANAGE =                "MANAGE";
+    
+    private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     
     private static final String CMD_BILLING_GENERATE =      "BILLFORSTAY";
     
@@ -82,7 +86,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getHotelByID;
     private static PreparedStatement jdbcPrep_deleteHotel;  
     
-    // Declare variables - prepared statements - Rooms
+    // Declare variables - prepared statements - ROOMS
     private static PreparedStatement jdbcPrep_insertNewRoom;
     private static PreparedStatement jdbcPrep_updateRoom;
     private static PreparedStatement jdbcPrep_deleteRoom;
@@ -90,6 +94,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_isRoomCurrentlyOccupied;
     private static PreparedStatement jdbcPrep_isValidHotelId;
     private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum; 
+    private static PreparedStatement jdbcPrep_getOneExampleRoom;
     
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
@@ -130,6 +135,7 @@ public class WolfInns {
      *                  03/24/18 -  MTA  -  Added ability to support Manage task for Room i.e add, update and delete room 
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
+     *                  03/27/18 -  ATTD -  Add ability to check room availability.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -141,6 +147,8 @@ public class WolfInns {
             
             switch (menu) {
                 case CMD_MAIN:
+                    System.out.println("'" + CMD_FRONTDESK + "'");
+                    System.out.println("\t- perform front-desk tasks");
                     System.out.println("'" + CMD_BILLING + "'");
                     System.out.println("\t- bill customers");
                     System.out.println("'" + CMD_REPORTS + "'");
@@ -149,6 +157,13 @@ public class WolfInns {
                     System.out.println("\t- manage the hotel chain (add hotels, etc)");
                     System.out.println("'" + CMD_QUIT + "'");
                     System.out.println("\t- exit the program");
+                    System.out.println("");
+                    break;
+                case CMD_FRONTDESK:
+                    System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
+                    System.out.println("\t- check room availability");
+                    System.out.println("'" + CMD_MAIN + "'");
+                    System.out.println("\t- go back to the main menu");
                     System.out.println("");
                     break;
                 case CMD_BILLING:
@@ -265,6 +280,7 @@ public class WolfInns {
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      *                  03/27/18 -  ATTD -  Add prepared statement for updating staff hotel ID by staff ID range.
      *                                      Use prepared statement to delete staff.
+     *                                      Add ability to report one example room.
      */
     public static void createPreparedStatements() {
         
@@ -272,6 +288,8 @@ public class WolfInns {
             
             // Declare variables
             String reusedSQLVar;
+            
+            // HOTELS
             
             /* Insert new hotel
              * Indices to use when calling this prepared statement:
@@ -372,6 +390,18 @@ public class WolfInns {
                 "SET ManagerID = ? " + 
                 "WHERE ID = ?;";
             jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // ROOMS
+            
+            /* Get one example room, just to show the user what the attributes to filter on are
+             * Don't filter on DCStaff or DRSStaff, that doesn't really make sense for the front desk rep
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = 
+                "SELECT RoomNum, HotelID, Category, MaxOcc, NightlyRate from Rooms LIMIT 1;";
+            jdbcPrep_getOneExampleRoom = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            // STAFF
             
             /* Demote the old manager of a given hotel to front desk representative
              * Indices to use when calling this prepared statement: 
@@ -1552,6 +1582,124 @@ public class WolfInns {
                 stayID = local_jdbc_result.getInt(1);
                 queryItemizedReceipt(stayID, false);
             }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    // FRONT DESK
+    
+    /** 
+     * Front Desk task: Check availability of rooms based on a wide range of characteristics
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   03/27/18 -  ATTD -  Created method.
+     */
+    public static void frontDeskCheckAvailability() {
+        
+        try {
+            
+            // Declare local variables
+            ArrayList<String> filters = new ArrayList<>();
+            String attributeToFilter = "";
+            String filterAttrToApply = "";
+            String valueToFilter = "";
+            String filterValToApply = "";
+            String sqlToExecute = "";
+            int numRoomsAvailable = 0;
+            int i;
+            boolean userWantsToStop = false;
+            boolean valueIsNumeric = false;
+            
+            // Print example room so user has some context
+            System.out.println("\nExample Room (showing filter options):\n");
+            jdbc_result = jdbcPrep_getOneExampleRoom.executeQuery();
+            printQueryResultSet(jdbc_result);
+            
+            // Keep filtering results until the user wants to stop
+            while (userWantsToStop == false) {
+                
+                // Print # available rooms in the Wolf Inns chain given existing filtering (need count but later will need all results)
+                sqlToExecute = "SELECT count(*) FROM Rooms";
+                for (i = 0; i < filters.size(); i++) {
+                    // If we're here at all, we have at least one filter, so need a WHERE clause
+                    if (i == 0) {
+                        sqlToExecute += " WHERE ";
+                    }
+                    // Each element of filters is of the form attr:value
+                    filterAttrToApply = filters.get(i).split(":")[0];
+                    filterValToApply = filters.get(i).split(":")[1];
+                    // Deal with special case Maximum Occupancy
+                    if (filterAttrToApply.equals("MaxOcc")) {
+                        sqlToExecute += filterAttrToApply + " >= " + filterValToApply;
+                    }
+                    // Deal with special case Nightly Rate
+                    else if (filterAttrToApply.equals("NightlyRate")) {
+                        sqlToExecute += filterAttrToApply + " <= " + filterValToApply;
+                    }
+                    // Deal with non-special cases (if string, must include quotes!)
+                    else {
+                        valueIsNumeric = true;
+                        try {
+                            Double.parseDouble(filterValToApply);
+                        }
+                        catch (NumberFormatException e) {
+                            valueIsNumeric = false;
+                        }
+                        if (valueIsNumeric) {
+                            sqlToExecute += filterAttrToApply + " = " + filterValToApply;
+                        }
+                        else {
+                            sqlToExecute += filterAttrToApply + " = '" + filterValToApply + "'";
+                        }
+                    }
+                    // If this wasn't the end, add an AND for the next one
+                    if (i < filters.size() - 1) {
+                        sqlToExecute += " AND ";
+                    }
+                }
+                sqlToExecute += ";";
+                jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
+                if (jdbc_result.next()) {
+                    numRoomsAvailable = jdbc_result.getInt(1);
+                }
+                System.out.println("\nRooms Available: " + numRoomsAvailable + "\n");
+
+                // Get name of attribute they want to filter on
+                System.out.print("\nEnter the name of the attribute you wish to ADD a filter for (or press <Enter> to stop)\n> ");
+                attributeToFilter = scanner.nextLine();
+                if (isValueSane("AnyAttr", attributeToFilter)) {
+                    // Get value they want to change the attribute to
+                    if (attributeToFilter.equals("MaxOcc")) {
+                        System.out.print("\nFor maximum occupancy, filtering will include any rooms with your desired occupancy or above");
+                    }
+                    else if (attributeToFilter.equals("NightlyRate")) {
+                        System.out.print("\nFor nightly rate, filtering will include any rooms with your desired rate or below");
+                    }
+                    System.out.print("\nEnter the value you wish to apply as a filter (or press <Enter> to stop)\n> ");
+                    valueToFilter = scanner.nextLine();
+                    if (isValueSane(attributeToFilter, valueToFilter)) {
+                        // Add this filter to the growing list
+                        filters.add(attributeToFilter + ":" + valueToFilter);
+                    }
+                    else {
+                        userWantsToStop = true;
+                    }
+                }
+                else {
+                    userWantsToStop = true;
+                }
+                
+            }
+            // Report full info about rooms that satisfied all the filters
+            sqlToExecute.replace("count(*)", "*");
+            jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
+            printQueryResultSet(jdbc_result);
             
         }
         catch (Throwable err) {
@@ -3497,6 +3645,7 @@ public class WolfInns {
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  03/24/18 -  MTA -   Handle primary key violation.
+     *                  03/28/18 -  ATTD -  Handle unknown column in WHERE clause.
      */
     public static void handleError(Throwable err, String... pkViolation) {
         
@@ -3615,19 +3764,26 @@ public class WolfInns {
                 );
             }
             
-            // Customer constraint violated
+            // CUSTOMERS constraint violated
             else if (errorMessage.contains("PK_CUSTOMERS")) {
                 System.out.println(
                     "\nCannot use this SSN for the customer, because it is already used for another customer\n"
                 );
             }
             
-            // Service Type constraint violated
+            // SERVICETYPES constraint violated
             else if (errorMessage.contains("PK_SERVICE_TYPES")) {
                 System.out.println(
                     "\nCannot use this name for the service type, because it is already used for another service type\n"
                 );
-            } 
+            }
+            
+            // Used bad column (non-existent attribute)
+            else if (errorMessage.contains("Unknown column")) {
+                System.out.println(
+                    "\nCannot use this attribute - it does not exist (check spelling)\n"
+                );
+            }
             
             // Number format error
             else if (errorMessage.contains("NumberFormatException")) {
@@ -3671,6 +3827,7 @@ public class WolfInns {
      *                  03/24/18 -  ATTD -  Add ability to insert new staff member.
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      *                  03/27/18 -  ATTD -  Use prepared statement to delete staff.
+     *                                      Add ability to check if rooms are available.
      */
     public static void main(String[] args) {
         
@@ -3720,6 +3877,12 @@ public class WolfInns {
                     case CMD_MAIN:
                         // Check user's input (case insensitively)
                         switch (command.toUpperCase()) {
+                            case CMD_FRONTDESK:
+                                // Tell the user their options in this new menu
+                                printAvailableCommands(CMD_FRONTDESK);
+                                // Remember what menu we're in
+                                currentMenu = CMD_FRONTDESK;
+                            break;
                             case CMD_BILLING:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_BILLING);
@@ -3745,6 +3908,25 @@ public class WolfInns {
                                 // Remind the user about what commands are available
                                 System.out.println("\nCommand not recognized");
                                 printAvailableCommands(CMD_MAIN);
+                                break;
+                        }
+                        break;
+                    case CMD_FRONTDESK:
+                        // Check user's input (case insensitively)
+                        switch (command.toUpperCase()) {
+                            case CMD_FRONTDESK_AVAILABLE:
+                                frontDeskCheckAvailability();
+                                break;
+                            case CMD_MAIN:
+                                // Tell the user their options in this new menu
+                                printAvailableCommands(CMD_MAIN);
+                                // Remember what menu we're in
+                                currentMenu = CMD_MAIN;
+                                break;
+                            default:
+                                // Remind the user about what commands are available
+                                System.out.println("\nCommand not recognized");
+                                printAvailableCommands(CMD_FRONTDESK);
                                 break;
                         }
                         break;
@@ -3859,6 +4041,7 @@ public class WolfInns {
             scanner.close();
             jdbc_statement.close();
             jdbc_result.close();
+            // Hotels
             jdbcPrep_insertNewHotel.close();
             jdbcPrep_updateNewHotelManager.close();
             jdbcPrep_udpateHotelName.close();
@@ -3875,6 +4058,9 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForStaffMember.close();
             jdbcPrep_getHotelByID.close(); 
             jdbcPrep_deleteHotel.close();
+            // Rooms
+            jdbcPrep_getOneExampleRoom.close();
+            // Staff
             jdbcPrep_insertNewStaff.close();
             jdbcPrep_getNewestStaffID.close(); 
             jdbcPrep_updateStaffName.close(); 
@@ -3887,6 +4073,7 @@ public class WolfInns {
             jdbcPrep_updateStaffRangeHotelID.close();
             jdbcPrep_getStaffByID.close();
             jdbcPrep_deleteStaff.close();
+            // Connection
             jdbc_connection.close();
         
         }
