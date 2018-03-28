@@ -1694,35 +1694,42 @@ public class WolfInns {
                     numRoomsAvailable = jdbc_result.getInt(1);
                 }
                 System.out.println("\nRooms Available: " + numRoomsAvailable + "\n");
-
-                // Get name of attribute they want to filter on
-                System.out.print("\nEnter the name of the attribute you wish to ADD a filter for (or press <Enter> to stop)\n> ");
-                attributeToFilter = scanner.nextLine();
-                if (isValueSane("AnyAttr", attributeToFilter)) {
-                    // Get value they want to change the attribute to
-                    if (attributeToFilter.equals("MaxOcc")) {
-                        System.out.print("\nFor maximum occupancy, filtering will include any rooms with your desired occupancy or above");
-                    }
-                    else if (attributeToFilter.equals("NightlyRate")) {
-                        System.out.print("\nFor nightly rate, filtering will include any rooms with your desired rate or below");
-                    }
-                    System.out.print("\nEnter the value you wish to apply as a filter (or press <Enter> to stop)\n> ");
-                    valueToFilter = scanner.nextLine();
-                    if (isValueSane(attributeToFilter, valueToFilter)) {
-                        // Add this filter to the growing list
-                        filters.add(attributeToFilter + ":" + valueToFilter);
+                
+                if (numRoomsAvailable == 0) {
+                    userWantsToStop = true;
+                }
+                else {
+                    
+                    // Get name of attribute they want to filter on
+                    System.out.print("\nEnter the name of the attribute you wish to ADD a filter for (or press <Enter> to stop)\n> ");
+                    attributeToFilter = scanner.nextLine();
+                    if (isValueSane("AnyAttr", attributeToFilter)) {
+                        // Get value they want to change the attribute to
+                        if (attributeToFilter.equals("MaxOcc")) {
+                            System.out.print("\nFor maximum occupancy, filtering will include any rooms with your desired occupancy or above");
+                        }
+                        else if (attributeToFilter.equals("NightlyRate")) {
+                            System.out.print("\nFor nightly rate, filtering will include any rooms with your desired rate or below");
+                        }
+                        System.out.print("\nEnter the value you wish to apply as a filter (or press <Enter> to stop)\n> ");
+                        valueToFilter = scanner.nextLine();
+                        if (isValueSane(attributeToFilter, valueToFilter)) {
+                            // Add this filter to the growing list
+                            filters.add(attributeToFilter + ":" + valueToFilter);
+                        }
+                        else {
+                            userWantsToStop = true;
+                        }
                     }
                     else {
                         userWantsToStop = true;
                     }
-                }
-                else {
-                    userWantsToStop = true;
+                    
                 }
                 
             }
             // Report full info about rooms that satisfied all the filters
-            sqlToExecute.replace("count(*)", "*");
+            sqlToExecute = sqlToExecute.replace("count(*)", "*");
             jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
             printQueryResultSet(jdbc_result);
             
@@ -3518,8 +3525,7 @@ public class WolfInns {
             handleError(err);
         }
     }
-    
- 
+  
      /** 
      * DB Update: Add new customer
      * 
@@ -3583,7 +3589,6 @@ public class WolfInns {
         }
     }
 
-    
 	/** 
 	 * DB Update: Update room details
 	 * 
@@ -4249,8 +4254,6 @@ public class WolfInns {
             jdbcPrep_getHotelSummaryForStaffMember.close();
             jdbcPrep_getHotelByID.close(); 
             jdbcPrep_deleteHotel.close();
-            // Rooms
-            jdbcPrep_getOneExampleRoom.close();
             // Staff
             jdbcPrep_insertNewStaff.close();
             jdbcPrep_getNewestStaffID.close(); 
@@ -4264,15 +4267,19 @@ public class WolfInns {
             jdbcPrep_updateStaffRangeHotelID.close();
             jdbcPrep_getStaffByID.close();
             jdbcPrep_deleteStaff.close();
+            // Rooms
             jdbcPrep_insertNewRoom.close(); 
             jdbcPrep_deleteRoom.close();
             jdbcPrep_isValidRoomNumber.close();
             jdbcPrep_isRoomCurrentlyOccupied.close();
             jdbcPrep_isValidHotelId.close();
             jdbcPrep_getRoomByHotelIDRoomNum.close();
+            jdbcPrep_getOneExampleRoom.close();
+            // Customers
             jdbcPrep_insertNewCustomer.close();
-            jdbcPrep_updateCustomer.close();
-            jdbcPrep_deleteCustomer.close();
+            if (jdbcPrep_updateCustomer != null) {jdbcPrep_updateCustomer.close();}
+            if (jdbcPrep_deleteCustomer != null) {jdbcPrep_deleteCustomer.close();}
+            // Connection
             jdbc_connection.close();
         
         }
