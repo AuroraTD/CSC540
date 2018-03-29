@@ -1850,17 +1850,27 @@ public class WolfInns {
      * Report task: Report all values of a single tuple of the Hotels table, by ID
      * 
      * Arguments -  id -        The ID of the tuple.
-     * Return -     None
+     * Return -     success -   True if the hotel was found.
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Return whether query was successful (hotel was found).
      */
-    public static void reportHotelByID(int id) {
+    public static boolean reportHotelByID(int id) {
 
+        // Declare variables
+        boolean success = false;
+        
         try {
-            
+
             // Get entire tuple from table
             jdbcPrep_getHotelByID.setInt(1, id);
             jdbc_result = jdbcPrep_getHotelByID.executeQuery();
+            
+            // Was the hotel found?
+            if (jdbc_result.next()) {
+                success = true;
+                jdbc_result.beforeFirst();
+            }
             
             // Print result
             System.out.println("\nHotel Information:\n");
@@ -1871,23 +1881,35 @@ public class WolfInns {
             handleError(err);
         }
         
+        return success;
+        
     }
     
     /** 
      * Report task: Report all values of a single tuple of the Staff table, by ID
      * 
      * Arguments -  id -        The ID of the tuple.
-     * Return -     None
+     * Return -     success -   True if the staff member was found.
      * 
      * Modifications:   03/26/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Return whether query was successful (staff was found).
      */
-    public static void reportStaffByID(int id) {
+    public static boolean reportStaffByID(int id) {
 
+        // Declare variables
+        boolean success = false;
+        
         try {
             
             // Get entire tuple from table
             jdbcPrep_getStaffByID.setInt(1, id);
             jdbc_result = jdbcPrep_getStaffByID.executeQuery();
+            
+            // Was the staff member found?
+            if (jdbc_result.next()) {
+                success = true;
+                jdbc_result.beforeFirst();
+            }
             
             // Print result
             System.out.println("\nStaff Member Information:\n");
@@ -1897,6 +1919,8 @@ public class WolfInns {
         catch (Throwable err) {
             handleError(err);
         }
+        
+        return success;
         
     }
     
@@ -2171,6 +2195,7 @@ public class WolfInns {
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  03/17/18 -  ATTD -  Fix copy-paste error keeping proposed values from being sanity-checked.
+     *                  03/28/18 -  ATTD -  Stop immediately if invalid hotel ID is entered.
      */
     public static void manageHotelUpdate() {
 
@@ -2182,6 +2207,7 @@ public class WolfInns {
             String valueToChangeTo;
             int hotelID = 0;
             boolean userWantsToStop = false;
+            boolean hotelFound = false;
             
             // Print hotels to console so user has some context
             reportEntireTable("Hotels");
@@ -2192,30 +2218,35 @@ public class WolfInns {
             if (isValueSane("ID", hotelIdAsString)) {
                 hotelID = Integer.parseInt(hotelIdAsString);
                 // Print just that hotel to console so user has some context
-                reportHotelByID(hotelID);
-                // Keep updating values until the user wants to stop
-                while (userWantsToStop == false) {
-                    // Get name of attribute they want to change
-                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
-                    attributeToChange = scanner.nextLine();
-                    if (isValueSane("AnyAttr", attributeToChange)) {
-                        // Get value they want to change the attribute to
-                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
-                        valueToChangeTo = scanner.nextLine();
-                        if (isValueSane(attributeToChange, valueToChangeTo)) {
-                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                            updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
+                hotelFound = reportHotelByID(hotelID);
+                if (hotelFound) {
+                    
+                    // Keep updating values until the user wants to stop
+                    while (userWantsToStop == false) {
+                        // Get name of attribute they want to change
+                        System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                        attributeToChange = scanner.nextLine();
+                        if (isValueSane("AnyAttr", attributeToChange)) {
+                            // Get value they want to change the attribute to
+                            System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                            valueToChangeTo = scanner.nextLine();
+                            if (isValueSane(attributeToChange, valueToChangeTo)) {
+                                // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
+                            }
+                            else {
+                                userWantsToStop = true;
+                            }
                         }
                         else {
                             userWantsToStop = true;
                         }
                     }
-                    else {
-                        userWantsToStop = true;
-                    }
+                    // Report results of all the updates
+                    reportHotelByID(hotelID);
+                    
                 }
-                // Report results of all the updates
-                reportHotelByID(hotelID);
+
             }
             
         }
@@ -2268,22 +2299,25 @@ public class WolfInns {
      * Arguments -  None
      * Returns -    None
      * 
-     * Modifications: 03/24/18 - MTA - Added functionality to add new room
-     * 				  03/25/18 - MTA - Fix the category type
+     * Modifications:   03/24/18 -  MTA -   Added functionality to add new room
+     * 				    03/25/18 -  MTA -   Fix the category type
+     *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
+     *                                      - for developer ease
+     *                                      - because "isValueSane" method uses table attribute names
      */
     public static void manageRoomAdd() {
     	
     	try { 
     		  
-    		String hotelId = getValidDataFromUser("ADD_ROOM", "RoomHotelId", "Enter the hotel id for which you are adding new room\n> ");
+    		String hotelId = getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room\n> ");
     		
-    		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNumber", "Enter the room number\n> ", hotelId); 
+    		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number\n> ", hotelId); 
     		
-    		String category = getValidDataFromUser("ADD_ROOM","RoomCategory", "Enter the room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
+    		String category = getValidDataFromUser("ADD_ROOM","Category", "Enter the room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
                
-    		String maxOccupancy = getValidDataFromUser("ADD_ROOM","RoomMaxOccupancy", "Enter the room's maximum occupancy\n> "); 
+    		String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy\n> "); 
     		
-    		String nightlyRate = getValidDataFromUser("ADD_ROOM", "RoomNightlyRate", "Enter the room's nightly rate\n> "); 
+    		String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate\n> "); 
               
             addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category.toUpperCase(), Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
            
@@ -2297,7 +2331,10 @@ public class WolfInns {
      * Task: Manage
      * Operation: Update room details
      * 
-     * Modifications: 03/24/18 - MTA - Added functionality to update room details
+     * Modifications:   03/24/18 -  MTA -   Added functionality to update room details
+     *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
+     *                                      - for developer ease
+     *                                      - because "isValueSane" method uses table attribute names
      */
     public static void manageRoomUpdate() {
     	try {
@@ -2306,8 +2343,8 @@ public class WolfInns {
             // Print hotels to console so user has some context
             reportEntireTable("Rooms");
             
-            String hotelId = getValidDataFromUser("UPDATE_ROOM", "RoomHotelId", "Enter the hotel ID for the room you wish to make changes for\n> ");
-            String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNumber", "Enter the room number you wish to make changes for\n> ", hotelId); 
+            String hotelId = getValidDataFromUser("UPDATE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to make changes for\n> ");
+            String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNum", "Enter the room number you wish to make changes for\n> ", hotelId); 
             
             reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
                 
@@ -2319,15 +2356,15 @@ public class WolfInns {
             	
             	switch(attributeToChange){
 	             	case 1:
-	             		String category = getValidDataFromUser("UPDATE_ROOM","RoomCategory", "Enter the new value for room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
+	             		String category = getValidDataFromUser("UPDATE_ROOM","Category", "Enter the new value for room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
 	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
 	             		break;
 	             	case 2:
-	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","RoomMaxOccupancy", "Enter the new value for room's maximum occupancy\n> ");
+	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","MaxOcc", "Enter the new value for room's maximum occupancy\n> ");
 	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
 	             		break;
 	             	case 3:
-	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "RoomNightlyRate", "Enter the new value for room's nightly rate\n> ");
+	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "NightlyRate", "Enter the new value for room's nightly rate\n> ");
 	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
 	             		break;
 	             	case 4:
@@ -2349,7 +2386,10 @@ public class WolfInns {
      * Task: Manage
      * Operation: Delete a room
      * 
-     * Modifications: 03/24/18 - MTA - Added functionality to delete room
+     * Modifications:   03/24/18 -  MTA -   Added functionality to delete room
+     *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
+     *                                      - for developer ease
+     *                                      - because "isValueSane" method uses table attribute names
      */
     public static void manageRoomDelete() {
     	
@@ -2359,8 +2399,8 @@ public class WolfInns {
             reportEntireTable("Rooms");
             
             // Get hotelid and roomnumber to be deleted
-            String hotelId = getValidDataFromUser("DELETE_ROOM", "RoomHotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
-    		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNumber", "Enter the roomNumber you wish to delete\n> ", hotelId);
+            String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
+    		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete\n> ", hotelId);
 
             // Call method to actually interact with the DB
             deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
@@ -2376,21 +2416,24 @@ public class WolfInns {
      * Task: Manage
      * Operation: Add new customer
      * 
-     * Modifications: 03/27/18 - MTA - Added method
+     * Modifications:   03/27/18 -  MTA -   Added method
+     *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
+     *                                      - for developer ease
+     *                                      - because "isValueSane" method uses table attribute names
      */
     public static void manageCustomerAdd() {
     	
     	try { 
   		  
-    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "CustomerSSN", "Enter the customer's SSN\n> ");
+    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "SSN", "Enter the customer's SSN\n> ");
     		
-    		String name = getValidDataFromUser("ADD_CUSTOMER", "CustomerName", "Enter the customer's name\n> "); 
+    		String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name\n> "); 
     		
-    		String dob = getValidDataFromUser("ADD_CUSTOMER","CustomerDOB", "Enter the customer's Date Of Birth(in format YYYY-MM-DD)\n>");
+    		String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth(in format YYYY-MM-DD)\n>");
                
-    		String phoneNumber = getValidDataFromUser("ADD_CUSTOMER","CustomerPhoneNumber", "Enter the customer's phone number\n> "); 
+    		String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number\n> "); 
     		
-    		String email = getValidDataFromUser("ADD_CUSTOMER", "CustomerEmail", "Enter the customer's email\n> "); 
+    		String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email\n> "); 
               
             addCustomer( ssn, name, dob, phoneNumber, email, true);
            
@@ -2447,11 +2490,14 @@ public class WolfInns {
      * 
      * Returns: Valid user entered data 
      * 
-     * Modifications: 03/24/18 - MTA - Added method
+     * Modifications:   03/24/18 -  MTA -   Added method
+     *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
+     *                                      - for developer ease
+     *                                      - because "isValueSane" method uses table attribute names
      */
     public static String getValidDataFromUser (String operation, String fieldName, String message, String...params ){
     	
-    	boolean isValid = false;    
+    	boolean isValid = false;
     	int attempt = 0;
     	String value = "";
     	
@@ -2462,7 +2508,7 @@ public class WolfInns {
         	System.out.println(messagePrefix + message); 
         	value = scanner.nextLine(); 
         	
-        	if (fieldName.equalsIgnoreCase("RoomHotelId")) {
+        	if (fieldName.equalsIgnoreCase("HotelId")) {
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) {  
     				// Extra checks for Hotel Id when deleting room:
@@ -2476,7 +2522,7 @@ public class WolfInns {
     			}  
         	} 
         	
-        	else if (fieldName.equalsIgnoreCase("RoomNumber") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM"))) {
+        	else if (fieldName.equalsIgnoreCase("RoomNum") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM"))) {
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) {  
     				// Extra checks for Room Number when deleting/updating room :
@@ -2496,7 +2542,7 @@ public class WolfInns {
     			}  
         	} 
         	
-        	else if (fieldName.equalsIgnoreCase("RoomNumber") && operation.equals("ADD_ROOM")) {
+        	else if (fieldName.equalsIgnoreCase("RoomNum") && operation.equals("ADD_ROOM")) {
         		 
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) { 
@@ -2597,6 +2643,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/26/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Stop immediately if invalid staff ID entered.
      */
     public static void manageStaffUpdate() {
 
@@ -2608,6 +2655,7 @@ public class WolfInns {
             String valueToChangeTo;
             int staffID = 0;
             boolean userWantsToStop = false;
+            boolean staffFound = false;
             
             // Print staff to console so user has some context
             reportEntireTable("Staff");
@@ -2618,30 +2666,35 @@ public class WolfInns {
             if (isValueSane("ID", staffIdAsString)) {
                 staffID = Integer.parseInt(staffIdAsString);
                 // Print just that staff member to console so user has some context
-                reportStaffByID(staffID);
-                // Keep updating values until the user wants to stop
-                while (userWantsToStop == false) {
-                    // Get name of attribute they want to change
-                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
-                    attributeToChange = scanner.nextLine();
-                    if (isValueSane("AnyAttr", attributeToChange)) {
-                        // Get value they want to change the attribute to
-                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
-                        valueToChangeTo = scanner.nextLine();
-                        if (isValueSane(attributeToChange, valueToChangeTo)) {
-                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                            updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
+                staffFound = reportStaffByID(staffID);
+                if (staffFound) {
+                    
+                    // Keep updating values until the user wants to stop
+                    while (userWantsToStop == false) {
+                        // Get name of attribute they want to change
+                        System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                        attributeToChange = scanner.nextLine();
+                        if (isValueSane("AnyAttr", attributeToChange)) {
+                            // Get value they want to change the attribute to
+                            System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                            valueToChangeTo = scanner.nextLine();
+                            if (isValueSane(attributeToChange, valueToChangeTo)) {
+                                // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
+                            }
+                            else {
+                                userWantsToStop = true;
+                            }
                         }
                         else {
                             userWantsToStop = true;
                         }
                     }
-                    else {
-                        userWantsToStop = true;
-                    }
+                    // Report results of all the updates
+                    reportStaffByID(staffID);
+                    
                 }
-                // Report results of all the updates
-                reportStaffByID(staffID);
+
             }
             
         }
@@ -2699,8 +2752,14 @@ public class WolfInns {
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      * 					03/24/18 -  MTA -   Added validations for fields when adding a new room.
-     * 					03/27/18 -  MTA -   Added validations for fields when adding a new customer. 
-     *
+     * 					03/27/18 -  MTA -   Added validations for fields when adding a new customer.
+     *                  03/28/18 -  ATTD -  Combined / removed redundancies for checks:
+     *                                      - Customer date of bBirth
+     *                                      - Customer email
+     *                                      - Customer phone number
+     *                                      - Customer name
+     *                                      - Customer SSN
+     *                                      Used "equalsIgnoreCase" more widely (better than "equals").
      */
     public static boolean isValueSane(String attributeName, String proposedValue) {
         
@@ -2721,27 +2780,54 @@ public class WolfInns {
              * DBMS seems to accept a malformed date with no complaints
              * even though we define as CHAR(2)
              */
-            if (okaySoFar && attributeName.equals("State") && proposedValue.length() != 2) {
+            if (okaySoFar && attributeName.equalsIgnoreCase("State") && proposedValue.length() != 2) {
                 System.out.println("State '" + proposedValue + "' malformed, should have 2 letters (cannot proceed)\n");
                 okaySoFar = false;
             }
             // Check for malformed phone number
-            if (okaySoFar && attributeName.equals("PhoneNum") && proposedValue.length() != 10) {
-                System.out.println("Phone number '" + proposedValue + "' malformed, should have 10 digits (cannot proceed)\n");
-                okaySoFar = false;
+            if (okaySoFar && attributeName.equalsIgnoreCase("PhoneNum")) {
+                try {
+                    if (Long.parseLong(proposedValue) <= 0) {
+                        System.out.println("Phone number '" + proposedValue + "' malformed, should be positive (cannot proceed)\n");
+                        okaySoFar = false;
+                    } else if (proposedValue.length() != 10) {
+                        System.out.println("Phone number '" + proposedValue + "' malformed, should have 10 digits (cannot proceed)\n");
+                        okaySoFar = false;
+                    }  
+                }
+                catch(NumberFormatException nfe) {
+                   System.out.println("Phone number '" + proposedValue + "' malformed, should be a number (cannot proceed)\n");
+                   okaySoFar = false;
+               }  
+            }
+            // Check for malformed SSN
+            if (okaySoFar && attributeName.contains("SSN")) {
+                try {
+                    if (Long.parseLong(proposedValue) <= 0) {
+                        System.out.println("SSN '" + proposedValue + "' malformed, should be positive (cannot proceed)\n");
+                        okaySoFar = false;
+                    } else if (proposedValue.length() != 9) {
+                        System.out.println("SSN '" + proposedValue + "' malformed, should have 9 digits (cannot proceed)\n");
+                        okaySoFar = false;
+                    }  
+                }
+                catch(NumberFormatException nfe) {
+                   System.out.println("SSN '" + proposedValue + "' malformed, should be a number (cannot proceed)\n");
+                   okaySoFar = false;
+               }  
             }
             /* Check for malformed date
              * DBMS seems to accept a malformed date with no complaints
              * https://stackoverflow.com/questions/2149680/regex-date-format-validation-on-java
              */
-            if (okaySoFar && (attributeName.contains("Date") || attributeName.equals("DOB") ) && proposedValue.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
+            if (okaySoFar && (attributeName.contains("Date") || attributeName.equalsIgnoreCase("DOB") ) && proposedValue.matches("\\d{4}-\\d{2}-\\d{2}") == false) {
                 System.out.println("Date must be entered in the format 'YYYY-MM-DD' (cannot proceed)\n");
                 okaySoFar = false;
             }
             /* Check for "bad" manager
              * Don't know of a way to have DBMS check that manager isn't dedicated to a presidential suite (ASSERTION not supported)
              */
-            if (okaySoFar && attributeName.equals("ManagerID")) {
+            if (okaySoFar && attributeName.equalsIgnoreCase("ManagerID")) {
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
                         "SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
@@ -2762,7 +2848,7 @@ public class WolfInns {
            
             // Check if entered hotel id for room is valid ( i.e non-negative number) 
             try{
-            	 if (attributeName.equalsIgnoreCase("RoomHotelId") && Integer.parseInt(proposedValue) <= 0) {
+            	 if (attributeName.equalsIgnoreCase("HotelId") && Integer.parseInt(proposedValue) <= 0) {
            		     System.out.println("\nERROR: Hotel ID should be a positive number");
                 	 okaySoFar = false;
                  }  
@@ -2773,7 +2859,7 @@ public class WolfInns {
             
             // Check if entered room number is valid ( i.e non-negative number)
             try{
-            	 if (attributeName.equalsIgnoreCase("RoomNumber") && Integer.parseInt(proposedValue) <= 0) {
+            	 if (attributeName.equalsIgnoreCase("RoomNum") && Integer.parseInt(proposedValue) <= 0) {
             		 System.out.println("\nERROR: Room Number should be a positive number");
                  	 okaySoFar = false;
                  }  
@@ -2783,7 +2869,7 @@ public class WolfInns {
             }  
             
             // Check if entered room category is valid ( i.e 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' )
-            if (attributeName.equalsIgnoreCase("RoomCategory") && 
+            if (attributeName.equalsIgnoreCase("Category") && 
         	     !(proposedValue.equalsIgnoreCase("ECONOMY") || proposedValue.equalsIgnoreCase("DELUXE") || proposedValue.equalsIgnoreCase("EXECUTIVE_SUITE") || proposedValue.equalsIgnoreCase("PRESIDENTIAL_SUITE"))) {
         		 	System.out.println("\nERROR: Allowed values for room category are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' ");
         		 	okaySoFar = false; 
@@ -2791,7 +2877,7 @@ public class WolfInns {
             
             // Check if entered room max occupancy is valid ( i.e non-negative number)
             try{
-            	 if (attributeName.equalsIgnoreCase("RoomMaxOccupancy")) {
+            	 if (attributeName.equalsIgnoreCase("MaxOcc")) {
             		 if (Integer.parseInt(proposedValue) <= 0) {
             			 System.out.println("\nERROR: Room Max Occupancy should be a positive number");
                       	 okaySoFar = false; 	
@@ -2808,62 +2894,14 @@ public class WolfInns {
              
             // Check if entered Room Nightly rate is valid ( i.e non-negative number)
             try{
-            	 if (attributeName.equalsIgnoreCase("RoomNightlyRate") && Integer.parseInt(proposedValue) <= 0) {
+            	 if (attributeName.equalsIgnoreCase("NightlyRate") && Integer.parseInt(proposedValue) <= 0) {
             		 System.out.println("\nERROR: Room Nightly rate should be a positive number");
                  	 okaySoFar = false;
                  }
             } catch(NumberFormatException nfe) {
             	System.out.println("\nERROR: Room Nightly rate should be a number");
             	okaySoFar = false;
-            }
-            
-            /* ******************************** VALIDATIONS FOR ADDING NEW CUSTOMER ************************************* */
-            
-            // Check if entered SSN number for customer is valid ( i.e non-negative number) 
-            try{
-            	 if (attributeName.equalsIgnoreCase("CustomerSSN") && Long.parseLong(proposedValue) <= 0) {
-           		     System.out.println("\nERROR: Customer SSN should be a positive number");
-                	 okaySoFar = false;
-                 }  
-            } catch(NumberFormatException nfe) {
-            	System.out.println("\nERROR: Customer SSN should be a number");
-            	okaySoFar = false;
-            }
-            
-            // Check if entered name for customer is not blank
-            if (attributeName.equalsIgnoreCase("CustomerName") && proposedValue.trim().equals("")) {
-       		     System.out.println("\nERROR: Customer Name cannot be blank");
-            	 okaySoFar = false;
-            }  
-            
-            // Check if entered name for customer DOB is in YYYY-MM-DD format
-            if (attributeName.equalsIgnoreCase("CustomerDOB") && !proposedValue.matches("\\d{4}-\\d{2}-\\d{2}")) {
-      		     System.out.println("\nERROR: Customer Name should be entered in format YYYY-MM-DD");
-      		     okaySoFar = false;
-            }
-                       
-            // Check if entered phone number for customer is valid ( i.e non-negative number) 
-            try{
-            	 if (attributeName.equalsIgnoreCase("CustomerPhoneNumber")) {
-            		 if (Long.parseLong(proposedValue) <= 0) {
-            			 System.out.println("\nERROR: Customer Phone Number should be a positive number");
-                    	 okaySoFar = false;
-            		 } else if (proposedValue.length() != 10) {
-            			 System.out.println("\nERROR: Customer Phone Number should have 10 digits");
-                    	 okaySoFar = false;
-            		 }	     
-                 }  
-            } catch(NumberFormatException nfe) {
-            	System.out.println("\nERROR: Customer Phone Number should be a number");
-            	okaySoFar = false;
-            }
-            
-            // Check if entered email for customer is not blank
-            if (attributeName.equalsIgnoreCase("CustomerEmail") && proposedValue.trim().equals("")) {
-      		     System.out.println("\nERROR: Customer Email cannot be blank");
-           	 okaySoFar = false;
-           }
-            
+            }      
              
         }
         catch (Throwable err) {
