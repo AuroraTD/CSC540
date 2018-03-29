@@ -1850,17 +1850,27 @@ public class WolfInns {
      * Report task: Report all values of a single tuple of the Hotels table, by ID
      * 
      * Arguments -  id -        The ID of the tuple.
-     * Return -     None
+     * Return -     success -   True if the hotel was found.
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Return whether query was successful (hotel was found).
      */
-    public static void reportHotelByID(int id) {
+    public static boolean reportHotelByID(int id) {
 
+        // Declare variables
+        boolean success = false;
+        
         try {
-            
+
             // Get entire tuple from table
             jdbcPrep_getHotelByID.setInt(1, id);
             jdbc_result = jdbcPrep_getHotelByID.executeQuery();
+            
+            // Was the hotel found?
+            if (jdbc_result.next()) {
+                success = true;
+                jdbc_result.beforeFirst();
+            }
             
             // Print result
             System.out.println("\nHotel Information:\n");
@@ -1871,23 +1881,35 @@ public class WolfInns {
             handleError(err);
         }
         
+        return success;
+        
     }
     
     /** 
      * Report task: Report all values of a single tuple of the Staff table, by ID
      * 
      * Arguments -  id -        The ID of the tuple.
-     * Return -     None
+     * Return -     success -   True if the staff member was found.
      * 
      * Modifications:   03/26/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Return whether query was successful (staff was found).
      */
-    public static void reportStaffByID(int id) {
+    public static boolean reportStaffByID(int id) {
 
+        // Declare variables
+        boolean success = false;
+        
         try {
             
             // Get entire tuple from table
             jdbcPrep_getStaffByID.setInt(1, id);
             jdbc_result = jdbcPrep_getStaffByID.executeQuery();
+            
+            // Was the staff member found?
+            if (jdbc_result.next()) {
+                success = true;
+                jdbc_result.beforeFirst();
+            }
             
             // Print result
             System.out.println("\nStaff Member Information:\n");
@@ -1897,6 +1919,8 @@ public class WolfInns {
         catch (Throwable err) {
             handleError(err);
         }
+        
+        return success;
         
     }
     
@@ -2171,6 +2195,7 @@ public class WolfInns {
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  03/17/18 -  ATTD -  Fix copy-paste error keeping proposed values from being sanity-checked.
+     *                  03/28/18 -  ATTD -  Stop immediately if invalid hotel ID is entered.
      */
     public static void manageHotelUpdate() {
 
@@ -2182,6 +2207,7 @@ public class WolfInns {
             String valueToChangeTo;
             int hotelID = 0;
             boolean userWantsToStop = false;
+            boolean hotelFound = false;
             
             // Print hotels to console so user has some context
             reportEntireTable("Hotels");
@@ -2192,30 +2218,35 @@ public class WolfInns {
             if (isValueSane("ID", hotelIdAsString)) {
                 hotelID = Integer.parseInt(hotelIdAsString);
                 // Print just that hotel to console so user has some context
-                reportHotelByID(hotelID);
-                // Keep updating values until the user wants to stop
-                while (userWantsToStop == false) {
-                    // Get name of attribute they want to change
-                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
-                    attributeToChange = scanner.nextLine();
-                    if (isValueSane("AnyAttr", attributeToChange)) {
-                        // Get value they want to change the attribute to
-                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
-                        valueToChangeTo = scanner.nextLine();
-                        if (isValueSane(attributeToChange, valueToChangeTo)) {
-                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                            updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
+                hotelFound = reportHotelByID(hotelID);
+                if (hotelFound) {
+                    
+                    // Keep updating values until the user wants to stop
+                    while (userWantsToStop == false) {
+                        // Get name of attribute they want to change
+                        System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                        attributeToChange = scanner.nextLine();
+                        if (isValueSane("AnyAttr", attributeToChange)) {
+                            // Get value they want to change the attribute to
+                            System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                            valueToChangeTo = scanner.nextLine();
+                            if (isValueSane(attributeToChange, valueToChangeTo)) {
+                                // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                updateChangeHotelInfo(hotelID, attributeToChange, valueToChangeTo);
+                            }
+                            else {
+                                userWantsToStop = true;
+                            }
                         }
                         else {
                             userWantsToStop = true;
                         }
                     }
-                    else {
-                        userWantsToStop = true;
-                    }
+                    // Report results of all the updates
+                    reportHotelByID(hotelID);
+                    
                 }
-                // Report results of all the updates
-                reportHotelByID(hotelID);
+
             }
             
         }
@@ -2612,6 +2643,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/26/18 -  ATTD -  Created method.
+     *                  03/28/18 -  ATTD -  Stop immediately if invalid staff ID entered.
      */
     public static void manageStaffUpdate() {
 
@@ -2623,6 +2655,7 @@ public class WolfInns {
             String valueToChangeTo;
             int staffID = 0;
             boolean userWantsToStop = false;
+            boolean staffFound = false;
             
             // Print staff to console so user has some context
             reportEntireTable("Staff");
@@ -2633,30 +2666,35 @@ public class WolfInns {
             if (isValueSane("ID", staffIdAsString)) {
                 staffID = Integer.parseInt(staffIdAsString);
                 // Print just that staff member to console so user has some context
-                reportStaffByID(staffID);
-                // Keep updating values until the user wants to stop
-                while (userWantsToStop == false) {
-                    // Get name of attribute they want to change
-                    System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
-                    attributeToChange = scanner.nextLine();
-                    if (isValueSane("AnyAttr", attributeToChange)) {
-                        // Get value they want to change the attribute to
-                        System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
-                        valueToChangeTo = scanner.nextLine();
-                        if (isValueSane(attributeToChange, valueToChangeTo)) {
-                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                            updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
+                staffFound = reportStaffByID(staffID);
+                if (staffFound) {
+                    
+                    // Keep updating values until the user wants to stop
+                    while (userWantsToStop == false) {
+                        // Get name of attribute they want to change
+                        System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
+                        attributeToChange = scanner.nextLine();
+                        if (isValueSane("AnyAttr", attributeToChange)) {
+                            // Get value they want to change the attribute to
+                            System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
+                            valueToChangeTo = scanner.nextLine();
+                            if (isValueSane(attributeToChange, valueToChangeTo)) {
+                                // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                updateChangeStaffInfo(staffID, attributeToChange, valueToChangeTo);
+                            }
+                            else {
+                                userWantsToStop = true;
+                            }
                         }
                         else {
                             userWantsToStop = true;
                         }
                     }
-                    else {
-                        userWantsToStop = true;
-                    }
+                    // Report results of all the updates
+                    reportStaffByID(staffID);
+                    
                 }
-                // Report results of all the updates
-                reportStaffByID(staffID);
+
             }
             
         }
