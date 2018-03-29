@@ -2537,7 +2537,7 @@ public class WolfInns {
             // Print hotels to console so user has some context
             reportEntireTable("Customers");
             
-            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER", "CustomerSSN", "Enter the SSN for the customer you wish to make changes for\n> ");
+            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to make changes for\n> ");
             
             reportCustomerBySSN(customerSSN);
                 
@@ -2549,19 +2549,19 @@ public class WolfInns {
             	
             	switch(attributeToChange){
 	             	case 1:
-	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","CustomerName", "Enter the new value for customer's name\n>");
+	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
 	             		updateCustomer(customerSSN, "Name", customerName, true);
 	             		break;
 	             	case 2:
-	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","CustomerDOB", "Enter the new value for customer's date of birth\n> ");
+	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
 	             		updateCustomer(customerSSN, "DOB", dob, true);
 	             		break;
 	             	case 3:
-	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "CustomerPhoneNumber", "Enter the new value for customer's phone number\n> ");
+	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
 	             		updateCustomer(customerSSN, "PhoneNum", phoneNumber, true);
 	             		break;
 	             	case 4:
-	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "CustomerEmail", "Enter the new value for customer's email\n> ");
+	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
 	             		updateCustomer(customerSSN, "Email", email, true);
 	             		break;
 	             	case 5:
@@ -2678,7 +2678,7 @@ public class WolfInns {
     			}     
         	}  
         	
-        	else if (fieldName.equalsIgnoreCase("CustomerSSN") && operation.equals("UPDATE_CUSTOMER")) {
+        	else if (fieldName.equalsIgnoreCase("SSN") && operation.equals("UPDATE_CUSTOMER")) {
        		 
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) { 
