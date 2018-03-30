@@ -127,6 +127,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_deleteCustomer; 
     private static PreparedStatement jdbcPrep_getCustomerBySSN; 
     private static PreparedStatement jdbcPrep_isValidCustomer; 
+    private static PreparedStatement jdbcPrep_isCustomerCurrentlyStaying;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -713,6 +714,14 @@ public class WolfInns {
         	// Check if customer exists in the database
         	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Customers WHERE SSN = ?";
         	jdbcPrep_isValidCustomer = jdbc_connection.prepareStatement(reusedSQLVar);  
+        	
+        	// Delete customer
+        	reusedSQLVar = "DELETE FROM Customers WHERE SSN = ?; ";
+        	jdbcPrep_deleteCustomer = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Check if customer is associated with current(ongoing) stay
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE CustomerSSN = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
+        	jdbcPrep_isCustomerCurrentlyStaying = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -2591,8 +2600,15 @@ public class WolfInns {
     public static void manageCustomerDelete() {
     	
     	try { 
-             
             
+            // Print hotels to console so user has some context
+            reportEntireTable("Customers");
+            
+            // Get SSN of the customer to be deleted
+            String ssn = getValidDataFromUser("DELETE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to delete\n> ");  
+
+            // Call method to actually interact with the DB
+            deleteCustomer(ssn, true); 
             
         }
         catch (Throwable err) {
@@ -2678,19 +2694,33 @@ public class WolfInns {
     			}     
         	}  
         	
-        	else if (fieldName.equalsIgnoreCase("SSN") && operation.equals("UPDATE_CUSTOMER")) {
+        	else if (fieldName.equalsIgnoreCase("SSN")) {
        		 
-        		boolean isSane = isValueSane(fieldName, value); 
-    			if (isSane) { 
-    				// Extra checks for SSN when adding customer info:
-    				// 1.check if the entered SSN is valid i.e exists in Customers table
-        			boolean isExistingCustomer = isValidCustomer(value);
-        			if (isExistingCustomer) { 
-        				isValid = true; 
-        			} else {
-        				System.out.println("ERROR: The entered SSN does not exist in our database");  
-        			}
-    			}     
+        		if (operation.equals("UPDATE_CUSTOMER") || operation.equals("DELETE_CUSTOMER")) {
+        			boolean isSane = isValueSane(fieldName, value);
+        			if (isSane) {
+        				// Extra checks for SSN when adding customer info:
+        				// 1.check if the entered SSN is valid i.e exists in Customers table
+            			boolean isExistingCustomer = isValidCustomer(value);
+            			if (isExistingCustomer) {  
+            				if (operation.equals("DELETE_CUSTOMER")) {
+            					// Extra checks for SSN when deleting customer info:
+                    			// 2. Check if customer is currently staying in any hotel
+            					boolean isCurrentlyStaying = isCustomerCurrentlyStaying(value);
+            					if (!isCurrentlyStaying) {
+            						isValid = true; 
+            					} else {
+            						System.out.println("ERROR: The customer is associated with a current guest stay"); 
+            					}            					
+            				} else {
+            					isValid = true; 
+            				}            				
+            			} else {
+            				System.out.println("ERROR: The entered SSN does not exist in our database");  
+            			}
+        			}  
+        		}
+        		   
         	}  
         	
         	else {
@@ -3985,6 +4015,55 @@ public class WolfInns {
     }
     
     /** 
+     * DB Update: Delete customer
+     * 
+     * Arguments -  ssn       -  Customer Social Security Number 
+     *              reportSuccess - True if need to print success message after method completes
+     * Return -     None
+     * 
+     * Modifications:   03/28/18 -  MTA -  Added method. 
+     */
+    public static void deleteCustomer(String ssn, boolean reportSuccess) {
+    	try {
+
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {                      
+  
+            	jdbcPrep_deleteCustomer.setLong(1, Long.parseLong(ssn)); 
+            	
+            	jdbcPrep_deleteCustomer.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                if (reportSuccess)
+                {
+                	System.out.println("\nCustomer has been successfully deleted from the database! \n");        	
+                } 
+            } 
+            catch (Throwable ex) {
+                
+                handleError(ex);	 
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true); 
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+
+    
+    /** 
      * DB Check: Check if room number is associated with given hotel
      * 
      * Arguments -  roomNumber    - Room number
@@ -4127,6 +4206,43 @@ public class WolfInns {
 	        catch (Throwable err) {
 	            handleError(err);
 	        }  
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    /** 
+     * DB Check: Check if customer is associated with current guest stay 
+     * 
+     * Arguments -  ssn       - Room number                 
+     * Return -     boolean   - True if the customer is associated with current guest stay 
+     * 
+     * Modifications:   03/28/18 -  MTA -  Added method. 
+     */
+    public static boolean isCustomerCurrentlyStaying(String ssn){  
+    	
+    	try {      		
+	        try {	        				 
+				 jdbcPrep_isCustomerCurrentlyStaying.setLong(1, Long.parseLong(ssn)); 
+				 
+				 ResultSet rs = jdbcPrep_isCustomerCurrentlyStaying.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        } 
     	} 
     	catch (Throwable err) { 
     		handleError(err); 
@@ -4610,10 +4726,10 @@ public class WolfInns {
             jdbcPrep_updateCustomerDateOfBirth.close();
             jdbcPrep_updateCustomerPhoneNumber.close();
             jdbcPrep_updateCustomerEmail.close();
-            //jdbcPrep_deleteCustomer.close();
+            jdbcPrep_deleteCustomer.close();
             jdbcPrep_getCustomerBySSN.close();
-            jdbcPrep_isValidCustomer.close();
-            if (jdbcPrep_deleteCustomer != null) {jdbcPrep_deleteCustomer.close();}
+            jdbcPrep_isValidCustomer.close();                 
+            jdbcPrep_isCustomerCurrentlyStaying.close();
             // Connection
             jdbc_connection.close();
         
