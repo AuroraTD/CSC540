@@ -92,7 +92,11 @@ public class WolfInns {
     
     // Declare variables - prepared statements - ROOMS
     private static PreparedStatement jdbcPrep_insertNewRoom;
-    private static PreparedStatement jdbcPrep_updateRoom;
+    private static PreparedStatement jdbcPrep_updateRoomCategory;
+    private static PreparedStatement jdbcPrep_updateRoomMaxOccupancy;
+    private static PreparedStatement jdbcPrep_updateRoomNightlyRate;
+    private static PreparedStatement jdbcPrep_updateRoomDRSStaff;
+    private static PreparedStatement jdbcPrep_updateRoomDCStaff;
     private static PreparedStatement jdbcPrep_deleteRoom;
     private static PreparedStatement jdbcPrep_isValidRoomNumber; 
     private static PreparedStatement jdbcPrep_isRoomCurrentlyOccupied;
@@ -116,8 +120,14 @@ public class WolfInns {
     
     // Declare variables - prepared statements - Customers
     private static PreparedStatement jdbcPrep_insertNewCustomer;
-    private static PreparedStatement jdbcPrep_updateCustomer;
+    private static PreparedStatement jdbcPrep_updateCustomerName;
+    private static PreparedStatement jdbcPrep_updateCustomerDateOfBirth;
+    private static PreparedStatement jdbcPrep_updateCustomerPhoneNumber;
+    private static PreparedStatement jdbcPrep_updateCustomerEmail;
     private static PreparedStatement jdbcPrep_deleteCustomer; 
+    private static PreparedStatement jdbcPrep_getCustomerBySSN; 
+    private static PreparedStatement jdbcPrep_isValidCustomer; 
+    private static PreparedStatement jdbcPrep_isCustomerCurrentlyStaying;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -637,8 +647,26 @@ public class WolfInns {
             reusedSQLVar = "INSERT INTO Rooms (RoomNum, HotelID, Category, MaxOcc, NightlyRate) VALUES (? , ?, ?, ?, ?); ";
         	jdbcPrep_insertNewRoom = jdbc_connection.prepareStatement(reusedSQLVar);
         	
-        	// TODO : Move prepared statement for Update Room
+        	// Update room category
+            reusedSQLVar = "UPDATE Rooms SET Category = ? WHERE RoomNum = ? AND hotelID = ?;";
+        	jdbcPrep_updateRoomCategory = jdbc_connection.prepareStatement(reusedSQLVar);
         	
+        	// Update room max occupancy
+            reusedSQLVar = "UPDATE Rooms SET MaxOcc = ? WHERE RoomNum = ? AND hotelID = ?;";
+        	jdbcPrep_updateRoomMaxOccupancy = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update room nightly rate
+            reusedSQLVar = "UPDATE Rooms SET NightlyRate = ? WHERE RoomNum = ? AND hotelID = ?;";
+        	jdbcPrep_updateRoomNightlyRate = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update room Dedicated Room Staff
+            reusedSQLVar = "UPDATE Rooms SET DRSStaff = ? WHERE RoomNum = ? AND hotelID = ?;";
+        	jdbcPrep_updateRoomDRSStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update room Dedicated Catering Staff
+            reusedSQLVar = "UPDATE Rooms SET DCStaff = ? WHERE RoomNum = ? AND hotelID = ?;";
+        	jdbcPrep_updateRoomDCStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+        	 
         	// Delete room
         	reusedSQLVar = "DELETE FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
         	jdbcPrep_deleteRoom = jdbc_connection.prepareStatement(reusedSQLVar);
@@ -655,13 +683,45 @@ public class WolfInns {
 			reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Hotels WHERE ID = ? ;"; 
 			jdbcPrep_isValidHotelId = jdbc_connection.prepareStatement(reusedSQLVar); 
 			
-			// Get room details
+			// Report room details by room number and hotel id
 			reusedSQLVar = "SELECT * FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
         	jdbcPrep_getRoomByHotelIDRoomNum = jdbc_connection.prepareStatement(reusedSQLVar);
 			 
             // Add customer
             reusedSQLVar = "INSERT INTO Customers (SSN, Name, DOB, PhoneNum, Email) VALUES (? , ?, ?, ?, ?); ";
         	jdbcPrep_insertNewCustomer = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Report customer by SSN
+        	reusedSQLVar = "SELECT * FROM Customers WHERE SSN = ?";
+        	jdbcPrep_getCustomerBySSN = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update Customer Name
+        	reusedSQLVar = "UPDATE Customers SET Name = ? WHERE SSN = ?; ";
+        	jdbcPrep_updateCustomerName = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update Customer Date Of Birth
+        	reusedSQLVar = "UPDATE Customers SET DOB = ? WHERE SSN = ?; ";
+        	jdbcPrep_updateCustomerDateOfBirth = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update Customer Phone Number
+        	reusedSQLVar = "UPDATE Customers SET PhoneNum = ? WHERE SSN = ?; ";
+        	jdbcPrep_updateCustomerPhoneNumber = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Update Customer Email
+        	reusedSQLVar = "UPDATE Customers SET Email = ? WHERE SSN = ?; ";
+        	jdbcPrep_updateCustomerEmail = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Check if customer exists in the database
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Customers WHERE SSN = ?";
+        	jdbcPrep_isValidCustomer = jdbc_connection.prepareStatement(reusedSQLVar);  
+        	
+        	// Delete customer
+        	reusedSQLVar = "DELETE FROM Customers WHERE SSN = ?; ";
+        	jdbcPrep_deleteCustomer = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	// Check if customer is associated with current(ongoing) stay
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE CustomerSSN = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
+        	jdbcPrep_isCustomerCurrentlyStaying = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1952,6 +2012,33 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Report task:   Report all values of a single tuple of the Customers table, by customerSSN
+     * 
+     * Arguments -    customerSSN - Customer Social Security Number
+     * Return -       None
+     * 
+     * Modifications: 03/27/18 -  MTA -  Created method.
+     */
+    public static void reportCustomerBySSN(String ssn) {
+
+        try {
+        	 
+        	jdbcPrep_getCustomerBySSN.setLong(1, Long.parseLong(ssn)); 
+            jdbc_result = jdbcPrep_getCustomerBySSN.executeQuery();
+            
+            // Print result
+            System.out.println("\nInformation:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        } 
+    }
+    
+    
+    
     // PRINT
     
     /** 
@@ -2453,6 +2540,49 @@ public class WolfInns {
     public static void manageCustomerUpdate() {
     	
     	try { 
+
+    		boolean userWantsToStop = false; 
+    		 
+            // Print hotels to console so user has some context
+            reportEntireTable("Customers");
+            
+            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to make changes for\n> ");
+            
+            reportCustomerBySSN(customerSSN);
+                
+            while(!userWantsToStop) { 
+            	
+            	// Get the attribute the user wants to update
+                System.out.print("\nChoose the attribute you wish to change\n1. Name\n2. Date Of Birth\n3. Phone Number\n4. Email\n5. Exit\n> ");
+                int attributeToChange = Integer.parseInt(scanner.nextLine());
+            	
+            	switch(attributeToChange){
+	             	case 1:
+	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
+	             		updateCustomer(customerSSN, "Name", customerName, true);
+	             		break;
+	             	case 2:
+	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
+	             		updateCustomer(customerSSN, "DOB", dob, true);
+	             		break;
+	             	case 3:
+	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
+	             		updateCustomer(customerSSN, "PhoneNum", phoneNumber, true);
+	             		break;
+	             	case 4:
+	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
+	             		updateCustomer(customerSSN, "Email", email, true);
+	             		break;
+	             	case 5:
+	             		userWantsToStop = true;
+	             		break;
+	             	default: System.out.println("Please choose a number between 1 to 5"); 
+	            } 
+            } 
+                
+            // Report results of all the updates
+            reportCustomerBySSN(customerSSN); 
+        
              
         }
         catch (Throwable err) {
@@ -2470,8 +2600,15 @@ public class WolfInns {
     public static void manageCustomerDelete() {
     	
     	try { 
-             
             
+            // Print hotels to console so user has some context
+            reportEntireTable("Customers");
+            
+            // Get SSN of the customer to be deleted
+            String ssn = getValidDataFromUser("DELETE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to delete\n> ");  
+
+            // Call method to actually interact with the DB
+            deleteCustomer(ssn, true); 
             
         }
         catch (Throwable err) {
@@ -2555,6 +2692,35 @@ public class WolfInns {
         				System.out.println("ERROR: This room number is already associated with different room in this hotel");  
         			}
     			}     
+        	}  
+        	
+        	else if (fieldName.equalsIgnoreCase("SSN")) {
+       		 
+        		if (operation.equals("UPDATE_CUSTOMER") || operation.equals("DELETE_CUSTOMER")) {
+        			boolean isSane = isValueSane(fieldName, value);
+        			if (isSane) {
+        				// Extra checks for SSN when adding customer info:
+        				// 1.check if the entered SSN is valid i.e exists in Customers table
+            			boolean isExistingCustomer = isValidCustomer(value);
+            			if (isExistingCustomer) {  
+            				if (operation.equals("DELETE_CUSTOMER")) {
+            					// Extra checks for SSN when deleting customer info:
+                    			// 2. Check if customer is currently staying in any hotel
+            					boolean isCurrentlyStaying = isCustomerCurrentlyStaying(value);
+            					if (!isCurrentlyStaying) {
+            						isValid = true; 
+            					} else {
+            						System.out.println("ERROR: The customer is associated with a current guest stay"); 
+            					}            					
+            				} else {
+            					isValid = true; 
+            				}            				
+            			} else {
+            				System.out.println("ERROR: The entered SSN does not exist in our database");  
+            			}
+        			}  
+        		}
+        		   
         	}  
         	
         	else {
@@ -3626,7 +3792,87 @@ public class WolfInns {
             handleError(err);
         }
     }
+    
+    
+    /** 
+	 * DB Update: Update customer details
+	 * 
+	 * Arguments -  ssn   - Customer Social Security Number 
+	 *              columnName    - Name of the column for Rooms table that is being updated 
+	 *              columnValue   - Value of column for Rooms table that is being updated 
+	 *              reportSuccess - True if need to print success message after method completes 
+	 * Return -     None
+	 * 
+	 * Modifications:   03/28/18 -  MTA -  Added method. 
+	 */
+	public static void updateCustomer( String ssn, String columnName, String columnValue, boolean reportSuccess){
+	
+	    try {
+	
+	        // Start transaction
+	        jdbc_connection.setAutoCommit(false);
+	        
+	        try {
+	        	
+	        	switch (columnName) {
+				case "Name":
+					jdbcPrep_updateCustomerName.setString(1, columnValue); 
+					jdbcPrep_updateCustomerName.setLong(2, Long.parseLong(ssn)); 
+					jdbcPrep_updateCustomerName.executeUpdate();
+					break;
+					
+				case "DOB":
+					jdbcPrep_updateCustomerDateOfBirth.setString(1, columnValue); 
+					jdbcPrep_updateCustomerDateOfBirth.setLong(2, Long.parseLong(ssn)); 
+					jdbcPrep_updateCustomerDateOfBirth.executeUpdate();
+					break;
+					
+				case "PhoneNum":
+					jdbcPrep_updateCustomerPhoneNumber.setString(1, columnValue); 
+					jdbcPrep_updateCustomerPhoneNumber.setLong(2, Long.parseLong(ssn)); 
+					jdbcPrep_updateCustomerPhoneNumber.executeUpdate();
+					break;
+					
+				case "Email":
+					jdbcPrep_updateCustomerEmail.setString(1, columnValue); 
+					jdbcPrep_updateCustomerEmail.setLong(2, Long.parseLong(ssn)); 
+					jdbcPrep_updateCustomerEmail.executeUpdate();
+					break;
 
+				default:
+					System.out.println(
+                        "\nCannot update the '" + columnName + "' attribute of customer, because this is not a recognized attribute for Wolf Inns Customers\n"
+                    );
+					break;
+				}
+	        	 
+	            // If success, commit
+	            jdbc_connection.commit();
+	            
+	            if (reportSuccess)
+	            {
+	            	System.out.println("\nCustomer details were successfully updated! \n");        	
+	            } 
+	        } 
+	        catch (Throwable ex) {
+	             
+	        	handleError(ex);	
+	        	 
+	            // Roll back the entire transaction
+	            jdbc_connection.rollback();
+	            
+	        }
+	        finally {
+	            // Restore normal auto-commit mode
+	            jdbc_connection.setAutoCommit(true); 
+	        }
+	        
+	    }
+	    catch (Throwable err) {
+	        handleError(err);
+	    }
+	}
+    
 	/** 
 	 * DB Update: Update room details
 	 * 
@@ -3648,14 +3894,48 @@ public class WolfInns {
 	        
 	        try {
 	        	
-	        	String updateRoomSQL = "UPDATE Rooms SET " + columnName + " = ? WHERE RoomNum = ? AND hotelID = ?; ";
-	        	jdbcPrep_updateRoom = jdbc_connection.prepareStatement(updateRoomSQL);
-	        	    
-	        	jdbcPrep_updateRoom.setString(1, columnValue); 
-	        	jdbcPrep_updateRoom.setInt(2, roomNumber);
-	        	jdbcPrep_updateRoom.setInt(3, hotelId);  
-                 
-	        	jdbcPrep_updateRoom.executeUpdate();
+	        	switch (columnName) {
+				case "Category":
+					jdbcPrep_updateRoomCategory.setString(1, columnValue); 
+					jdbcPrep_updateRoomCategory.setInt(2, roomNumber);
+					jdbcPrep_updateRoomCategory.setInt(3, hotelId); 
+					jdbcPrep_updateRoomCategory.executeUpdate();
+					break;
+
+				case "MaxOcc":
+					jdbcPrep_updateRoomMaxOccupancy.setString(1, columnValue); 
+					jdbcPrep_updateRoomMaxOccupancy.setInt(2, roomNumber);
+					jdbcPrep_updateRoomMaxOccupancy.setInt(3, hotelId); 
+					jdbcPrep_updateRoomMaxOccupancy.executeUpdate();
+					break;
+					
+				case "NightlyRate":
+					jdbcPrep_updateRoomNightlyRate.setString(1, columnValue); 
+					jdbcPrep_updateRoomNightlyRate.setInt(2, roomNumber);
+					jdbcPrep_updateRoomNightlyRate.setInt(3, hotelId); 
+					jdbcPrep_updateRoomNightlyRate.executeUpdate();
+					break;
+					
+				case "DRSStaff":
+					jdbcPrep_updateRoomDRSStaff.setString(1, columnValue); 
+					jdbcPrep_updateRoomDRSStaff.setInt(2, roomNumber);
+					jdbcPrep_updateRoomDRSStaff.setInt(3, hotelId); 
+					jdbcPrep_updateRoomDRSStaff.executeUpdate();
+					break;
+					
+				case "DCStaff":
+					jdbcPrep_updateRoomDCStaff.setString(1, columnValue); 
+					jdbcPrep_updateRoomDCStaff.setInt(2, roomNumber);
+					jdbcPrep_updateRoomDCStaff.setInt(3, hotelId); 
+					jdbcPrep_updateRoomDCStaff.executeUpdate();
+					break;
+
+				default:
+					System.out.println(
+	                    "\nCannot update the '" + columnName + "' attribute of room, because this is not a recognized attribute for Wolf Inns Rooms\n"
+	                );
+					break;
+				}
 	
 	            // If success, commit
 	            jdbc_connection.commit();
@@ -3666,7 +3946,7 @@ public class WolfInns {
 	            } 
 	        } 
 	        catch (Throwable ex) {
-	             
+	        	
 	        	handleError(ex);	
 	        	 
 	            // Roll back the entire transaction
@@ -3675,8 +3955,7 @@ public class WolfInns {
 	        }
 	        finally {
 	            // Restore normal auto-commit mode
-	            jdbc_connection.setAutoCommit(true);
-	            jdbcPrep_updateRoom.close();
+	            jdbc_connection.setAutoCommit(true); 
 	        }
 	        
 	    }
@@ -3734,6 +4013,55 @@ public class WolfInns {
             handleError(err);
         }
     }
+    
+    /** 
+     * DB Update: Delete customer
+     * 
+     * Arguments -  ssn       -  Customer Social Security Number 
+     *              reportSuccess - True if need to print success message after method completes
+     * Return -     None
+     * 
+     * Modifications:   03/28/18 -  MTA -  Added method. 
+     */
+    public static void deleteCustomer(String ssn, boolean reportSuccess) {
+    	try {
+
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {                      
+  
+            	jdbcPrep_deleteCustomer.setLong(1, Long.parseLong(ssn)); 
+            	
+            	jdbcPrep_deleteCustomer.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                if (reportSuccess)
+                {
+                	System.out.println("\nCustomer has been successfully deleted from the database! \n");        	
+                } 
+            } 
+            catch (Throwable ex) {
+                
+                handleError(ex);	 
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true); 
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+
     
     /** 
      * DB Check: Check if room number is associated with given hotel
@@ -3827,6 +4155,80 @@ public class WolfInns {
 				 jdbcPrep_isRoomCurrentlyOccupied.setInt(2, roomNumber);   
 				 
 				 ResultSet rs = jdbcPrep_isRoomCurrentlyOccupied.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        } 
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    /** 
+     * DB Check: Check if customer exists in Customers table
+     * 
+     * Arguments -  ssn       - Customer SSN  
+     * Return -     boolean   - True if the customer is present in Customers table
+      * 
+     * Modifications:   03/28/18 -  MTA -  Added method. 
+     */
+    public static boolean isValidCustomer(String ssn){  
+    	
+    	try {      		
+	        try {				
+	        	jdbcPrep_isValidCustomer.setLong(1, Long.parseLong(ssn)); 
+				 
+				 ResultSet rs = jdbcPrep_isValidCustomer.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT");  	
+				 }
+				 
+				 if (cnt == 1) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        }  
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    /** 
+     * DB Check: Check if customer is associated with current guest stay 
+     * 
+     * Arguments -  ssn       - Room number                 
+     * Return -     boolean   - True if the customer is associated with current guest stay 
+     * 
+     * Modifications:   03/28/18 -  MTA -  Added method. 
+     */
+    public static boolean isCustomerCurrentlyStaying(String ssn){  
+    	
+    	try {      		
+	        try {	        				 
+				 jdbcPrep_isCustomerCurrentlyStaying.setLong(1, Long.parseLong(ssn)); 
+				 
+				 ResultSet rs = jdbcPrep_isCustomerCurrentlyStaying.executeQuery();
 				 int cnt = 0;
 				 
 				 while (rs.next()) {
@@ -4307,6 +4709,11 @@ public class WolfInns {
             jdbcPrep_deleteStaff.close();
             // Rooms
             jdbcPrep_insertNewRoom.close(); 
+            jdbcPrep_updateRoomCategory.close();
+            jdbcPrep_updateRoomMaxOccupancy.close();
+            jdbcPrep_updateRoomNightlyRate.close();
+            jdbcPrep_updateRoomDCStaff.close();
+            jdbcPrep_updateRoomDRSStaff.close();
             jdbcPrep_deleteRoom.close();
             jdbcPrep_isValidRoomNumber.close();
             jdbcPrep_isRoomCurrentlyOccupied.close();
@@ -4315,8 +4722,14 @@ public class WolfInns {
             jdbcPrep_getOneExampleRoom.close();
             // Customers
             jdbcPrep_insertNewCustomer.close();
-            if (jdbcPrep_updateCustomer != null) {jdbcPrep_updateCustomer.close();}
-            if (jdbcPrep_deleteCustomer != null) {jdbcPrep_deleteCustomer.close();}
+            jdbcPrep_updateCustomerName.close();
+            jdbcPrep_updateCustomerDateOfBirth.close();
+            jdbcPrep_updateCustomerPhoneNumber.close();
+            jdbcPrep_updateCustomerEmail.close();
+            jdbcPrep_deleteCustomer.close();
+            jdbcPrep_getCustomerBySSN.close();
+            jdbcPrep_isValidCustomer.close();                 
+            jdbcPrep_isCustomerCurrentlyStaying.close();
             // Connection
             jdbc_connection.close();
         
