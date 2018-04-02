@@ -2188,18 +2188,22 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  At the end, print number of records in result set.
      *                  03/21/18 -  ATTD -  Print column label instead of column name.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/01/18 -  ATTD -  Make the result set print out correctly regardless of contents
+     *                                      (at the expense of speed - will run slower now, but still seems to just quite fast enough).
      */
     public static void printQueryResultSet(ResultSet resultSetToPrint) {
         
         try {
             
             // Declare variables
+            ArrayList<Integer> columnWidths = new ArrayList<>();
             ResultSetMetaData metaData;
             String columnName;
             String tupleValue;
+            int columnWidth;
             int numColumns;
-            int i;
             int numTuples;
+            int i;
 
             // Is there anything useful in the result set?
             if (jdbc_result.next()) {
@@ -2207,35 +2211,60 @@ public class WolfInns {
                 // Get metadata
                 metaData = jdbc_result.getMetaData();
                 numColumns = metaData.getColumnCount();
+                numTuples = 0;
+                do {
+                    numTuples++;
+                }
+                while (jdbc_result.next());
+                jdbc_result.beforeFirst();
                 
+                // Figure out how many chars to use for each column
+                for (i = 1; i <= numColumns; i++) {
+                    columnName = metaData.getColumnLabel(i);
+                    columnWidth = columnName.length();
+                    while (jdbc_result.next()) {
+                        tupleValue = jdbc_result.getString(i);
+                        // Tuple value could be null, if so that's 4 chars to print ("NULL")
+                        if (tupleValue == null) {
+                            if (4 > columnWidth) {
+                                columnWidth = 4;
+                            }
+                        }
+                        else if (tupleValue.length() > columnWidth) {
+                            columnWidth = tupleValue.length();
+                        }
+                    }
+                    columnWidths.add(columnWidth + 1);
+                    jdbc_result.beforeFirst();
+                }
+
                 /* Print column headers
                  * use column label instead of column name,
                  * otherwise you will not see the effect of aliasing
                  */
                 for (i = 1; i <= numColumns; i++) {
                     columnName = metaData.getColumnLabel(i);
-                    System.out.print(padRight(columnName, getNumPadChars(metaData,i)));
+                    System.out.print(padRight(columnName, columnWidths.get(i-1)));
                 }
                 System.out.println("");
                 System.out.println("");
                 
                 // Go through the result set tuple by tuple
-                numTuples = 0;
-                do {
+                while (jdbc_result.next()) {
                     for (i = 1; i <= numColumns; i++) {
                         tupleValue = jdbc_result.getString(i);
-                        System.out.print(padRight(tupleValue, getNumPadChars(metaData,i)));
+                        System.out.print(padRight(tupleValue, columnWidths.get(i-1)));
                     }
                     System.out.print("\n");
-                    numTuples++;
-                } while(jdbc_result.next());
+                }
                 
                 // Print number of records found
                 System.out.println("");
                 System.out.println("(" + numTuples + " entries)");
                 System.out.println("");
                 
-            } else {
+            }
+            else {
                 // Tell the user that the result set is empty
                 System.out.println("(no results)\n");
             }
@@ -2245,72 +2274,6 @@ public class WolfInns {
             handleError(err);
         }
         
-    }
-    
-    /** 
-     * Figure out how many characters to include in a padded string for a given column of a given result,
-     * based on the result set metadata
-     * 
-     * Arguments -  metaData -          Meta data for the result set
-     *              colNum -            The column number
-     * Return -     numPadChars -       The number of characters to include in a padded string
-     * 
-     * Modifications:   03/08/18 -  ATTD -  Created method.
-     *                  03/09/18 -  ATTD -  Another minor tweak.
-     *                  03/23/18 -  ATTD -  Use new general error handler.
-     *                  03/24/18 -  ATTD -  Tweaked (didn't perfect).
-     */
-    public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
-        
-        // Declare constants
-        // TODO: find some smarter way to print query result set, this approach still has the Hotels table printing out funny, for example
-        final int NUM_PAD_CHARS_ID =            5;
-        final int NUM_PAD_CHARS_DEP =           5;
-        final int NUM_PAD_CHARS_STATE =         6;
-        final int NUM_PAD_CHARS_NUMBER =        12;
-        final int NUM_PAD_CHARS_DATE_TIME =     11;
-        final int NUM_PAD_CHARS_DEFAULT =       30;
-        final int NUM_PAD_CHARS_FULL_ADDRESS =  55;
-        final int NUM_PAD_CHARS_NAME =          20;
-        
-        // Declare variables
-        int numPadChars = NUM_PAD_CHARS_DEFAULT;
-        String columnType;
-        String columnName;
-        
-        try {
-
-            columnType = metaData.getColumnTypeName(colNum);
-            columnName = metaData.getColumnName(colNum);
-            if (columnName.equals("ID")) {
-                numPadChars = NUM_PAD_CHARS_ID;
-            }
-            else if (columnName.equals("Dep")) {
-                numPadChars = NUM_PAD_CHARS_DEP;
-            }
-            else if (columnName.equals("Address")) {
-                numPadChars = NUM_PAD_CHARS_FULL_ADDRESS;
-            }
-            else if (columnName.equals("State")) {
-                numPadChars = NUM_PAD_CHARS_STATE;
-            }
-            else if (columnName.equals("Name")) {
-                numPadChars = NUM_PAD_CHARS_NAME;
-            }
-            else if (columnType == "INTEGER" || columnType == "BIGINT" || columnType == "DOUBLE") {
-                numPadChars = NUM_PAD_CHARS_NUMBER;
-            }
-            else if (columnType == "DATE" || columnType == "TIME") {
-                numPadChars = NUM_PAD_CHARS_DATE_TIME;
-            }
-            
-        }
-        catch (Throwable err) {
-            handleError(err);
-        }
-        
-        return numPadChars;
-         
     }
     
     /** 
