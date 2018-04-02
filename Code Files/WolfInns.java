@@ -772,7 +772,7 @@ public class WolfInns {
                 "WHERE RoomNum = ? AND HotelID = ? AND EXISTS(SELECT * FROM Stays WHERE RoomNum = ? AND HotelID = ? AND EndDate IS NULL);";
             jdbcPrep_assignDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            /* Get the newest stay in the DV
+            /* Get the newest stay in the DB
              * Indices to use when calling this prepared statement: n/a
              */
             reusedSQLVar = "SELECT * FROM Stays WHERE ID >= ALL (SELECT ID FROM Stays);";
@@ -1868,52 +1868,60 @@ public class WolfInns {
         try {
             
             // Declare local variables
-            String roomNumber = "";
+            String roomNum = "";
             String hotelID = "";
+            String numGuests = "";
             String customerSSN = "";
             String paymentMethod = "";
             String cardType = "";
             String cardNumber = "";
             String billingAddress = "";
-            String hotelName = "";
-            String streetAddress = "";
-            String city = "";
-            String state = "";
-            String phoneNumAsString = "";
-            String managerIdAsString = "";
-            long phoneNum = 0;
-            int managerID = 0;
             
             // Get room number
             System.out.print("\nEnter the room number\n> ");
-            roomNumber = scanner.nextLine();
-            if (isValueSane("RoomNum", roomNumber)) {
+            roomNum = scanner.nextLine();
+            if (isValueSane("RoomNum", roomNum)) {
                 // Get hotel ID
                 System.out.print("\nEnter the hotel ID\n> ");
                 hotelID = scanner.nextLine();
                 if (isValueSane("HotelID", hotelID)) {
-                    // Get customer SSN
-                    System.out.print("\nEnter the customer's SSN\n> ");
-                    customerSSN = scanner.nextLine();
-                    if (isValueSane("CustomerSSN", customerSSN)) {
-                        // Get payment method
-                        System.out.print("\nEnter the payment method\n> ");
-                        paymentMethod = scanner.nextLine();
-                        if (isValueSane("PaymentMethod", paymentMethod)) {
-                            // Get card type
-                            System.out.print("\nEnter the credit card type\n> ");
-                            cardType = scanner.nextLine();
-                            if (isValueSane("CardType", cardType)) {
-                                // Get card number
-                                System.out.print("\nEnter the credit card number\n> ");
-                                cardNumber = scanner.nextLine();
-                                if (isValueSane("CardNumber", cardNumber)) {
-                                    // Get billing address
-                                    System.out.print("\nEnter the billing address\n> ");
-                                    billingAddress = scanner.nextLine();
-                                    if (isValueSane("BillingAddress", billingAddress)) {
-                                        // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                                        updateInsertStay(xxx);
+                    // Get number of guests
+                    System.out.print("\nEnter the number of guests staying in this room\n> ");
+                    numGuests = scanner.nextLine();
+                    if (isValueSane("NumGuests", numGuests)) {
+                        // Get customer SSN
+                        System.out.print("\nEnter the customer's SSN\n> ");
+                        customerSSN = scanner.nextLine();
+                        if (isValueSane("CustomerSSN", customerSSN)) {
+                            // Get payment method
+                            System.out.print("\nEnter the payment method\n> ");
+                            paymentMethod = scanner.nextLine();
+                            if (isValueSane("PaymentMethod", paymentMethod)) {
+                                // Get card type
+                                System.out.print("\nEnter the credit card type\n> ");
+                                cardType = scanner.nextLine();
+                                if (isValueSane("CardType", cardType)) {
+                                    // Get card number
+                                    System.out.print("\nEnter the credit card number\n> ");
+                                    cardNumber = scanner.nextLine();
+                                    if (isValueSane("CardNumber", cardNumber)) {
+                                        // Get billing address
+                                        System.out.print("\nEnter the billing address\n> ");
+                                        billingAddress = scanner.nextLine();
+                                        if (isValueSane("BillingAddress", billingAddress)) {
+                                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                            updateInsertStay(
+                                                Integer.parseInt(roomNum), 
+                                                Integer.parseInt(hotelID), 
+                                                Long.parseLong(customerSSN), 
+                                                Integer.parseInt(numGuests), 
+                                                paymentMethod, 
+                                                cardType, 
+                                                Long.parseLong(cardNumber), 
+                                                billingAddress, 
+                                                true
+                                            );
+                                        }
                                     }
                                 }
                             }
