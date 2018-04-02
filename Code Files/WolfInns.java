@@ -4217,7 +4217,7 @@ public class WolfInns {
     public static void updateInsertStay (int roomNum, int hotelID, long customerSSN, int numGuests, String paymentMethod, String cardType, long cardNumber, String billingAddress, boolean reportSuccess) {
         
         // Declare variables
-        int newStaffID;
+        String roomType = "";
         
         try {
 
@@ -4274,7 +4274,13 @@ public class WolfInns {
                  * 4 -  Room number (again)
                  * 5 -  Hotel ID (again)
                  */
-                if (xxx) {
+                jdbcPrep_getRoomByHotelIDRoomNum.setInt(1, roomNum);
+                jdbcPrep_getRoomByHotelIDRoomNum.setInt(2, hotelID);
+                jdbc_result = jdbcPrep_getRoomByHotelIDRoomNum.executeQuery();
+                while (jdbc_result.next()) {
+                    roomType = jdbc_result.getString("RoomType");     
+                }
+                if (roomType == "PRESIDENTIAL_SUITE") {
                     jdbcPrep_assignDedicatedStaff.setInt(1, hotelID);
                     jdbcPrep_assignDedicatedStaff.setInt(2, roomNum);
                     jdbcPrep_assignDedicatedStaff.setInt(3, hotelID);
