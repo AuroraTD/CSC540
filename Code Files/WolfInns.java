@@ -34,6 +34,7 @@ public class WolfInns {
     private static final String CMD_MANAGE =                "MANAGE";
     
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
+    private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
     
     private static final String CMD_BILLING_GENERATE =      "BILLFORSTAY";
     
@@ -103,6 +104,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_isValidHotelId;
     private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum; 
     private static PreparedStatement jdbcPrep_getOneExampleRoom;
+    private static PreparedStatement jdbcPrep_assignDedicatedStaff;
     
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
@@ -128,6 +130,11 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getCustomerBySSN; 
     private static PreparedStatement jdbcPrep_isValidCustomer; 
     private static PreparedStatement jdbcPrep_isCustomerCurrentlyStaying;
+    
+    // Declare variables - prepared statements - Stays
+    private static PreparedStatement jdbcPrep_assignRoom;
+    private static PreparedStatement jdbcPrep_getNewestStay;
+    private static PreparedStatement jdbcPrep_addStayNoSafetyChecks;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -156,6 +163,7 @@ public class WolfInns {
      *                  03/26/18 -  ATTD -  Add ability to update basic info about a staff member.
      *                  03/27/18 -  MTA  -  Add ability to add, update and delete customer.
      *                  03/27/18 -  ATTD -  Add ability to check room availability.
+     *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -182,6 +190,8 @@ public class WolfInns {
                 case CMD_FRONTDESK:
                     System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
                     System.out.println("\t- check room availability");
+                    System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
+                    System.out.println("\t- assign a room to a customer");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -308,6 +318,9 @@ public class WolfInns {
      *                  03/27/18 -  ATTD -  Add prepared statement for updating staff hotel ID by staff ID range.
      *                                      Use prepared statement to delete staff.
      *                                      Add ability to report one example room.
+     *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
+     *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
+     *                  04/04/18 -  ATTD -  Add prepared statement for mass population of Stays table.
      */
     public static void createPreparedStatements() {
         
@@ -315,9 +328,7 @@ public class WolfInns {
             
             // Declare variables
             String reusedSQLVar;
-            
-            // HOTELS
-            
+
             /* Insert new hotel
              * Indices to use when calling this prepared statement:
              * 1 - name
@@ -418,8 +429,6 @@ public class WolfInns {
                 "WHERE ID = ?;";
             jdbcPrep_updateHotelManagerID = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            // ROOMS
-            
             /* Get one example room, just to show the user what the attributes to filter on are
              * Don't filter on DCStaff or DRSStaff, that doesn't really make sense for the front desk rep
              * Indices to use when calling this prepared statement: n/a
@@ -427,8 +436,6 @@ public class WolfInns {
             reusedSQLVar = 
                 "SELECT RoomNum, HotelID, Category, MaxOcc, NightlyRate from Rooms LIMIT 1;";
             jdbcPrep_getOneExampleRoom = jdbc_connection.prepareStatement(reusedSQLVar);
-
-            // STAFF
             
             /* Demote the old manager of a given hotel to front desk representative
              * Indices to use when calling this prepared statement: 
@@ -675,7 +682,11 @@ public class WolfInns {
         	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";			 
 			jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(reusedSQLVar); 
 			
-			// Check if room is currently occupied
+			/* Check if room is currently occupied
+			 * Indices to use when calling this prepared statement:
+             * 1 -  hotel ID
+             * 2 -  room number
+			 */
 			reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE hotelID = ? AND RoomNum = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";			 
 			jdbcPrep_isRoomCurrentlyOccupied = jdbc_connection.prepareStatement(reusedSQLVar); 
 
@@ -722,6 +733,83 @@ public class WolfInns {
         	// Check if customer is associated with current(ongoing) stay
         	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE CustomerSSN = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
         	jdbcPrep_isCustomerCurrentlyStaying = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+            /* Assign a room to a customer
+             * Enforce maximum occupancy of the room
+             * Enforce the presence of further billing information in the case that the customer chooses to pay with a credit card.  
+             * This is enforced by using a SELECT statement to produce values to be inserted.  
+             * If the WHERE clause evaluates to false then no values will be produced, and thus the insertion will not take place.
+             * Indices to use when calling this prepared statement:
+             * 1 -  Customer SSN
+             * 2 -  Number of guests
+             * 3 -  Payment method
+             * 4 -  Card type
+             * 5 -  Card number
+             * 6 -  Billing address
+             * 7 -  Room number
+             * 8 -  Hotel ID
+             * 9 -  Payment method (again)
+             * 10 - Card type (again)
+             * 11 - Card number (again)
+             * 12 - Billing address (again)
+             * 13 - Number of guests (again)
+             */
+            reusedSQLVar = 
+                "INSERT INTO Stays " + 
+                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
+                "SELECT CURDATE(), CURTIME(), RoomNum, HotelID, ?, ?, ?, ?, ?, ? " + 
+                "FROM Rooms WHERE " + 
+                "RoomNum = ? AND HotelID = ? AND " + 
+                "(? <> 'CARD' OR (? IS NOT NULL AND ? IS NOT NULL AND ? IS NOT NULL)) AND " +
+                "MaxOcc >= ?;";
+            jdbcPrep_assignRoom = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Assign dedicated staff to a presidential suite
+             * Get first available room service staff in the hotel
+             * Get first available catering staff in the hotel
+             * Make sure there is actually a customer stay assigned for this room
+             * Indices to use when calling this prepared statement:
+             * 1 -  Hotel ID
+             * 2 -  Room number
+             * 3 -  Hotel ID (again)
+             * 4 -  Room number (again)
+             * 5 -  Hotel ID (again)
+             */
+            reusedSQLVar = 
+                "UPDATE Rooms SET " + 
+                "DRSStaff = (SELECT MIN(ID) FROM (SELECT ID, HotelID FROM STAFF WHERE JobTitle = 'Room Service' AND HotelID = ? AND " + 
+                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))), " + 
+                "DCStaff = (SELECT MIN(ID) FROM (SELECT ID, HotelID FROM STAFF WHERE JobTitle = 'Catering' AND HotelID = ? AND " + 
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL))) " +
+                "WHERE RoomNum = ? AND HotelID = ? AND EXISTS(SELECT * FROM Stays WHERE RoomNum = ? AND HotelID = ? AND EndDate IS NULL);";
+            jdbcPrep_assignDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get the newest stay in the DB
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT * FROM Stays WHERE ID >= ALL (SELECT ID FROM Stays);";
+            jdbcPrep_getNewestStay = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Insert a new stay (in a dumb, no-safety-check way suitable for mass population)
+             * Indices to use when calling this prepared statement:
+             * 1 -  start date
+             * 2 -  check in time
+             * 3 -  room number
+             * 4 -  hotel ID
+             * 5 -  customer SSN
+             * 6 -  number of guests
+             * 7 -  check out time
+             * 8 -  end date
+             * 9 -  payment method
+             * 10 - card type
+             * 11 - card number
+             * 12 - billing address
+             */
+            reusedSQLVar = 
+                "INSERT INTO Stays " + 
+                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+            jdbcPrep_addStayNoSafetyChecks = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1492,63 +1580,23 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Use prepared statement method to populate Stays table.
      */
     public static void populateStaysTable() {
         
         try {
             
-            // Start transaction
-            jdbc_connection.setAutoCommit(false);
-            
-            try {
-            
-                // Stays where the guest has already checked out'
-                // TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
-    				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
-    				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH');");
-        		// Stays that are still going on
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');");
-        		
-                // If success, commit
-                jdbc_connection.commit();
-        		
-                System.out.println("Stays table loaded!");
-            
-            }
-            catch (Throwable err) {
-                
-                // Handle Error
-                handleError(err);
-                // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
-            }
-            finally {
-                // Restore normal auto-commit mode
-                jdbc_connection.setAutoCommit(true);
-            }
+            // Stays where the guest has already checked out
+            updateInsertStayNoSafetyChecks("2018-01-12", "20:10:00", 1, 1, 555284568L, 3, "10:00:00", "2018-01-20", "CARD", "VISA", 4400123454126587L, "7178 Kent St. Enterprise, AL 36330");
+            updateInsertStayNoSafetyChecks("2018-02-15", "10:20:00", 3, 2, 111038548L, 2, "08:00:00", "2018-02-18", "CASH", "", -1, "");
+            updateInsertStayNoSafetyChecks("2018-03-01", "15:00:00", 1, 3, 222075875L, 1, "13:00:00", "2018-03-05", "CARD", "HOTEL", 1100214521684512L, "178 Shadow Brook St. West Chicago, IL 60185");
+            updateInsertStayNoSafetyChecks("2018-02-20", "07:00:00", 2, 4, 333127845L, 4, "15:00:00", "2018-02-27", "CARD", "MASTERCARD", 4400124565874591L, "802B Studebaker Drive Clinton Township, MI 48035");
+            updateInsertStayNoSafetyChecks("2018-03-05", "11:00:00", 3, 5, 444167216L, 4, "08:00:00", "2018-03-12", "CARD", "VISA", 4400127465892145L, "83 Inverness Court Longwood, FL 32779");
+            updateInsertStayNoSafetyChecks("2018-03-01", "18:00:00", 1, 6, 666034568L, 1, "23:00:00", "2018-03-01", "CASH", "", -1, "");
+
+            // Stays that are still going on
+            updateInsertStayNoSafetyChecks("2018-01-20", "06:00:00", 2, 7, 777021654L, 3, "", "", "CARD", "HOTEL", 1100214532567845L, "87 Gregory Street Lawndale, CA 90260");
+            updateInsertStayNoSafetyChecks("2018-02-14", "09:00:00", 4, 8, 888091545L, 2, "", "", "CARD", "VISA", 4400178498564512L, "34 Hall Ave. Cranberry Twp, PA 16066");
             
         }
         catch (Throwable err) {
@@ -1686,8 +1734,10 @@ public class WolfInns {
      * Modifications:   03/27/18 -  ATTD -  Created method.
      */
     public static void frontDeskCheckAvailability() {
-        
+ 
         try {
+            
+            // TODO: something is broken here.  if you search for all presidential suites, it includes room 4 in hotel 8 (which is occupied)!
             
             // Declare local variables
             ArrayList<String> filters = new ArrayList<>();
@@ -1792,6 +1842,119 @@ public class WolfInns {
             sqlToExecute = sqlToExecute.replace("count(*)", "*");
             jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
             printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Front Desk task: Assign a room to a customer
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/01/18 -  ATTD -  Created method.
+     *                  04/02/18 -  ATTD -  Print out customers to help user pick a valid SSN.
+     *                  04/03/18 -  ATTD -  Debug assigning a room to a customer.
+     */
+    public static void frontDeskAssignRoom() {
+        
+        try {
+            
+            // Declare local variables
+            String roomNum = "";
+            String hotelID = "";
+            String numGuests = "";
+            String customerSSN = "";
+            String paymentMethod = "";
+            String cardType = "";
+            String cardNumber = "";
+            String billingAddress = "";
+            
+            // Get room number
+            System.out.print("\nEnter the room number\n> ");
+            roomNum = scanner.nextLine();
+            if (isValueSane("RoomNum", roomNum)) {
+                // Get hotel ID
+                System.out.print("\nEnter the hotel ID\n> ");
+                hotelID = scanner.nextLine();
+                if (isValueSane("HotelID", hotelID)) {
+                    // Make sure room is actually available
+                    if (isValidHotelId(Integer.parseInt(hotelID)) == false) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because this is not a valid WolfInns hotel\n");
+                    }
+                    else if (isValidRoomForHotel(Integer.parseInt(hotelID), Integer.parseInt(roomNum)) == false) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because this is not a valid room for this hotel\n");
+                    }
+                    else if (isRoomCurrentlyOccupied(Integer.parseInt(hotelID), Integer.parseInt(roomNum)) == true) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because it is already occupied\n");
+                    }
+                    else {
+                        // Get number of guests
+                        System.out.print("\nEnter the number of guests staying in this room\n> ");
+                        numGuests = scanner.nextLine();
+                        if (isValueSane("NumGuests", numGuests)) {
+                            // Get customer SSN (print out all customers to help user pick a valid SSN
+                            reportEntireTable("Customers");
+                            System.out.print("\nEnter the customer's SSN\n> ");
+                            customerSSN = scanner.nextLine();
+                            if (isValueSane("CustomerSSN", customerSSN)) {
+                                // Get payment method
+                                System.out.print("\nEnter the payment method\n> ");
+                                paymentMethod = scanner.nextLine();
+                                if (isValueSane("PaymentMethod", paymentMethod)) {
+                                    // Get billing information IF paying with a card
+                                    if (paymentMethod.equalsIgnoreCase("CARD")) {
+                                        // Get card type
+                                        System.out.print("\nEnter the credit card type\n> ");
+                                        cardType = scanner.nextLine();
+                                        if (isValueSane("CardType", cardType)) {
+                                            // Get card number
+                                            System.out.print("\nEnter the credit card number\n> ");
+                                            cardNumber = scanner.nextLine();
+                                            if (isValueSane("CardNumber", cardNumber)) {
+                                                // Get billing address
+                                                System.out.print("\nEnter the billing address\n> ");
+                                                billingAddress = scanner.nextLine();
+                                                if (isValueSane("BillingAddress", billingAddress)) {
+                                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                                    updateInsertStay(
+                                                        Integer.parseInt(roomNum), 
+                                                        Integer.parseInt(hotelID), 
+                                                        Long.parseLong(customerSSN), 
+                                                        Integer.parseInt(numGuests), 
+                                                        paymentMethod, 
+                                                        cardType, 
+                                                        Long.parseLong(cardNumber), 
+                                                        billingAddress, 
+                                                        true
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        updateInsertStay(
+                                            Integer.parseInt(roomNum), 
+                                            Integer.parseInt(hotelID), 
+                                            Long.parseLong(customerSSN), 
+                                            Integer.parseInt(numGuests), 
+                                            paymentMethod, 
+                                            "", 
+                                            -1, 
+                                            "", 
+                                            true
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             
         }
         catch (Throwable err) {
@@ -2037,8 +2200,6 @@ public class WolfInns {
         } 
     }
     
-    
-    
     // PRINT
     
     /** 
@@ -2053,18 +2214,22 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  At the end, print number of records in result set.
      *                  03/21/18 -  ATTD -  Print column label instead of column name.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/01/18 -  ATTD -  Make the result set print out correctly regardless of contents
+     *                                      (at the expense of speed - will run slower now, but still seems quite fast enough).
      */
     public static void printQueryResultSet(ResultSet resultSetToPrint) {
         
         try {
             
             // Declare variables
+            ArrayList<Integer> columnWidths = new ArrayList<>();
             ResultSetMetaData metaData;
             String columnName;
             String tupleValue;
+            int columnWidth;
             int numColumns;
-            int i;
             int numTuples;
+            int i;
 
             // Is there anything useful in the result set?
             if (jdbc_result.next()) {
@@ -2072,35 +2237,60 @@ public class WolfInns {
                 // Get metadata
                 metaData = jdbc_result.getMetaData();
                 numColumns = metaData.getColumnCount();
+                numTuples = 0;
+                do {
+                    numTuples++;
+                }
+                while (jdbc_result.next());
+                jdbc_result.beforeFirst();
                 
+                // Figure out how many chars to use for each column
+                for (i = 1; i <= numColumns; i++) {
+                    columnName = metaData.getColumnLabel(i);
+                    columnWidth = columnName.length();
+                    while (jdbc_result.next()) {
+                        tupleValue = jdbc_result.getString(i);
+                        // Tuple value could be null, if so that's 4 chars to print ("NULL")
+                        if (tupleValue == null) {
+                            if (4 > columnWidth) {
+                                columnWidth = 4;
+                            }
+                        }
+                        else if (tupleValue.length() > columnWidth) {
+                            columnWidth = tupleValue.length();
+                        }
+                    }
+                    columnWidths.add(columnWidth + 1);
+                    jdbc_result.beforeFirst();
+                }
+
                 /* Print column headers
                  * use column label instead of column name,
                  * otherwise you will not see the effect of aliasing
                  */
                 for (i = 1; i <= numColumns; i++) {
                     columnName = metaData.getColumnLabel(i);
-                    System.out.print(padRight(columnName, getNumPadChars(metaData,i)));
+                    System.out.print(padRight(columnName, columnWidths.get(i-1)));
                 }
                 System.out.println("");
                 System.out.println("");
                 
                 // Go through the result set tuple by tuple
-                numTuples = 0;
-                do {
+                while (jdbc_result.next()) {
                     for (i = 1; i <= numColumns; i++) {
                         tupleValue = jdbc_result.getString(i);
-                        System.out.print(padRight(tupleValue, getNumPadChars(metaData,i)));
+                        System.out.print(padRight(tupleValue, columnWidths.get(i-1)));
                     }
                     System.out.print("\n");
-                    numTuples++;
-                } while(jdbc_result.next());
+                }
                 
                 // Print number of records found
                 System.out.println("");
                 System.out.println("(" + numTuples + " entries)");
                 System.out.println("");
                 
-            } else {
+            }
+            else {
                 // Tell the user that the result set is empty
                 System.out.println("(no results)\n");
             }
@@ -2110,72 +2300,6 @@ public class WolfInns {
             handleError(err);
         }
         
-    }
-    
-    /** 
-     * Figure out how many characters to include in a padded string for a given column of a given result,
-     * based on the result set metadata
-     * 
-     * Arguments -  metaData -          Meta data for the result set
-     *              colNum -            The column number
-     * Return -     numPadChars -       The number of characters to include in a padded string
-     * 
-     * Modifications:   03/08/18 -  ATTD -  Created method.
-     *                  03/09/18 -  ATTD -  Another minor tweak.
-     *                  03/23/18 -  ATTD -  Use new general error handler.
-     *                  03/24/18 -  ATTD -  Tweaked (didn't perfect).
-     */
-    public static int getNumPadChars(ResultSetMetaData metaData, int colNum) {
-        
-        // Declare constants
-        // TODO: find some smarter way to print query result set, this approach still has the Hotels table printing out funny, for example
-        final int NUM_PAD_CHARS_ID =            5;
-        final int NUM_PAD_CHARS_DEP =           5;
-        final int NUM_PAD_CHARS_STATE =         6;
-        final int NUM_PAD_CHARS_NUMBER =        12;
-        final int NUM_PAD_CHARS_DATE_TIME =     11;
-        final int NUM_PAD_CHARS_DEFAULT =       30;
-        final int NUM_PAD_CHARS_FULL_ADDRESS =  55;
-        final int NUM_PAD_CHARS_NAME =          20;
-        
-        // Declare variables
-        int numPadChars = NUM_PAD_CHARS_DEFAULT;
-        String columnType;
-        String columnName;
-        
-        try {
-
-            columnType = metaData.getColumnTypeName(colNum);
-            columnName = metaData.getColumnName(colNum);
-            if (columnName.equals("ID")) {
-                numPadChars = NUM_PAD_CHARS_ID;
-            }
-            else if (columnName.equals("Dep")) {
-                numPadChars = NUM_PAD_CHARS_DEP;
-            }
-            else if (columnName.equals("Address")) {
-                numPadChars = NUM_PAD_CHARS_FULL_ADDRESS;
-            }
-            else if (columnName.equals("State")) {
-                numPadChars = NUM_PAD_CHARS_STATE;
-            }
-            else if (columnName.equals("Name")) {
-                numPadChars = NUM_PAD_CHARS_NAME;
-            }
-            else if (columnType == "INTEGER" || columnType == "BIGINT" || columnType == "DOUBLE") {
-                numPadChars = NUM_PAD_CHARS_NUMBER;
-            }
-            else if (columnType == "DATE" || columnType == "TIME") {
-                numPadChars = NUM_PAD_CHARS_DATE_TIME;
-            }
-            
-        }
-        catch (Throwable err) {
-            handleError(err);
-        }
-        
-        return numPadChars;
-         
     }
     
     /** 
@@ -3154,18 +3278,18 @@ public class WolfInns {
                 // Calculate the total amount owed, both before and after the possible hotel credit card discount
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
-                        "SELECT SUM(TotalCost) FROM (" + 
-                        itemizedReceiptSQL + 
-                        ") AS ItemizedReceipt;");
+                    "SELECT SUM(TotalCost) FROM (" + 
+                    itemizedReceiptSQL + 
+                    ") AS ItemizedReceipt;");
                 jdbc_result.next();
                 amountOwedBeforeDiscount = jdbc_result.getDouble(1);
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
-                        "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
-                        stayID + 
-                        ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
-                        itemizedReceiptSQL + 
-                        ") AS ItemizedReceipt;");
+                    "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
+                    stayID + 
+                    ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
+                    itemizedReceiptSQL + 
+                    ") AS ItemizedReceipt;");
                 jdbc_result.next();
                 amountOwedAfterDiscount = jdbc_result.getDouble(1);
                 
@@ -3793,7 +3917,6 @@ public class WolfInns {
         }
     }
     
-    
     /** 
 	 * DB Update: Update customer details
 	 * 
@@ -3873,6 +3996,7 @@ public class WolfInns {
 	    }
 	}
     
+	// TODO: move this so that it goes: addRoom, updateRoom, deleteRoom
 	/** 
 	 * DB Update: Update room details
 	 * 
@@ -3964,6 +4088,7 @@ public class WolfInns {
 	    }
 	}
     
+	// TODO: move this so that it goes: addRoom, updateRoom, deleteRoom
     /** 
      * DB Update: Delete room
      * 
@@ -4062,6 +4187,247 @@ public class WolfInns {
         }
     }
 
+    /** 
+     * DB Update: Insert Stay
+     * 
+     * Arguments -  roomNum -           The room the customer will stay in
+     *              hotelID -           The hotel the customer will stay in
+     *              customerSSN -       The customer's SSN
+     *              numGuests -         The number of guests staying in the room
+     *              paymentMethod -     The method of payment (card, etc).
+     *              cardType -          The type of card (or blank string if not paying with card)
+     *              cardNumber -        The card number (or -1 if not paying with card)
+     *              billingAddress -    The billing address (or blank string if not paying with card)
+     *              reportSuccess -     True if we should print success message to console (should be false for mass population of hotels)
+     * Return -     None
+     * 
+     * Modifications:   04/01/18 -  ATTD -  Created method.
+     *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
+     *                  04/04/18 -  ATTD -  Debug assigning a room to a customer.
+     */
+    public static void updateInsertStay (
+        int roomNum, 
+        int hotelID, 
+        long customerSSN,
+        int numGuests, 
+        String paymentMethod, 
+        String cardType, 
+        long cardNumber, 
+        String billingAddress, 
+        boolean reportSuccess
+    ) {
+        
+        // Declare variables
+        int oldStayID = 0;
+        int newStayID = 0;
+        String roomType = "";
+        String userGuidance = "";
+        
+        try {
+               
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+
+                // Get the (OLD) newest stay ID
+                jdbc_result = jdbcPrep_getNewestStay.executeQuery();
+                jdbc_result.next();
+                oldStayID = jdbc_result.getInt(1);
+
+                /* Insert new stay, using prepared statement
+                 * If the payment method is not "CARD", pass NULL for card type, card number, and billing address
+                 * Indices to use when calling this prepared statement:
+                 * 1 -  Customer SSN
+                 * 2 -  Number of guests
+                 * 3 -  Payment method
+                 * 4 -  Card type
+                 * 5 -  Card number
+                 * 6 -  Billing address
+                 * 7 -  Room number
+                 * 8 -  Hotel ID
+                 * 9 -  Payment method (again)
+                 * 10 - Card type (again)
+                 * 11 - Card number (again)
+                 * 12 - Billing address (again)
+                 * 13 - Number of guests (again)
+                 */
+                jdbcPrep_assignRoom.setLong(1, customerSSN);
+                jdbcPrep_assignRoom.setInt(2, numGuests);
+                jdbcPrep_assignRoom.setInt(13, numGuests);
+                jdbcPrep_assignRoom.setString(3, paymentMethod);
+                jdbcPrep_assignRoom.setString(9, paymentMethod);
+                if (paymentMethod.equals("CARD")) {
+                    jdbcPrep_assignRoom.setString(4, cardType);
+                    jdbcPrep_assignRoom.setString(10, cardType);
+                    jdbcPrep_assignRoom.setLong(5, cardNumber);
+                    jdbcPrep_assignRoom.setLong(11, cardNumber);
+                    jdbcPrep_assignRoom.setString(6, billingAddress);
+                    jdbcPrep_assignRoom.setString(12, billingAddress);
+                }
+                else {
+                    jdbcPrep_assignRoom.setNull(4, java.sql.Types.VARCHAR);
+                    jdbcPrep_assignRoom.setNull(10, java.sql.Types.VARCHAR);
+                    jdbcPrep_assignRoom.setNull(5, java.sql.Types.BIGINT);
+                    jdbcPrep_assignRoom.setNull(11, java.sql.Types.BIGINT);
+                    jdbcPrep_assignRoom.setNull(6, java.sql.Types.VARCHAR);
+                    jdbcPrep_assignRoom.setNull(12, java.sql.Types.VARCHAR);
+                }
+                jdbcPrep_assignRoom.setInt(7, roomNum);
+                jdbcPrep_assignRoom.setInt(8, hotelID);
+                jdbcPrep_assignRoom.executeUpdate();
+                
+                /* Assign dedicated staff to a presidential suite (if that's the room type)
+                 * Indices to use when calling this prepared statement:
+                 * 1 -  Hotel ID
+                 * 2 -  Room number
+                 * 3 -  Hotel ID (again)
+                 * 4 -  Room number (again)
+                 * 5 -  Hotel ID (again)
+                 */
+                jdbcPrep_getRoomByHotelIDRoomNum.setInt(1, roomNum);
+                jdbcPrep_getRoomByHotelIDRoomNum.setInt(2, hotelID);
+                jdbc_result = jdbcPrep_getRoomByHotelIDRoomNum.executeQuery();
+                while (jdbc_result.next()) {
+                    roomType = jdbc_result.getString("Category");     
+                }
+                if (roomType == "PRESIDENTIAL_SUITE") {
+                    jdbcPrep_assignDedicatedStaff.setInt(1, hotelID);
+                    jdbcPrep_assignDedicatedStaff.setInt(2, roomNum);
+                    jdbcPrep_assignDedicatedStaff.setInt(3, hotelID);
+                    jdbcPrep_assignDedicatedStaff.setInt(4, roomNum);
+                    jdbcPrep_assignDedicatedStaff.setInt(5, hotelID);
+                    jdbcPrep_assignDedicatedStaff.executeUpdate();
+                }
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                // Then, tell the user about the success or failure
+                jdbc_result = jdbcPrep_getNewestStay.executeQuery();
+                jdbc_result.next();
+                newStayID = jdbc_result.getInt(1);
+                if (oldStayID < newStayID) {
+                    if (reportSuccess) {
+                        System.out.println("\nRoom Assigned!\n");
+                        jdbc_result.beforeFirst();
+                        printQueryResultSet(jdbc_result);
+                    }
+                }
+                else {
+                    userGuidance = 
+                       "Room NOT Assigned " + 
+                       "(this can happen if the number of guests is too high";
+                    System.out.println("\n" + userGuidance + "\n");
+                }
+                
+            }
+            catch (Throwable err) {
+                
+                // Handle error
+                handleError(err);
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * DB Update: Insert Stay (with no user interaction, safety checks) - for mass population
+     * 
+     * Arguments -  startDate -         The start date of the guest stay
+     *              checkInTime -       The start time of the guest stay
+     *              roomNum -           The room the customer will stay in
+     *              hotelID -           The hotel the customer will stay in
+     *              customerSSN -       The customer's SSN
+     *              numGuests -         The number of guests staying in the room
+     *              checkOutTime -      The end time of the guest stay (or blank string if stay is ongoing)
+     *              endDate -           The end date of the guest stay (or blank string if stay is ongoing)
+     *              paymentMethod -     The method of payment (card, etc)
+     *              cardType -          The type of card (or blank string if not paying with card)
+     *              cardNumber -        The card number (or -1 if not paying with card)
+     *              billingAddress -    The billing address (or blank string if not paying with card)
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  ATTD -  Created method.
+     */
+    public static void updateInsertStayNoSafetyChecks (
+        String startDate,
+        String checkInTime,
+        int roomNum, 
+        int hotelID, 
+        long customerSSN,
+        int numGuests, 
+        String checkOutTime,
+        String endDate,
+        String paymentMethod, 
+        String cardType, 
+        long cardNumber, 
+        String billingAddress
+    ) {
+
+        try {
+            
+            
+            /* Insert a new stay (in a dumb, no-safety-check way suitable for mass population)
+             * Indices to use when calling this prepared statement:
+             * 1 -  start date
+             * 2 -  check in time
+             * 3 -  room number
+             * 4 -  hotel ID
+             * 5 -  customer SSN
+             * 6 -  number of guests
+             * 7 -  check out time
+             * 8 -  end date
+             * 9 -  payment method
+             * 10 - card type
+             * 11 - card number
+             * 12 - billing address
+             */
+            jdbcPrep_addStayNoSafetyChecks.setDate(1, java.sql.Date.valueOf(startDate));
+            jdbcPrep_addStayNoSafetyChecks.setTime(2, java.sql.Time.valueOf(checkInTime));
+            jdbcPrep_addStayNoSafetyChecks.setInt(3, roomNum);
+            jdbcPrep_addStayNoSafetyChecks.setInt(4, hotelID);
+            jdbcPrep_addStayNoSafetyChecks.setLong(5, customerSSN);
+            jdbcPrep_addStayNoSafetyChecks.setInt(6, numGuests);
+            if (checkOutTime.length() > 0 && endDate.length() > 0) {
+                jdbcPrep_addStayNoSafetyChecks.setTime(7, java.sql.Time.valueOf(checkOutTime));
+                jdbcPrep_addStayNoSafetyChecks.setDate(8, java.sql.Date.valueOf(endDate));
+            }
+            else {
+                jdbcPrep_addStayNoSafetyChecks.setNull(7, java.sql.Types.TIME);
+                jdbcPrep_addStayNoSafetyChecks.setNull(8, java.sql.Types.DATE);
+            }
+            jdbcPrep_addStayNoSafetyChecks.setString(9, paymentMethod);
+            if (paymentMethod.equals("CARD")) {
+                jdbcPrep_addStayNoSafetyChecks.setString(10, cardType);
+                jdbcPrep_addStayNoSafetyChecks.setLong(11, cardNumber);
+                jdbcPrep_addStayNoSafetyChecks.setString(12, billingAddress);
+            }
+            else {
+                jdbcPrep_addStayNoSafetyChecks.setNull(10, java.sql.Types.VARCHAR);
+                jdbcPrep_addStayNoSafetyChecks.setNull(11, java.sql.Types.BIGINT);
+                jdbcPrep_addStayNoSafetyChecks.setNull(12, java.sql.Types.VARCHAR);
+            }
+            jdbcPrep_addStayNoSafetyChecks.executeUpdate();
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
     
     /** 
      * DB Check: Check if room number is associated with given hotel
@@ -4455,6 +4821,7 @@ public class WolfInns {
      *                  03/27/18 -  ATTD -  Use prepared statement to delete staff.
      *                                      Add ability to check if rooms are available.
      *                  03/27/18 -  MTA -   Add ability to add, update and delete customer.
+     *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      */
     public static void main(String[] args) {
         
@@ -4543,6 +4910,9 @@ public class WolfInns {
                         switch (command.toUpperCase()) {
                             case CMD_FRONTDESK_AVAILABLE:
                                 frontDeskCheckAvailability();
+                                break;
+                            case CMD_FRONTDESK_ASSIGN:
+                                frontDeskAssignRoom();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
@@ -4720,6 +5090,7 @@ public class WolfInns {
             jdbcPrep_isValidHotelId.close();
             jdbcPrep_getRoomByHotelIDRoomNum.close();
             jdbcPrep_getOneExampleRoom.close();
+            jdbcPrep_assignDedicatedStaff.close();
             // Customers
             jdbcPrep_insertNewCustomer.close();
             jdbcPrep_updateCustomerName.close();
@@ -4730,6 +5101,10 @@ public class WolfInns {
             jdbcPrep_getCustomerBySSN.close();
             jdbcPrep_isValidCustomer.close();                 
             jdbcPrep_isCustomerCurrentlyStaying.close();
+            // Stays
+            jdbcPrep_assignRoom.close();
+            jdbcPrep_getNewestStay.close();
+            jdbcPrep_addStayNoSafetyChecks.close();
             // Connection
             jdbc_connection.close();
         
