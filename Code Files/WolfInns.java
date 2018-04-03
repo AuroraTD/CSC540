@@ -134,6 +134,7 @@ public class WolfInns {
     // Declare variables - prepared statements - Stays
     private static PreparedStatement jdbcPrep_assignRoom;
     private static PreparedStatement jdbcPrep_getNewestStay;
+    private static PreparedStatement jdbcPrep_addStayNoSafetyChecks;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -319,6 +320,7 @@ public class WolfInns {
      *                                      Add ability to report one example room.
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
+     *                  04/04/18 -  ATTD -  Add prepared statement for mass population of Stays table.
      */
     public static void createPreparedStatements() {
         
@@ -787,6 +789,27 @@ public class WolfInns {
              */
             reusedSQLVar = "SELECT * FROM Stays WHERE ID >= ALL (SELECT ID FROM Stays);";
             jdbcPrep_getNewestStay = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Insert a new stay (in a dumb, no-safety-check way suitable for mass population)
+             * Indices to use when calling this prepared statement:
+             * 1 -  start date
+             * 2 -  check in time
+             * 3 -  room number
+             * 4 -  hotel ID
+             * 5 -  customer SSN
+             * 6 -  number of guests
+             * 7 -  check out time
+             * 8 -  end date
+             * 9 -  payment method
+             * 10 - card type
+             * 11 - card number
+             * 12 - billing address
+             */
+            reusedSQLVar = 
+                "INSERT INTO Stays " + 
+                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+            jdbcPrep_addStayNoSafetyChecks = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1557,63 +1580,23 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Use prepared statement method to populate Stays table.
      */
     public static void populateStaysTable() {
         
         try {
             
-            // Start transaction
-            jdbc_connection.setAutoCommit(false);
-            
-            try {
-            
-                // Stays where the guest has already checked out'
-                // TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-01-12', '20:10:00', 1, 1, 555284568, 3, '10:00:00', '2018-01-20', 'CARD', 'VISA', '4400123454126587', '7178 Kent St. Enterprise, AL 36330');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
-    				" ('2018-02-15', '10:20:00', 3, 2, 111038548, 2, '08:00:00', '2018-02-18', 'CASH');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-03-01', '15:00:00', 1, 3, 222075875, 1, '13:00:00', '2018-03-05', 'CARD', 'HOTEL', '1100214521684512', '178 Shadow Brook St. West Chicago, IL 60185');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-02-20', '07:00:00', 2, 4, 333127845, 4, '15:00:00', '2018-02-27', 'CARD', 'MASTERCARD', '4400124565874591', '802B Studebaker Drive Clinton Township, MI 48035');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-03-05', '11:00:00', 3, 5, 444167216, 4, '08:00:00', '2018-03-12', 'CARD', 'VISA', '4400127465892145', '83 Inverness Court Longwood, FL 32779');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod) VALUES "+ 
-    				" ('2018-03-01', '18:00:00', 1, 6, 666034568, 1, '23:00:00', '2018-03-01', 'CASH');");
-        		// Stays that are still going on
-        		// TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-01-20', '06:00:00', 2, 7, 777021654, 3, 'CARD', 'HOTEL', '1100214532567845', '87 Gregory Street Lawndale, CA 90260');");
-        		jdbc_statement.executeUpdate("INSERT INTO Stays "+
-    				" (StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) VALUES "+ 
-    				" ('2018-02-14', '09:00:00', 4, 8, 888091545, 2, 'CARD', 'VISA', '4400178498564512', '34 Hall Ave. Cranberry Twp, PA 16066');");
-        		
-                // If success, commit
-                jdbc_connection.commit();
-        		
-                System.out.println("Stays table loaded!");
-            
-            }
-            catch (Throwable err) {
-                
-                // Handle Error
-                handleError(err);
-                // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
-            }
-            finally {
-                // Restore normal auto-commit mode
-                jdbc_connection.setAutoCommit(true);
-            }
+            // Stays where the guest has already checked out
+            updateInsertStayNoSafetyChecks("2018-01-12", "20:10:00", 1, 1, 555284568L, 3, "10:00:00", "2018-01-20", "CARD", "VISA", 4400123454126587L, "7178 Kent St. Enterprise, AL 36330");
+            updateInsertStayNoSafetyChecks("2018-02-15", "10:20:00", 3, 2, 111038548L, 2, "08:00:00", "2018-02-18", "CASH", "", -1, "");
+            updateInsertStayNoSafetyChecks("2018-03-01", "15:00:00", 1, 3, 222075875L, 1, "13:00:00", "2018-03-05", "CARD", "HOTEL", 1100214521684512L, "178 Shadow Brook St. West Chicago, IL 60185");
+            updateInsertStayNoSafetyChecks("2018-02-20", "07:00:00", 2, 4, 333127845L, 4, "15:00:00", "2018-02-27", "CARD", "MASTERCARD", 4400124565874591L, "802B Studebaker Drive Clinton Township, MI 48035");
+            updateInsertStayNoSafetyChecks("2018-03-05", "11:00:00", 3, 5, 444167216L, 4, "08:00:00", "2018-03-12", "CARD", "VISA", 4400127465892145L, "83 Inverness Court Longwood, FL 32779");
+            updateInsertStayNoSafetyChecks("2018-03-01", "18:00:00", 1, 6, 666034568L, 1, "23:00:00", "2018-03-01", "CASH", "", -1, "");
+
+            // Stays that are still going on
+            updateInsertStayNoSafetyChecks("2018-01-20", "06:00:00", 2, 7, 777021654L, 3, "", "", "CARD", "HOTEL", 1100214532567845L, "87 Gregory Street Lawndale, CA 90260");
+            updateInsertStayNoSafetyChecks("2018-02-14", "09:00:00", 4, 8, 888091545L, 2, "", "", "CARD", "VISA", 4400178498564512L, "34 Hall Ave. Cranberry Twp, PA 16066");
             
         }
         catch (Throwable err) {
@@ -4222,7 +4205,17 @@ public class WolfInns {
      *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
      *                  04/04/18 -  ATTD -  Debug assigning a room to a customer.
      */
-    public static void updateInsertStay (int roomNum, int hotelID, long customerSSN, int numGuests, String paymentMethod, String cardType, long cardNumber, String billingAddress, boolean reportSuccess) {
+    public static void updateInsertStay (
+        int roomNum, 
+        int hotelID, 
+        long customerSSN,
+        int numGuests, 
+        String paymentMethod, 
+        String cardType, 
+        long cardNumber, 
+        String billingAddress, 
+        boolean reportSuccess
+    ) {
         
         // Declare variables
         int oldStayID = 0;
@@ -4343,6 +4336,92 @@ public class WolfInns {
                 jdbc_connection.setAutoCommit(true);
             }
 
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * DB Update: Insert Stay (with no user interaction, safety checks) - for mass population
+     * 
+     * Arguments -  startDate -         The start date of the guest stay
+     *              checkInTime -       The start time of the guest stay
+     *              roomNum -           The room the customer will stay in
+     *              hotelID -           The hotel the customer will stay in
+     *              customerSSN -       The customer's SSN
+     *              numGuests -         The number of guests staying in the room
+     *              checkOutTime -      The end time of the guest stay (or blank string if stay is ongoing)
+     *              endDate -           The end date of the guest stay (or blank string if stay is ongoing)
+     *              paymentMethod -     The method of payment (card, etc)
+     *              cardType -          The type of card (or blank string if not paying with card)
+     *              cardNumber -        The card number (or -1 if not paying with card)
+     *              billingAddress -    The billing address (or blank string if not paying with card)
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  ATTD -  Created method.
+     */
+    public static void updateInsertStayNoSafetyChecks (
+        String startDate,
+        String checkInTime,
+        int roomNum, 
+        int hotelID, 
+        long customerSSN,
+        int numGuests, 
+        String checkOutTime,
+        String endDate,
+        String paymentMethod, 
+        String cardType, 
+        long cardNumber, 
+        String billingAddress
+    ) {
+
+        try {
+            
+            
+            /* Insert a new stay (in a dumb, no-safety-check way suitable for mass population)
+             * Indices to use when calling this prepared statement:
+             * 1 -  start date
+             * 2 -  check in time
+             * 3 -  room number
+             * 4 -  hotel ID
+             * 5 -  customer SSN
+             * 6 -  number of guests
+             * 7 -  check out time
+             * 8 -  end date
+             * 9 -  payment method
+             * 10 - card type
+             * 11 - card number
+             * 12 - billing address
+             */
+            jdbcPrep_addStayNoSafetyChecks.setDate(1, java.sql.Date.valueOf(startDate));
+            jdbcPrep_addStayNoSafetyChecks.setTime(2, java.sql.Time.valueOf(checkInTime));
+            jdbcPrep_addStayNoSafetyChecks.setInt(3, roomNum);
+            jdbcPrep_addStayNoSafetyChecks.setInt(4, hotelID);
+            jdbcPrep_addStayNoSafetyChecks.setLong(5, customerSSN);
+            jdbcPrep_addStayNoSafetyChecks.setInt(6, numGuests);
+            if (checkOutTime.length() > 0 && endDate.length() > 0) {
+                jdbcPrep_addStayNoSafetyChecks.setTime(7, java.sql.Time.valueOf(checkOutTime));
+                jdbcPrep_addStayNoSafetyChecks.setDate(8, java.sql.Date.valueOf(endDate));
+            }
+            else {
+                jdbcPrep_addStayNoSafetyChecks.setNull(7, java.sql.Types.TIME);
+                jdbcPrep_addStayNoSafetyChecks.setNull(8, java.sql.Types.DATE);
+            }
+            jdbcPrep_addStayNoSafetyChecks.setString(9, paymentMethod);
+            if (paymentMethod.equals("CARD")) {
+                jdbcPrep_addStayNoSafetyChecks.setString(10, cardType);
+                jdbcPrep_addStayNoSafetyChecks.setLong(11, cardNumber);
+                jdbcPrep_addStayNoSafetyChecks.setString(12, billingAddress);
+            }
+            else {
+                jdbcPrep_addStayNoSafetyChecks.setNull(10, java.sql.Types.VARCHAR);
+                jdbcPrep_addStayNoSafetyChecks.setNull(11, java.sql.Types.BIGINT);
+                jdbcPrep_addStayNoSafetyChecks.setNull(12, java.sql.Types.VARCHAR);
+            }
+            jdbcPrep_addStayNoSafetyChecks.executeUpdate();
+            
         }
         catch (Throwable err) {
             handleError(err);
@@ -5024,7 +5103,8 @@ public class WolfInns {
             jdbcPrep_isCustomerCurrentlyStaying.close();
             // Stays
             jdbcPrep_assignRoom.close();
-            jdbcPrep_getNewestStay.close(); 
+            jdbcPrep_getNewestStay.close();
+            jdbcPrep_addStayNoSafetyChecks.close();
             // Connection
             jdbc_connection.close();
         
