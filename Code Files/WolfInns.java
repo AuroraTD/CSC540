@@ -318,6 +318,7 @@ public class WolfInns {
      *                                      Use prepared statement to delete staff.
      *                                      Add ability to report one example room.
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
+     *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
      */
     public static void createPreparedStatements() {
         
@@ -679,7 +680,11 @@ public class WolfInns {
         	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";			 
 			jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(reusedSQLVar); 
 			
-			// Check if room is currently occupied
+			/* Check if room is currently occupied
+			 * Indices to use when calling this prepared statement:
+             * 1 -  hotel ID
+             * 2 -  room number
+			 */
 			reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE hotelID = ? AND RoomNum = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";			 
 			jdbcPrep_isRoomCurrentlyOccupied = jdbc_connection.prepareStatement(reusedSQLVar); 
 
@@ -728,6 +733,7 @@ public class WolfInns {
         	jdbcPrep_isCustomerCurrentlyStaying = jdbc_connection.prepareStatement(reusedSQLVar);
         	
             /* Assign a room to a customer
+             * Enforce maximum occupancy of the room
              * Enforce the presence of further billing information in the case that the customer chooses to pay with a credit card.  
              * This is enforced by using a SELECT statement to produce values to be inserted.  
              * If the WHERE clause evaluates to false then no values will be produced, and thus the insertion will not take place.
@@ -744,12 +750,16 @@ public class WolfInns {
              * 10 - Card type (again)
              * 11 - Card number (again)
              * 12 - Billing address (again)
+             * 13 - Number of guests (again)
              */
             reusedSQLVar = 
                 "INSERT INTO Stays " + 
                 "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
                 "SELECT CURDATE(), CURTIME(), RoomNum, HotelID, ?, ?, ?, ?, ?, ? " + 
-                "FROM Rooms WHERE RoomNum = ? AND HotelID = ? AND (? <> 'CARD' OR (? IS NOT NULL AND ? IS NOT NULL AND ? IS NOT NULL));";
+                "FROM Rooms WHERE " + 
+                "RoomNum = ? AND HotelID = ? AND " + 
+                "(? <> 'CARD' OR (? IS NOT NULL AND ? IS NOT NULL AND ? IS NOT NULL)) AND " +
+                "MaxOcc >= ?;";
             jdbcPrep_assignRoom = jdbc_connection.prepareStatement(reusedSQLVar);
 
             /* Assign dedicated staff to a presidential suite
@@ -1741,8 +1751,10 @@ public class WolfInns {
      * Modifications:   03/27/18 -  ATTD -  Created method.
      */
     public static void frontDeskCheckAvailability() {
-        
+ 
         try {
+            
+            // TODO: something is broken here.  if you search for all presidential suites, it includes room 4 in hotel 8 (which is occupied)!
             
             // Declare local variables
             ArrayList<String> filters = new ArrayList<>();
@@ -1862,6 +1874,8 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   04/01/18 -  ATTD -  Created method.
+     *                  04/02/18 -  ATTD -  Print out customers to help user pick a valid SSN.
+     *                  04/03/18 -  ATTD -  Debug assigning a room to a customer.
      */
     public static void frontDeskAssignRoom() {
         
@@ -1885,43 +1899,72 @@ public class WolfInns {
                 System.out.print("\nEnter the hotel ID\n> ");
                 hotelID = scanner.nextLine();
                 if (isValueSane("HotelID", hotelID)) {
-                    // Get number of guests
-                    System.out.print("\nEnter the number of guests staying in this room\n> ");
-                    numGuests = scanner.nextLine();
-                    if (isValueSane("NumGuests", numGuests)) {
-                        // Get customer SSN
-                        System.out.print("\nEnter the customer's SSN\n> ");
-                        customerSSN = scanner.nextLine();
-                        if (isValueSane("CustomerSSN", customerSSN)) {
-                            // Get payment method
-                            System.out.print("\nEnter the payment method\n> ");
-                            paymentMethod = scanner.nextLine();
-                            if (isValueSane("PaymentMethod", paymentMethod)) {
-                                // Get card type
-                                System.out.print("\nEnter the credit card type\n> ");
-                                cardType = scanner.nextLine();
-                                if (isValueSane("CardType", cardType)) {
-                                    // Get card number
-                                    System.out.print("\nEnter the credit card number\n> ");
-                                    cardNumber = scanner.nextLine();
-                                    if (isValueSane("CardNumber", cardNumber)) {
-                                        // Get billing address
-                                        System.out.print("\nEnter the billing address\n> ");
-                                        billingAddress = scanner.nextLine();
-                                        if (isValueSane("BillingAddress", billingAddress)) {
-                                            // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                                            updateInsertStay(
-                                                Integer.parseInt(roomNum), 
-                                                Integer.parseInt(hotelID), 
-                                                Long.parseLong(customerSSN), 
-                                                Integer.parseInt(numGuests), 
-                                                paymentMethod, 
-                                                cardType, 
-                                                Long.parseLong(cardNumber), 
-                                                billingAddress, 
-                                                true
-                                            );
+                    // Make sure room is actually available
+                    if (isValidHotelId(Integer.parseInt(hotelID)) == false) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because this is not a valid WolfInns hotel\n");
+                    }
+                    else if (isValidRoomForHotel(Integer.parseInt(hotelID), Integer.parseInt(roomNum)) == false) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because this is not a valid room for this hotel\n");
+                    }
+                    else if (isRoomCurrentlyOccupied(Integer.parseInt(hotelID), Integer.parseInt(roomNum)) == true) {
+                        System.out.println("\nCannot assign room " + roomNum + " in hotel " + hotelID + ", because it is already occupied\n");
+                    }
+                    else {
+                        // Get number of guests
+                        System.out.print("\nEnter the number of guests staying in this room\n> ");
+                        numGuests = scanner.nextLine();
+                        if (isValueSane("NumGuests", numGuests)) {
+                            // Get customer SSN (print out all customers to help user pick a valid SSN
+                            reportEntireTable("Customers");
+                            System.out.print("\nEnter the customer's SSN\n> ");
+                            customerSSN = scanner.nextLine();
+                            if (isValueSane("CustomerSSN", customerSSN)) {
+                                // Get payment method
+                                System.out.print("\nEnter the payment method\n> ");
+                                paymentMethod = scanner.nextLine();
+                                if (isValueSane("PaymentMethod", paymentMethod)) {
+                                    // Get billing information IF paying with a card
+                                    if (paymentMethod.equalsIgnoreCase("CARD")) {
+                                        // Get card type
+                                        System.out.print("\nEnter the credit card type\n> ");
+                                        cardType = scanner.nextLine();
+                                        if (isValueSane("CardType", cardType)) {
+                                            // Get card number
+                                            System.out.print("\nEnter the credit card number\n> ");
+                                            cardNumber = scanner.nextLine();
+                                            if (isValueSane("CardNumber", cardNumber)) {
+                                                // Get billing address
+                                                System.out.print("\nEnter the billing address\n> ");
+                                                billingAddress = scanner.nextLine();
+                                                if (isValueSane("BillingAddress", billingAddress)) {
+                                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                                    updateInsertStay(
+                                                        Integer.parseInt(roomNum), 
+                                                        Integer.parseInt(hotelID), 
+                                                        Long.parseLong(customerSSN), 
+                                                        Integer.parseInt(numGuests), 
+                                                        paymentMethod, 
+                                                        cardType, 
+                                                        Long.parseLong(cardNumber), 
+                                                        billingAddress, 
+                                                        true
+                                                    );
+                                                }
+                                            }
                                         }
+                                    }
+                                    else {
+                                        updateInsertStay(
+                                            Integer.parseInt(roomNum), 
+                                            Integer.parseInt(hotelID), 
+                                            Long.parseLong(customerSSN), 
+                                            Integer.parseInt(numGuests), 
+                                            paymentMethod, 
+                                            "", 
+                                            -1, 
+                                            "", 
+                                            true
+                                        );
                                     }
                                 }
                             }
@@ -2189,7 +2232,7 @@ public class WolfInns {
      *                  03/21/18 -  ATTD -  Print column label instead of column name.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/01/18 -  ATTD -  Make the result set print out correctly regardless of contents
-     *                                      (at the expense of speed - will run slower now, but still seems to just quite fast enough).
+     *                                      (at the expense of speed - will run slower now, but still seems quite fast enough).
      */
     public static void printQueryResultSet(ResultSet resultSetToPrint) {
         
@@ -3252,18 +3295,18 @@ public class WolfInns {
                 // Calculate the total amount owed, both before and after the possible hotel credit card discount
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
-                        "SELECT SUM(TotalCost) FROM (" + 
-                        itemizedReceiptSQL + 
-                        ") AS ItemizedReceipt;");
+                    "SELECT SUM(TotalCost) FROM (" + 
+                    itemizedReceiptSQL + 
+                    ") AS ItemizedReceipt;");
                 jdbc_result.next();
                 amountOwedBeforeDiscount = jdbc_result.getDouble(1);
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
-                        "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
-                        stayID + 
-                        ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
-                        itemizedReceiptSQL + 
-                        ") AS ItemizedReceipt;");
+                    "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
+                    stayID + 
+                    ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
+                    itemizedReceiptSQL + 
+                    ") AS ItemizedReceipt;");
                 jdbc_result.next();
                 amountOwedAfterDiscount = jdbc_result.getDouble(1);
                 
@@ -4176,18 +4219,28 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   04/01/18 -  ATTD -  Created method.
+     *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
+     *                  04/04/18 -  ATTD -  Debug assigning a room to a customer.
      */
     public static void updateInsertStay (int roomNum, int hotelID, long customerSSN, int numGuests, String paymentMethod, String cardType, long cardNumber, String billingAddress, boolean reportSuccess) {
         
         // Declare variables
+        int oldStayID = 0;
+        int newStayID = 0;
         String roomType = "";
+        String userGuidance = "";
         
         try {
-
+               
             // Start transaction
             jdbc_connection.setAutoCommit(false);
             
             try {
+
+                // Get the (OLD) newest stay ID
+                jdbc_result = jdbcPrep_getNewestStay.executeQuery();
+                jdbc_result.next();
+                oldStayID = jdbc_result.getInt(1);
 
                 /* Insert new stay, using prepared statement
                  * If the payment method is not "CARD", pass NULL for card type, card number, and billing address
@@ -4204,9 +4257,11 @@ public class WolfInns {
                  * 10 - Card type (again)
                  * 11 - Card number (again)
                  * 12 - Billing address (again)
+                 * 13 - Number of guests (again)
                  */
                 jdbcPrep_assignRoom.setLong(1, customerSSN);
                 jdbcPrep_assignRoom.setInt(2, numGuests);
+                jdbcPrep_assignRoom.setInt(13, numGuests);
                 jdbcPrep_assignRoom.setString(3, paymentMethod);
                 jdbcPrep_assignRoom.setString(9, paymentMethod);
                 if (paymentMethod.equals("CARD")) {
@@ -4241,7 +4296,7 @@ public class WolfInns {
                 jdbcPrep_getRoomByHotelIDRoomNum.setInt(2, hotelID);
                 jdbc_result = jdbcPrep_getRoomByHotelIDRoomNum.executeQuery();
                 while (jdbc_result.next()) {
-                    roomType = jdbc_result.getString("RoomType");     
+                    roomType = jdbc_result.getString("Category");     
                 }
                 if (roomType == "PRESIDENTIAL_SUITE") {
                     jdbcPrep_assignDedicatedStaff.setInt(1, hotelID);
@@ -4255,11 +4310,22 @@ public class WolfInns {
                 // If success, commit
                 jdbc_connection.commit();
                 
-                // Then, tell the user about the success
-                if (reportSuccess) {
-                    System.out.println("\nRoom Assigned!\n");
-                    jdbc_result = jdbcPrep_getNewestStay.executeQuery();
-                    printQueryResultSet(jdbc_result);
+                // Then, tell the user about the success or failure
+                jdbc_result = jdbcPrep_getNewestStay.executeQuery();
+                jdbc_result.next();
+                newStayID = jdbc_result.getInt(1);
+                if (oldStayID < newStayID) {
+                    if (reportSuccess) {
+                        System.out.println("\nRoom Assigned!\n");
+                        jdbc_result.beforeFirst();
+                        printQueryResultSet(jdbc_result);
+                    }
+                }
+                else {
+                    userGuidance = 
+                       "Room NOT Assigned " + 
+                       "(this can happen if the number of guests is too high";
+                    System.out.println("\n" + userGuidance + "\n");
                 }
                 
             }
@@ -4276,7 +4342,7 @@ public class WolfInns {
                 // Restore normal auto-commit mode
                 jdbc_connection.setAutoCommit(true);
             }
-            
+
         }
         catch (Throwable err) {
             handleError(err);
