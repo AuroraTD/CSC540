@@ -117,7 +117,6 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateStaffPhoneNum;
     private static PreparedStatement jdbcPrep_updateStaffAddress;
     private static PreparedStatement jdbcPrep_updateStaffHotelID;
-    private static PreparedStatement jdbcPrep_updateStaffRangeHotelID;
     private static PreparedStatement jdbcPrep_getStaffByID;
     private static PreparedStatement jdbcPrep_deleteStaff;  
     
@@ -327,6 +326,9 @@ public class WolfInns {
      *                                      Do not allow insertion of new staff member, if that staff member
      *                                          is supposed to be the manager of a hotel which ALREADY has a manager.
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
+     *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
+     *                                          no longer makes sense with tables populated with demo data.
      */
     public static void createPreparedStatements() {
         
@@ -455,13 +457,13 @@ public class WolfInns {
                 "SELECT RoomNum, HotelID, Category, MaxOcc, NightlyRate from Rooms LIMIT 1;";
             jdbcPrep_getOneExampleRoom = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            /* Demote the old manager of a given hotel to front desk representative
+            /* Demote the old manager of a given hotel to front desk staff
              * Indices to use when calling this prepared statement: 
              * 1 -  hotel ID
              */
             reusedSQLVar = 
                 "UPDATE Staff " + 
-                "SET JobTitle = 'Front Desk Representative' " + 
+                "SET JobTitle = 'Front Desk Staff' " + 
                 "WHERE JobTitle = 'Manager' AND HotelID = ?;";
             jdbcPrep_demoteOldManager = jdbc_connection.prepareStatement(reusedSQLVar);
             
@@ -640,19 +642,7 @@ public class WolfInns {
                 "SET HotelID = ? " + 
                 "WHERE ID = ?;";
             jdbcPrep_updateStaffHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
-            
-            /* Update staff member assigned hotel ID, by range of staff ID
-             * Indices to use when calling this prepared statement: 
-             * 1 -  staff hotel ID
-             * 2 -  staff ID min (inclusive)
-             * 3 -  staff ID max (inclusive)
-             */
-            reusedSQLVar = 
-                "UPDATE Staff " + 
-                "SET HotelID = ? WHERE " + 
-                "ID >= ? AND ID <= ?;";
-            jdbcPrep_updateStaffRangeHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
-            
+
             /* Get all values of a given tuple (by ID) from the Staff table
              * Indices to use when calling this prepared statement:
              * 1 -  ID
@@ -1116,6 +1106,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Populate Customers table with demo data.
      */
     public static void populateCustomersTable() {
         
@@ -1126,17 +1117,20 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Customers
-            	addCustomer("555284568", "Isaac Gray", "1982-11-12", "9194562158", "issac.gray@gmail.com", false); 
-            	addCustomer("111038548", "Jay Sharp", "1956-07-09", "9191237548", "jay.sharp@gmail.com", false);
-            	addCustomer("222075875", "Jenson Lee", "1968-09-25", "9194563217", "jenson.lee@gmail.com", false);
-            	addCustomer("333127845", "Benjamin Cooke", "1964-01-07", "9191256324", "benjamin.cooke@gmail.com", false);  
-            	addCustomer("444167216", "Joe Bradley", "1954-04-07", "9194587569", "joe.bradley@gmail.com", false);    
-            	addCustomer("666034568", "Conor Stone", "1975-06-04", "9194567216", "conor.stone@gmail.com", false);
-            	addCustomer("777021654", "Elizabeth Davis", "1964-07-26", "9195432187", "elizabeth.davis@gmail.com", false);
-            	addCustomer("888091545", "Natasha Moore", "1966-08-14", "9194562347", "natasha.moore@gmail.com", false);
-            	addCustomer("888092545", "Gary Vee", "1996-03-10", "9199237455", "gary.vee@gmail.com", false);                                         
-                
+                /* Populating data for Customers
+                 * Signature for method called here:
+                 * String ssn, 
+                 * String name, 
+                 * String dob, 
+                 * String phoneNumber, 
+                 * String email, 
+                 * boolean reportSuccess
+                 */
+            	addCustomer("5939846", "David",    "1980-01-30", "123", "david@gmail.com",     false); 
+            	addCustomer("7778352", "Sarah",    "1971-01-30", "456", "sarah@gmail.com",     false);
+            	addCustomer("8589430", "Joseph",   "1987-01-30", "789", "joseph@gmail.com",    false);
+            	addCustomer("4409328", "Lucy",     "1985-01-30", "213", "lucy@gmail.com",      false);  
+
                 // If success, commit
                 jdbc_connection.commit();
                 
@@ -1247,6 +1241,7 @@ public class WolfInns {
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/24/18 -  ATTD -  Call insert new staff member method, rather than having SQL directly in this method.
+     *                  04/04/18 -  ATTD -  Populate Staff table with demo data.
      */
     public static void populateStaffTable() {
         
@@ -1257,78 +1252,40 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Staff
+                /* Populating data for Staff
+                 * Signature for method called here:
+                 * String name, 
+                 * String dob, 
+                 * String jobTitle, 
+                 * String department, 
+                 * long phoneNum, 
+                 * String address, 
+                 * int hotelID, 
+                 * boolean reportSuccess
+                 */
+                updateInsertStaff ("Mary",      "1978-01-01", "Manager",            "Management",   654L, "90 ABC St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("John",      "1973-01-01", "Manager",            "Management",   564L, "1798 XYZ St , Rochester NY 54",  0, false);
+                updateInsertStaff ("Carol",     "1963-01-01", "Manager",            "Management",   546L, "351 MH St , Greensboro NC 27",   0, false);
+                updateInsertStaff ("Emma",      "1963-01-01", "Front Desk Staff",   "Management",   546L, "49 ABC St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Ava",       "1963-01-01", "Catering",           "Catering",     777L, "425 RG St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Peter",     "1966-01-01", "Manager",            "Management",   724L, "475 RG St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Olivia",    "1991-01-01", "Front Desk Staff",   "Management",   799L, "325 PD St , Raleigh NC 27",      0, false);
                 
-                // Staff for Hotel#1
-                updateInsertStaff ("Zoe Holmes", "1980-10-02", "Manager", "A", 8141113134L, "123 6th St. Melbourne, FL 32904", 0, false);
-                updateInsertStaff ("Katelyn Weeks", "1970-04-20", "Front Desk Representative", "B", 6926641058L, "123 6th St. Melbourne, FL 32904", 0, false);
-                updateInsertStaff ("Abby Huffman", "1990-12-14", "Room Service", "C", 6738742135L, "71 Pilgrim Avenue Chevy Chase, MD 20815", 0, false);
-                updateInsertStaff ("Oliver Gibson", "1985-05-12", "Room Service", "A", 1515218329L, "70 Bowman St. South Windsor, CT 06074", 0, false);
-                updateInsertStaff ("Michael Day", "1983-02-25", "Catering", "B", 3294931245L, "4 Goldfield Rd. Honolulu, HI 96815", 0, false);
-                updateInsertStaff ("David Adams", "1985-01-17", "Dry Cleaning", "C", 9194153214L, "44 Shirley Ave. West Chicago, IL 60185", 0, false);
-                updateInsertStaff ("Ishaan Goodman", "1993-04-19", "Gym", "A", 5203201425L, "514 S. Magnolia St. Orlando, FL 32806", 0, false);
-                updateInsertStaff ("Nicholas Read", "1981-01-14", "Catering", "B", 2564132017L, "236 Pumpkin Hill Court Leesburg, VA 20175", 0, false);
-
-                // Staff for Hotel#2
-                updateInsertStaff ("Dominic Mitchell", "1971-03-13", "Manager", "A", 2922497845L, "7005 South Franklin St. Somerset, NJ 08873", 0, false);
-                updateInsertStaff ("Oliver Lucas", "1961-05-11", "Front Desk Representative", "A", 2519881245L, "7 Edgefield St. Augusta, GA 30906", 0, false);
-                updateInsertStaff ("Molly Thomas", "1987-07-10", "Room Service", "B", 5425871245L, "541 S. Holly Street Norcross, GA 30092", 0, false);
-                updateInsertStaff ("Caitlin Cole", "1989-08-15", "Catering", "B", 4997845612L, "7 Ivy Ave. Traverse City, MI 49684", 0, false);
-                updateInsertStaff ("Victoria Medina", "1989-02-04", "Dry Cleaning", "C", 1341702154L, "8221 Trenton St. Jamestown, NY 14701", 0, false);
-                updateInsertStaff ("Will Rollins", "1982-07-06", "Gym", "C", 7071264587L, "346 Beacon Lane Quakertown, PA 18951", 0, false);
-
-                // Staff for Hotel#3
-                updateInsertStaff ("Masen Shepard", "1983-01-09", "Manager", "A", 8995412364L, "3 Fulton Ave. Bountiful, UT 84010", 0, false);
-                updateInsertStaff ("Willow Roberts", "1987-02-08", "Front Desk Representative", "A", 5535531245L, "7868 N. Lees Creek Street Chandler, AZ 85224", 0, false);
-                updateInsertStaff ("Maddison Davies", "1981-03-07", "Room Service", "A", 6784561245L, "61 New Road Ithaca, NY 14850", 0, false);
-                updateInsertStaff ("Crystal Barr", "1989-04-06", "Catering", "B", 4591247845L, "9094 6th Ave. Macomb, MI 48042", 0, false);
-                updateInsertStaff ("Dayana Tyson", "1980-05-05", "Dry Cleaning", "B", 4072134587L, "837 W. 10th St. Jonesboro, GA 30236", 0, false);
-                updateInsertStaff ("Tommy Perry", "1979-06-04", "Gym", "B", 5774812456L, "785 Bohemia Street Jupiter, FL 33458", 0, false);
-
-                // Staff for Hotel#4
-                updateInsertStaff ("Joshua Burke", "1972-01-10", "Manager", "C", 1245214521L, "8947 Briarwood St. Baldwin, NY 11510", 0, false);
-                updateInsertStaff ("Bobby Matthews", "1982-02-14", "Front Desk Representative", "C", 5771812456L, "25 W. Dogwood Lane Bemidji, MN 56601", 0, false);
-                updateInsertStaff ("Pedro Cohen", "1983-04-24", "Room Service", "C", 8774812456L, "9708 Brickyard Ave. Elyria, OH 44035", 0, false);
-                updateInsertStaff ("Alessandro Beck", "1981-06-12", "Catering", "A", 5774812452L, "682 Glen Ridge St. Leesburg, VA 20175", 0, false);
-                updateInsertStaff ("Emily Petty", "1984-08-19", "Dry Cleaning", "A", 5772812456L, "7604 Courtland St. Easley, SC 29640", 0, false);
-                updateInsertStaff ("Rudy Cole", "1972-01-09", "Gym", "A", 5774812856L, "37 Marconi Drive Owensboro, KY 42301", 0, false);
-
-                // Staff for Hotel#5
-                updateInsertStaff ("Blair Ball", "1981-01-10", "Manager", "A", 8854124568L, "551 New Saddle Ave. Cape Coral, FL 33904", 0, false);
-                updateInsertStaff ("Billy Lopez", "1982-05-11", "Front Desk Representative", "B", 5124562123L, "99 Miles Road Danbury, CT 06810", 0, false);
-                updateInsertStaff ("Lee Ward", "1983-06-12", "Room Service", "B", 9209124562L, "959 S. Tailwater St. Ridgewood, NJ 07450", 0, false);
-                updateInsertStaff ("Ryan Parker", "1972-08-13", "Catering", "B", 1183024152L, "157 State Dr. Attleboro, MA 02703", 0, false);
-                updateInsertStaff ("Glen Elliott", "1971-09-14", "Catering", "B", 6502134785L, "9775 Clinton Dr. Thornton, CO 80241", 0, false);
-                updateInsertStaff ("Ash Harrison", "1977-02-15", "Dry Cleaning", "C", 9192451365L, "9924 Jefferson Ave. Plainfield, NJ 07060", 0, false);
-                updateInsertStaff ("Leslie Little", "1979-12-16", "Gym", "C", 9192014512L, "7371 Pin Oak St. Dalton, GA 30721", 0, false);
-                updateInsertStaff ("Mason West", "1970-10-17", "Gym", "C", 6501231245L, "798 W. Valley Farms Lane Saint Petersburg, FL 33702", 0, false);
-
-                //Staff for Hotel#6
-                updateInsertStaff ("Riley Dawson", "1975-01-09", "Manager", "C", 1183021245L, "898 Ocean Court Hilliard, OH 43026", 0, false);
-                updateInsertStaff ("Gabe Howard", "1987-03-01", "Front Desk Representative", "A", 6501421523L, "914 Edgefield Dr. Hartselle, AL 35640", 0, false);
-                updateInsertStaff ("Jessie Nielsen", "1982-06-02", "Room Service", "A", 7574124587L, "7973 Edgewood Road Gallatin, TN 37066", 0, false);
-                updateInsertStaff ("Gabe Carlson", "1983-08-03", "Room Service", "A", 5771245865L, "339 Pine Lane Tampa, FL 33604", 0, false);
-                updateInsertStaff ("Carmen Lee", "1976-01-04", "Catering", "A", 9885234562L, "120 Longbranch Drive Port Richey, FL 34668", 0, false);
-                updateInsertStaff ("Mell Tran", "1979-06-05", "Dry Cleaning", "A", 9162451245L, "32 Pearl St. Peoria, IL 61604", 0, false);
-                updateInsertStaff ("Leslie Cook", "1970-10-08", "Gym", "B", 6501245126L, "59 W. High Ridge Street Iowa City, IA 52240", 0, false);
-
-                //Staff for Hotel#7
-                updateInsertStaff ("Rory Burke", "1971-01-05", "Manager", "B", 7702653764L, "9273 Ridge Drive Winter Springs, FL 32708", 0, false);
-                updateInsertStaff ("Macy Fuller", "1972-02-07", "Front Desk Representative", "B", 7485612345L, "676 Myers Street Baldwin, NY 11510", 0, false);
-                updateInsertStaff ("Megan Lloyd", "1973-03-01", "Room Service", "B", 7221452315L, "849 George Lane Park Ridge, IL 60068", 0, false);
-                updateInsertStaff ("Grace Francis", "1974-04-09", "Catering", "B", 3425612345L, "282 Old York Court Mechanicsburg, PA 17050", 0, false);
-                updateInsertStaff ("Macy Fuller", "1975-05-02", "Dry Cleaning", "C", 4665127845L, "57 Shadow Brook St. Hudson, NH 03051", 0, false);
-                updateInsertStaff ("Cory Hoover", "1976-06-12", "Gym", "C", 9252210735L, "892 Roosevelt Street Ithaca, NY 14850", 0, false);
-                updateInsertStaff ("Sam Graham", "1977-07-25", "Gym", "C", 7226251245L, "262 Bayberry St. Dorchester, MA 02125", 0, false);
-
-                //Staff for Hotel#8
-                updateInsertStaff ("Charlie Adams", "1981-01-01", "Manager", "C", 6084254152L, "9716 Glen Creek Dr. Newark, NJ 07103", 0, false);
-                updateInsertStaff ("Kiran West", "1985-02-02", "Front Desk Representative", "C", 9623154125L, "68 Smith Dr. Lexington, NC 27292", 0, false);
-                updateInsertStaff ("Franky John", "1986-03-03", "Room Service", "A", 8748544152L, "6 Shirley Road Fairborn, OH 45324", 0, false);
-                updateInsertStaff ("Charlie Bell", "1985-04-04", "Room Service", "A", 9845124562L, "66 Elm Street Jupiter, FL 33458", 0, false);
-                updateInsertStaff ("Jamie Young", "1986-06-05", "Catering", "A", 9892145214L, "8111 Birch Hill Avenue Ravenna, OH 44266", 0, false);
-                updateInsertStaff ("Jackie Miller", "1978-08-06", "Dry Cleaning", "A", 9795486234L, "9895 Redwood Court Glenview, IL 60025", 0, false);
-                updateInsertStaff ("Jude Cole", "1979-03-07", "Gym", "A", 9195642251L, "8512 Cambridge Ave. Lake In The Hills, IL 60156", 0, false);
+                /* Populate with additional staff beyond what is in the demo data, in order to have dedicated staff available for presidential suite
+                 * Room 1, hotel 4, which is in Raleigh
+                 * Note that staff IDs are auto-incremented starting at 100
+                 */
+                updateInsertStaff ("Suzy",      "1960-01-01", "Room Service",       "Room Service", 9198675309L, "123 Super St, Raleigh NC 27612",  0, false);
+                updateInsertStaff ("Edward",    "1961-01-01", "Catering",           "Catering",     9195551234L, "123 Rad Rd, Raleigh NC 27612",    0, false);
+                
+                /* Populate with additional staff beyond what is in the demo data, in order to have staff of the correct job titles to provide demo data services
+                 * Hotel 1 dry cleaning
+                 * Hotel 1 gym
+                 * Hotel 2 room service
+                 */
+                updateInsertStaff ("Clara",     "1962-01-01", "Dry Cleaning",       "Dry Cleaning", 9195552345L, "123 Crazy Ct, Raleigh NC 27612",  0, false);
+                updateInsertStaff ("Edward",    "1963-01-01", "Gym",                "Gym",          9195553456L, "123 Dope Dr, Raleigh NC 27612",   0, false);
+                updateInsertStaff ("Suzy",      "1964-01-01", "Room Service",       "Room Service", 9195554567L, "123 Boss Blvd, Raleigh NC 27612", 0, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1371,6 +1328,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
      *                                      Updated manager IDs to start at 100, per demo data.
+     *                                      Populate Hotels table with demo data.
      */
     public static void populateHotelsTable() {
         
@@ -1381,15 +1339,21 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Hotels
-                updateInsertHotel("The Plaza", "768 5th Ave", "New York", "NY", 10019, 9194152368L, 100, false);
-                updateInsertHotel("DoubleTree", "4810 Page Creek Ln", "Durham", "NC", 27703, 9192012364L, 108, false);
-        		updateInsertHotel("Ramada", "1520 Blue Ridge Rd", "Raleigh", "NC", 27607, 9190174632L, 114, false);
-        		updateInsertHotel("Embassy Suites", "201 Harrison Oaks Blvd", "Cary", "NC", 27513, 6502137942L, 120, false);
-        		updateInsertHotel("Four Seasons", "57 E 57th St", "New York", "NY", 10022, 6501236874L, 126, false);
-        		updateInsertHotel("The Pierre", "2 E 61st St", "New York", "NY", 10065, 6501836874L, 134, false);
-        		updateInsertHotel("Fairfield Inn & Suites", "40 Sellona St", "Morrisville", "NC", 27617, 6501236074L, 141, false);
-        		updateInsertHotel("Mandarin Oriental", "80 Columbus Cir", "New York", "NY", 10023, 6591236874L, 148, false);
+                /* Populating data for Hotels
+                 * Signature of method called here:
+                 * String hotelName, 
+                 * String streetAddress, 
+                 * String city, 
+                 * String state, 
+                 * int zip, 
+                 * long phoneNum, 
+                 * int managerID, 
+                 * boolean reportSuccess
+                 */
+                updateInsertHotel("Hotel A", "21 ABC St", "Raleigh", "NC", 27, 919L, 100, false);
+                updateInsertHotel("Hotel B", "25 XYZ St", "Rochester", "NY", 54, 718L, 101, false);
+        		updateInsertHotel("Hotel C", "29 PQR St", "Greensboro", "NC", 27, 984L, 102, false);
+        		updateInsertHotel("Hotel D", "28 GHW St", "Raleigh", "NC", 32, 920L, 105, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1428,6 +1392,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/27/18 -  ATTD -  Use prepared statement.
      *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
+     *                                      Populate Staff table with demo data.
      */
     public static void updateHotelIdForStaff() {
     	
@@ -1438,52 +1403,59 @@ public class WolfInns {
              
              try {
                  
-                 /* Update staff member assigned hotel ID, by range of staff ID
+                 /* Update staff member assigned hotel ID
                   * Indices to use when calling this prepared statement: 
                   * 1 -  staff hotel ID
-                  * 2 -  staff ID min (inclusive)
-                  * 3 -  staff ID max (inclusive)
+                  * 2 -  staff ID
                   */
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 1);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 100);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 107);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 100);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 2);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 108);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 113);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 2);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 101);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 3);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 114);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 119);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 3);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 102);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 4);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 120);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 125);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 103);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 5);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 126);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 133);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 104);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 6);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 134);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 140);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 105);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 7);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 141);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 147);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 106);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 8);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 148);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 154);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 107);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 108);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 109);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 110);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 2);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 111);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
                  // If success, commit
                  jdbc_connection.commit();
@@ -1528,6 +1500,7 @@ public class WolfInns {
      *                  03/24/18 -  MTA -   Using prepared statements to populate the data.
      *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
      *                                      Changing room categories to match those given in demo data.
+     *                                      Populate Rooms table with demo data.
      */
     public static void populateRoomsTable() {
         
@@ -1538,47 +1511,32 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Rooms
-                
-                // Hotel # 1   
-        		addRoom(1, 1, "Economy", 3, 150, false);
-        		addRoom(2, 1, "Presidential", 4, 450, false);
-        		addRoom(3, 1, "Executive", 4, 300, false);
+                /* Populating data for Rooms
+                 * Signature for method called here:
+                 * int roomNumber, 
+                 * int hotelId, 
+                 * String category, 
+                 * int maxOccupancy, 
+                 * int nightlyRate, 
+                 * boolean reportSuccess
+                 */
+        		addRoom(1, 1, "Economy",      1, 100,     false);
+        		addRoom(2, 1, "Deluxe",       2, 200,     false);
+        		addRoom(3, 2, "Economy",      1, 100,     false);
+        		addRoom(2, 3, "Executive",    3, 1000,    false);
+        		addRoom(1, 4, "Presidential", 4, 5000,    false);
+        		addRoom(5, 1, "Deluxe",       2, 200,     false);
         		
-        		// Hotel # 2 
-        		addRoom(1, 2, "Deluxe", 3, 200, false);
-        		addRoom(2, 2, "Economy", 3, 125,false);
-        		addRoom(3, 2, "Executive", 4, 250, false);
-        		  
-        		// Hotel # 3
-        		addRoom(1, 3, "Presidential", 3, 550, false);
-        		addRoom(2, 3, "Economy", 2, 350, false);
-        		addRoom(3, 3, "Deluxe", 3, 450, false);
-        		 
-        		// Hotel # 4
-        		addRoom(1, 4, "Economy", 4, 100, false);
-        		addRoom(2, 4, "Executive", 4, 250, false); 
-        		 
-        		// Hotel # 5
-        		addRoom(1, 5, "Deluxe", 3, 300, false); 
-        		addRoom(2, 5, "Executive", 4, 400, false); 
-        		addRoom(3, 5, "Presidential", 4, 500, false); 
-        		 
-        		// Hotel # 6
-        		addRoom(1, 6, "Economy", 2, 220, false); 
-        		addRoom(2, 6, "Deluxe", 4, 350, false); 
-        		 
-        		// Hotel # 7
-        		addRoom(1, 7, "Economy", 2, 125, false); 
-        		addRoom(2, 7, "Executive", 4, 400, false); 
-        		 
-        		// Hotel # 8
-        		addRoom(1, 8, "Economy", 2, 200, false); 
-        		addRoom(2, 8, "Deluxe", 3, 250, false); 
-        		addRoom(3, 8, "Executive", 3, 300, false); 
-        		addRoom(4, 8, "Presidential", 4, 450, false); 	
-        		updateRoom(4, 8, "DRSStaff", "150", false);
-        		updateRoom(4, 8, "DCStaff", "152", false);
+        		/* Presidential suites require dedicated staff
+        		 * Signature for method called here:
+        		 * int roomNumber, 
+        		 * int hotelId, 
+        		 * String columnName, 
+        		 * String columnValue, 
+        		 * boolean reportSuccess
+                 */
+        		updateRoom(1, 4, "DRSStaff",  "107", false);
+        		updateRoom(1, 4, "DCStaff",   "108", false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1628,6 +1586,7 @@ public class WolfInns {
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Use prepared statement method to populate Stays table.
+     *                                      Populate Stays table with demo data.
      */
     public static void populateStaysTable() {
         
@@ -1640,128 +1599,68 @@ public class WolfInns {
              * int hotelID, 
              * int customerID,
              * int numGuests, 
-             * String checkOutTime,
-             * String endDate,
+             * String checkOutTime,     // blank for ongoing stay
+             * String endDate,          // blank for ongoing stay
              * String paymentMethod, 
-             * String cardType, 
-             * long cardNumber, 
-             * String billingAddress
+             * String cardType,         // blank if not paying with card
+             * long cardNumber,         // -1 if not paying with card
+             * String billingAddress    // blank if not paying with card
              */
-            
-            // Stays where the guest has already checked out
             updateInsertStayNoSafetyChecks(
-                "2018-01-12", 
-                "20:10:00", 
+                "2017-05-10", 
+                "15:17:00", 
                 1, 
                 1, 
                 1001,
-                3, 
-                "10:00:00", 
-                "2018-01-20", 
+                1, 
+                "10:22:00", 
+                "2017-05-13", 
                 "CARD", 
                 "VISA", 
-                4400123454126587L, 
-                "7178 Kent St. Enterprise, AL 36330"
+                1052L, 
+                "980 TRT St , Raleigh NC"
             );
             updateInsertStayNoSafetyChecks(
-                "2018-02-15", 
-                "10:20:00", 
-                3, 
+                "2017-05-10", 
+                "16:11:00", 
                 2, 
+                1, 
                 1002, 
                 2, 
-                "08:00:00", 
-                "2018-02-18", 
-                "CASH", 
-                "", 
-                -1, 
-                ""
+                "09:27:00", 
+                "2017-05-13", 
+                "CARD", 
+                "HOTEL", 
+                3020L, 
+                "7720 MHT St , Greensboro NC"
             );
             updateInsertStayNoSafetyChecks(
-                "2018-03-01", 
-                "15:00:00", 
-                1, 
+                "2016-05-10", 
+                "15:45:00", 
                 3, 
+                2, 
                 1003, 
                 1, 
-                "13:00:00", 
-                "2018-03-05", 
-                "CARD", 
-                "HOTEL", 
-                1100214521684512L, 
-                "178 Shadow Brook St. West Chicago, IL 60185"
-            );
-            updateInsertStayNoSafetyChecks(
-                "2018-02-20", 
-                "07:00:00", 
-                2, 
-                4, 
-                1004, 
-                4, 
-                "15:00:00", 
-                "2018-02-27", 
-                "CARD", 
-                "MASTERCARD", 
-                4400124565874591L, 
-                "802B Studebaker Drive Clinton Township, MI 48035"
-            );
-            updateInsertStayNoSafetyChecks(
-                "2018-03-05", 
-                "11:00:00", 
-                3, 
-                5, 
-                1005, 
-                4, 
-                "08:00:00", 
-                "2018-03-12", 
+                "11:10:00", 
+                "2016-05-14", 
                 "CARD", 
                 "VISA", 
-                4400127465892145L,
-                "83 Inverness Court Longwood, FL 32779"
+                2497L, 
+                "231 DRY St , Rochester NY 78"
             );
             updateInsertStayNoSafetyChecks(
-                "2018-03-01", 
-                "18:00:00", 
-                1, 
-                6, 
-                1006, 
-                1, 
-                "23:00:00", 
-                "2018-03-01", 
+                "2018-05-10", 
+                "14:30:00", 
+                2, 
+                3, 
+                1004, 
+                2, 
+                "10:00:00", 
+                "2018-05-12", 
                 "CASH", 
                 "", 
                 -1, 
-                ""
-            );
-
-            // Stays that are still going on
-            updateInsertStayNoSafetyChecks(
-                "2018-01-20", 
-                "06:00:00", 
-                2, 
-                7, 
-                1007, 
-                3, 
-                "", 
-                "", 
-                "CARD", 
-                "HOTEL", 
-                1100214532567845L, 
-                "87 Gregory Street Lawndale, CA 90260"
-            );
-            updateInsertStayNoSafetyChecks(
-                "2018-02-14", 
-                "09:00:00", 
-                4, 
-                8, 
-                1008, 
-                2, 
-                "", 
-                "", 
-                "CARD", 
-                "VISA", 
-                4400178498564512L, 
-                "34 Hall Ave. Cranberry Twp, PA 16066"
+                "24 BST Dr , Dallas TX 14"
             );
             
         }
@@ -1787,6 +1686,7 @@ public class WolfInns {
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Update staff IDs to start at 100, per demo data.
+     *                                      Populate Provided table with demo data.
      */
     public static void populateProvidedTable() {
         
@@ -1801,34 +1701,19 @@ public class WolfInns {
                 // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 106, 'Gym')");
+    				" (1, 109, 'Dry Cleaning')");
                 jdbc_statement.executeUpdate("INSERT INTO Provided " + 
                     " (StayID, StaffID, ServiceName) VALUES " +
-                    " (1, 106, 'Gym')");
+                    " (1, 110, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 104, 'Catering')");
+    				" (2, 110, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (2, 110, 'Room Service')");
+    				" (3, 111, 'Room Service')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (3, 118, 'Dry Cleaning')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (4, 125, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (5, 131, 'Dry Cleaning')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (6, 137, 'Room Service')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (7, 147, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (8, 153, 'Dry Cleaning')");
+    				" (4, 102, 'Phone')");
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -2165,7 +2050,6 @@ public class WolfInns {
     
     // REPORTS
     
-    
     /** 
      * Report task: Report revenue earned by a hotel over a date range
      * 
@@ -2212,7 +2096,6 @@ public class WolfInns {
         
     }
 
-   
     /** 
      * Report task: Report all results from a given table
      * 
@@ -2238,7 +2121,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * Report task: Report all values of a single tuple of the Hotels table, by ID
@@ -2279,7 +2161,6 @@ public class WolfInns {
         
     }
     
-   
     /** 
      * Report task: Report all values of a single tuple of the Staff table, by ID
      * 
@@ -2319,7 +2200,6 @@ public class WolfInns {
         
     }
     
-   
     /** 
      * Report task:   Report all values of a single tuple of the Rooms table, by hotelId and RoomNum
      * 
@@ -2347,7 +2227,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * Report task:   Report all values of a single tuple of the Customers table, by customer ID
@@ -2507,7 +2386,6 @@ public class WolfInns {
 
     // MANAGE
     
-    
     /** 
      * Management task: Add a new hotel
      * 
@@ -2582,7 +2460,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * Management task: Change information about a hotel
@@ -3714,6 +3591,7 @@ public class WolfInns {
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
      */
     public static void updateChangeHotelInfo (int hotelID, String attributeToChange, String valueToChangeTo) {
         
@@ -3756,7 +3634,7 @@ public class WolfInns {
                     break;
                 case "ManagerID":
                     /* This one is a special case
-                     * 1 -  Demote old manager to front desk representative
+                     * 1 -  Demote old manager to front desk staff
                      * 2 -  Actually update the manager ID of the hotel
                      * 3 -  Update new manager to have the correct job title and hotel assignment
                      */
@@ -3854,7 +3732,6 @@ public class WolfInns {
         
     }
     
-   
     /** 
      * DB Update: Insert Staff Member
      * 
@@ -4032,7 +3909,6 @@ public class WolfInns {
         
     }
     
-   
     /** 
      * DB Update: Delete Staff Member
      * 
@@ -4081,7 +3957,6 @@ public class WolfInns {
         
     } 
     
-  
     /** 
      * DB Update: Add new room
      * 
@@ -4097,7 +3972,7 @@ public class WolfInns {
      * 					03/25/18 -  MTA -  Updated method signature.
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      */
-    public static void addRoom( int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate, boolean reportSuccess){
+    public static void addRoom(int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate, boolean reportSuccess){
     
         try {
 
@@ -4146,7 +4021,6 @@ public class WolfInns {
         }
     }
   
-    
     /** 
      * DB Update: Add new customer
      * 
@@ -4160,7 +4034,7 @@ public class WolfInns {
      * 
      * Modifications:   03/27/18 -  MTA -  Added method. 
      */
-    public static void addCustomer( String ssn, String name, String dob, String phoneNumber, String email, boolean reportSuccess){
+    public static void addCustomer(String ssn, String name, String dob, String phoneNumber, String email, boolean reportSuccess){
     
         try {
 
@@ -4210,7 +4084,6 @@ public class WolfInns {
         }
     }
     
-   
     /** 
 	 * DB Update: Update customer details
 	 * 
@@ -4305,7 +4178,7 @@ public class WolfInns {
 	 * 
 	 * Modifications:   03/25/18 -  MTA -  Added method. 
 	 */
-	public static void updateRoom( int roomNumber, int hotelId, String columnName, String columnValue, boolean reportSuccess){
+	public static void updateRoom(int roomNumber, int hotelId, String columnName, String columnValue, boolean reportSuccess){
 	
 	    try {
 	
@@ -5127,6 +5000,8 @@ public class WolfInns {
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
+     *                                          no longer makes sense with tables populated with demo data.
      */
     public static void main(String[] args) {
         
@@ -5380,7 +5255,6 @@ public class WolfInns {
             jdbcPrep_updateStaffPhoneNum.close(); 
             jdbcPrep_updateStaffAddress.close(); 
             jdbcPrep_updateStaffHotelID.close();
-            jdbcPrep_updateStaffRangeHotelID.close();
             jdbcPrep_getStaffByID.close();
             jdbcPrep_deleteStaff.close();
             // Rooms
