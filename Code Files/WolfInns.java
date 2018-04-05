@@ -35,6 +35,7 @@ public class WolfInns {
     
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_RELEASE =     "RELEASEROOM";
     
     private static final String CMD_BILLING_GENERATE =      "BILLFORSTAY";
     
@@ -105,6 +106,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum; 
     private static PreparedStatement jdbcPrep_getOneExampleRoom;
     private static PreparedStatement jdbcPrep_assignDedicatedStaff;
+    private static PreparedStatement jdbcPrep_releaseDedicatedStaff;    
     
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
@@ -135,6 +137,8 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_assignRoom;
     private static PreparedStatement jdbcPrep_getNewestStay;
     private static PreparedStatement jdbcPrep_addStayNoSafetyChecks;
+    private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
+    private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -192,6 +196,8 @@ public class WolfInns {
                     System.out.println("\t- check room availability");
                     System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
                     System.out.println("\t- assign a room to a customer");
+                    System.out.println("'" + CMD_FRONTDESK_RELEASE + "'");
+                    System.out.println("\t- release a room");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -784,6 +790,10 @@ public class WolfInns {
                 "WHERE RoomNum = ? AND HotelID = ? AND EXISTS(SELECT * FROM Stays WHERE RoomNum = ? AND HotelID = ? AND EndDate IS NULL);";
             jdbcPrep_assignDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Release the dedicated staff when releasing room
+            reusedSQLVar = "UPDATE Rooms SET DCStaff = NULL, DRSStaff = NULL WHERE HotelID = ? AND RoomNum = ?;";
+            jdbcPrep_releaseDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
             /* Get the newest stay in the DB
              * Indices to use when calling this prepared statement: n/a
              */
@@ -810,6 +820,14 @@ public class WolfInns {
                 "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
             jdbcPrep_addStayNoSafetyChecks = jdbc_connection.prepareStatement(reusedSQLVar);
+                                  
+            // Get the Stay ID for given room
+            reusedSQLVar = "SELECT ID FROM Stays WHERE HotelID = ? AND RoomNum = ?;";
+            jdbcPrep_getStayIdForOccupiedRoom = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Update the CheckOutTime and EndDate while releasing the room
+            reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
+            jdbcPrep_updateCheckOutTimeAndEndDate = jdbc_connection.prepareStatement(reusedSQLVar);
             
         }
         catch (Throwable err) {
@@ -1963,6 +1981,33 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Front Desk task: Release a room
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  MTA -  Added method. 
+     */
+    public static void frontDeskReleaseRoom() {
+        
+        try { 
+        	
+        	// Get the hotel id and room number to be released from the user
+        	String hotelId = getValidDataFromUser("RELEASE_ROOM", "HotelId", "Enter the hotel id for which you wish to release room "); 
+        	if (!hotelId.equalsIgnoreCase("<QUIT>")) {
+        		String roomNumber = getValidDataFromUser("RELEASE_ROOM", "RoomNum", "Enter the room number you wish to release ", hotelId);  
+        		if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
+	        		// Release the room
+	        		releaseRoom(hotelId, roomNumber, true); 
+        		}
+        	}                         
+        }
+        catch (Throwable err) {
+            handleError(err);
+        } 
+    }
+    
     // BILLING
     
     /** 
@@ -2766,8 +2811,13 @@ public class WolfInns {
         while(!isValid) {
         	// Ask user to enter/re-enter the data
         	String messagePrefix = (attempt == 0) ? "\n" : "\nRe-";
-        	System.out.println(messagePrefix + message); 
+        	String messagePostfix = (attempt == 0) ? "\n" : ". Else press q to go back to previous menu.\n>";
+        	System.out.println(messagePrefix + message + messagePostfix); 
         	value = scanner.nextLine(); 
+        	
+        	if (value.equalsIgnoreCase("q")) {
+        		return "<QUIT>";
+        	}
         	
         	if (fieldName.equalsIgnoreCase("HotelId")) {
         		boolean isSane = isValueSane(fieldName, value); 
@@ -2783,19 +2833,28 @@ public class WolfInns {
     			}  
         	} 
         	
-        	else if (fieldName.equalsIgnoreCase("RoomNum") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM"))) {
+        	else if (fieldName.equalsIgnoreCase("RoomNum") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM") || operation.equals("RELEASE_ROOM"))) {
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) {  
     				// Extra checks for Room Number when deleting/updating room :
         			// 1. Check if the entered room number is present for given hotel
         			boolean isAssociated = isValidRoomForHotel(Integer.parseInt(params[0]), Integer.parseInt(value));
-        			if (isAssociated) { 
-        				// 2. Make sure there are no guests staying in this room currently
-    	    			boolean isRoomOccupied = isRoomCurrentlyOccupied(Integer.parseInt(params[0]), Integer.parseInt(value));
-    	    			if (!isRoomOccupied) {
-    	    				isValid = true;  
-    	    			} else { 
-    	    				System.out.println("ERROR: The room is currently occupied, hence cannot be modified"); 
+        			if (isAssociated) {  
+    	    			boolean isRoomOccupied = isRoomCurrentlyOccupied(Integer.parseInt(params[0]), Integer.parseInt(value)); 
+    	    			// 2. If updating/deleting the room, make sure there are no guests staying in this room currently 
+    	    			if (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM")) {
+    	    				if (!isRoomOccupied) {
+        	    				isValid = true;  
+        	    			} else { 
+        	    				System.out.println("ERROR: The room is currently occupied, hence cannot be modified"); 
+        	    			}   
+    	    			// 2. If releasing the room, make sure it is currently occupied
+    	    			} else if (operation.equals("RELEASE_ROOM")){
+    	    				if (isRoomOccupied) {
+        	    				isValid = true;  
+        	    			} else { 
+        	    				System.out.println("ERROR: The room is currently not occupied, hence cannot be released"); 
+        	    			}   
     	    			} 
         			} else { 
         				System.out.println("ERROR: The room number is not associated with this hotel");   
@@ -4343,6 +4402,76 @@ public class WolfInns {
         
     }
     
+    
+    /** 
+     * DB Update: Release Room
+     * 
+     * Arguments -  hotelID -           The hotel for the room to be released
+     * 				roomNum -           The room number of the room to be released
+     *              reportSuccess -     True if we should print success message to console (should be false for mass population of hotels)
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  MTA -  Added method
+     */
+    public static void releaseRoom ( 
+        String hotelID, 
+        String roomNum, 
+        boolean reportSuccess
+    ) {
+          
+        try {
+               
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+        
+            	jdbcPrep_getStayIdForOccupiedRoom.setLong(1, Long.parseLong(hotelID));
+            	jdbcPrep_getStayIdForOccupiedRoom.setLong(2, Long.parseLong(roomNum)); 
+                 
+            	// Get the Stay ID for given room
+            	ResultSet rs = jdbcPrep_getStayIdForOccupiedRoom.executeQuery();
+				int stayId = 0; 
+				while (rs.next()) {
+					stayId = rs.getInt("ID"); 	
+				}
+				
+				// Now update the CheckOutTime and EndDate to current date				 
+				jdbcPrep_updateCheckOutTimeAndEndDate.setInt(1, stayId);
+				jdbcPrep_updateCheckOutTimeAndEndDate.executeUpdate();
+				
+				// Now release the dedicated staff assigned to the room				 
+				jdbcPrep_releaseDedicatedStaff.setLong(1, Long.parseLong(hotelID));
+				jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
+				jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
+
+                // Once both actions(Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                jdbc_connection.commit();
+                
+                System.out.println("The room has been successfully released!");
+                
+            }
+            catch (Throwable err) {
+                
+                // Handle error
+                handleError(err);
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
     /** 
      * DB Update: Insert Stay (with no user interaction, safety checks) - for mass population
      * 
@@ -4914,6 +5043,9 @@ public class WolfInns {
                             case CMD_FRONTDESK_ASSIGN:
                                 frontDeskAssignRoom();
                                 break;
+                            case CMD_FRONTDESK_RELEASE:
+                                frontDeskReleaseRoom();
+                                break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5091,6 +5223,7 @@ public class WolfInns {
             jdbcPrep_getRoomByHotelIDRoomNum.close();
             jdbcPrep_getOneExampleRoom.close();
             jdbcPrep_assignDedicatedStaff.close();
+            jdbcPrep_releaseDedicatedStaff.close();
             // Customers
             jdbcPrep_insertNewCustomer.close();
             jdbcPrep_updateCustomerName.close();
@@ -5105,6 +5238,8 @@ public class WolfInns {
             jdbcPrep_assignRoom.close();
             jdbcPrep_getNewestStay.close();
             jdbcPrep_addStayNoSafetyChecks.close();
+            jdbcPrep_getStayIdForOccupiedRoom.close();
+            jdbcPrep_updateCheckOutTimeAndEndDate.close();
             // Connection
             jdbc_connection.close();
         
