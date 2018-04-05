@@ -970,6 +970,8 @@ public class WolfInns {
                  * because manager ID references Staff table
                  * phone number to be entered as 10 digit int ex: 9993335555
                  * requires "BIGINT" instead of just "INT"
+                 * As noted in https://classic.wolfware.ncsu.edu/wrap-bin/mesgboard/csc:540::001:1:2018?task=ST&Forum=13&Topic=8,
+                 * hotel IDs actually start at 1, NOT at 1001 as is noted in the originally posted demo data
                  */
                 jdbc_statement.executeUpdate("CREATE TABLE Hotels ("+
                     "ID INT NOT NULL AUTO_INCREMENT,"+
@@ -1169,6 +1171,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Populate ServiceTypes table with demo data.
      */
     public static void populateServiceTypesTable() {
         
@@ -1183,22 +1186,24 @@ public class WolfInns {
                 // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Phone', 25);");
+    				"('Phone', 5);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Dry Cleaning', 20);");
+    				"('Dry Cleaning', 16);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Gym', 35);");
+    				"('Gym', 15);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Room Service', 25);");
+    				"('Room Service', 10);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Catering', 50);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Special Request', 40);");
+    				"('Special Request', 20);");
+    			
+    			// Populate one extra service type that is not in demo data but is in project narrative
+                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
+                        "(Name, Cost) VALUES "+
+                        "('Catering', 50);");
     			
                 // If success, commit
                 jdbc_connection.commit();
@@ -1663,6 +1668,26 @@ public class WolfInns {
                 "24 BST Dr , Dallas TX 14"
             );
             
+            /* Populate with additional stay beyond what is in the demo data, in order to have "Room#4" unavailable as noted in demo data
+             * Room Number 2
+             * Hotel 3
+             * Executive (so, no dedicated staff are required)
+             */
+            updateInsertStayNoSafetyChecks(
+                "2018-04-04", 
+                "15:59:00", 
+                2, 
+                3, 
+                1004, 
+                2, 
+                "", 
+                "", 
+                "CASH", 
+                "", 
+                -1, 
+                "24 BST Dr , Dallas TX 14"
+            );
+            
         }
         catch (Throwable err) {
             handleError(err);
@@ -2104,6 +2129,10 @@ public class WolfInns {
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  For Rooms table, also print out whether the room is available.
+     *                                      For Staff table, also print out staff member's age.
+     *                                      For Stays table, also print out customer's SSN.
+     *                                      This is to more easily demonstrate that the demo data was populated correctly.
      */
     public static void reportEntireTable(String tableName) {
 
@@ -2111,8 +2140,47 @@ public class WolfInns {
             
             // Report entire table (no transaction needed for a query)
             System.out.println("\nEntries in the " + tableName + " table:\n");
-            // TODO: use prepared statement instead
-            jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
+            // TODO: use prepared statements instead
+            /* Special printing for Rooms table
+             * Also print out whether the room is available.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            if (tableName.equalsIgnoreCase("Rooms")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT HotelID, RoomNum, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff, " + 
+                    "IF(EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL), 'No', 'Yes') AS Available " + 
+                    "FROM " + tableName + " ORDER BY HotelID, RoomNum"
+                );
+            }
+            /* Special printing for Staff table
+             * Also print out staff member's age.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            else if (tableName.equalsIgnoreCase("Staff")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT HotelID, ID, Name, DOB, FLOOR(DATEDIFF(CURDATE(), DOB) / 365) AS Age, JobTitle, Dep, PhoneNum, Address " + 
+                    "FROM " + tableName + " ORDER BY HotelID"
+                );
+            }
+            /* Special printing for Stays table
+             * Also print out customer's SSN.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            else if (tableName.equalsIgnoreCase("Stays")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT ID, StartDate, CheckInTime, EndDate, CheckOutTime, RoomNum, HotelID, CustomerID, " + 
+                    "(SELECT SSN FROM Customers WHERE Customers.ID = Stays.CustomerID) AS CustomerSSN, " + 
+                    "NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress " + 
+                    "FROM " + tableName
+                );
+            }
+            // Other tables have no special printing needs
+            else {
+                jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
+            }
             printQueryResultSet(jdbc_result);
             
         }
@@ -2530,7 +2598,6 @@ public class WolfInns {
         
     }
     
-    
     /** 
      * Management task: Delete a hotel
      * 
@@ -2565,7 +2632,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /**
      * Task: Manage Rooms
@@ -2607,7 +2673,6 @@ public class WolfInns {
             handleError(err);
         }
     } 
-    
     
     /**
      * Task: Manage
@@ -2669,7 +2734,6 @@ public class WolfInns {
         }
     }
     
-    
     /**
      * Task: Manage
      * Operation: Delete a room
@@ -2699,7 +2763,6 @@ public class WolfInns {
         }
     	
     } 
-    
     
     /**
      * Task: Manage
@@ -2946,8 +3009,7 @@ public class WolfInns {
         // Now the data is valid, return it
         return value;
     }
-    
-    
+   
     /** 
      * Management task: Add a new staff member
      * 
@@ -3015,7 +3077,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * Management task: Change information about a staff member
@@ -3085,7 +3146,6 @@ public class WolfInns {
         
     }
     
-    
     /** 
      * Management task: Delete a staff member
      * 
@@ -3122,7 +3182,6 @@ public class WolfInns {
     }
     
     // SANITY CHECK VALUES
-    
     
     /** 
      * Given a value, and an indication of its intended meaning, determine if it's "sane"
@@ -3310,7 +3369,6 @@ public class WolfInns {
     
     // QUERIES
     
-    
     /** 
      * DB Query: Stay bill and itemized receipt
      * 
@@ -3431,7 +3489,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * DB Query: Hotel Revenue
@@ -3580,7 +3637,6 @@ public class WolfInns {
         
     }
     
-    
     /** 
      * DB Update: Change Hotel Information
      * 
@@ -3678,7 +3734,6 @@ public class WolfInns {
         }
         
     }
-    
     
     /** 
      * DB Update: Delete Hotel
@@ -3843,7 +3898,6 @@ public class WolfInns {
         
     }
     
-  
     /** 
      * DB Update: Change Staff Information
      * 
