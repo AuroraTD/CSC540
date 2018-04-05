@@ -2697,22 +2697,31 @@ public class WolfInns {
     	
     	try { 
     		  
-    		String hotelId = getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room\n> ");
-    		
-    		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number\n> ", hotelId); 
-    		
-    		String category = getValidDataFromUser(
-		        "ADD_ROOM",
-		        "Category", 
-		        "Enter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
-	        );
-               
-    		String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy\n> "); 
-    		
-    		String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate\n> "); 
-              
-            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
-           
+    		String hotelId = getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room");    	
+    		if (!hotelId.equalsIgnoreCase("<QUIT>")) { 
+    			
+    			String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number", hotelId); 
+    			if (!roomNumber.equalsIgnoreCase("<QUIT>")) { 
+    				
+    				String category = getValidDataFromUser(
+	    		        "ADD_ROOM",
+	    		        "Category", 
+	    		        "Enter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential'"
+	    	        );
+    				if (!category.equalsIgnoreCase("<QUIT>")) { 
+    					
+    					String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy"); 
+    					if (!maxOccupancy.equalsIgnoreCase("<QUIT>")) { 
+    						
+    						String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate"); 
+    						if (!nightlyRate.equalsIgnoreCase("<QUIT>")) { 
+    							
+    							addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
+    						}        	                
+    					}    					    	        	
+    				}	                   	        	
+    			}        		        	
+    		} 
         }
         catch (Throwable err) {
             handleError(err);
@@ -2736,43 +2745,59 @@ public class WolfInns {
             // Print hotels to console so user has some context
             reportEntireTable("Rooms");
             
-            String hotelId = getValidDataFromUser("UPDATE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to make changes for\n> ");
-            String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNum", "Enter the room number you wish to make changes for\n> ", hotelId); 
-            
-            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
-                
-            while(!userWantsToStop) { 
+            String hotelId = getValidDataFromUser("UPDATE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to make changes for");
+            if (!hotelId.equalsIgnoreCase("<QUIT>")) { 
             	
-            	// Get the attribute the user wants to update
-                System.out.print("\nChoose the attribute you wish to change\n1. Room Category\n2. Max Occupancy\n3. Nightly Rate\n4. Exit\n> ");
-                int attributeToChange = Integer.parseInt(scanner.nextLine());
+            	String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNum", "Enter the room number you wish to make changes for", hotelId);
+            	if (!roomNumber.equalsIgnoreCase("<QUIT>")) { 
             	
-            	switch(attributeToChange){
-	             	case 1:
-	             		String category = getValidDataFromUser(
-             		        "UPDATE_ROOM",
-             		        "Category", 
-             		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
-         		        );
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
-	             		break;
-	             	case 2:
-	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","MaxOcc", "Enter the new value for room's maximum occupancy\n> ");
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
-	             		break;
-	             	case 3:
-	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "NightlyRate", "Enter the new value for room's nightly rate\n> ");
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
-	             		break;
-	             	case 4:
-	             		userWantsToStop = true;
-	             		break;
-	             	default: System.out.println("Please choose a number between 1 to 4"); 
-	            } 
-            } 
-                
-            // Report results of all the updates
-            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber)); 
+            		reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
+                    
+                    while(!userWantsToStop) { 
+                    	
+                    	// Get the attribute the user wants to update
+                        System.out.print("\nChoose the attribute you wish to change\n1. Room Category\n2. Max Occupancy\n3. Nightly Rate\n4. Exit\n> ");
+                        int attributeToChange = Integer.parseInt(scanner.nextLine());
+                    	
+                    	switch(attributeToChange){
+        	             	case 1:
+        	             		String category = getValidDataFromUser(
+                     		        "UPDATE_ROOM",
+                     		        "Category", 
+                     		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential'"
+                 		        );
+        	             		if (!category.equalsIgnoreCase("<QUIT>")) { 
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
+        	             		} else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 2:
+        	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","MaxOcc", "Enter the new value for room's maximum occupancy");
+        	             		if (!maxOccupancy.equalsIgnoreCase("<QUIT>")) {
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
+        	             		}
+        	             		else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 3:
+        	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "NightlyRate", "Enter the new value for room's nightly rate");
+        	             		if (!nightlyRate.equalsIgnoreCase("<QUIT>")) {
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
+        	             		}
+        	             		else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 4:
+        	             		userWantsToStop = true;
+        	             		break;
+        	             	default: System.out.println("Please choose a number between 1 to 4"); 
+        	            } 
+                    } 
+                        
+                    // Report results of all the updates
+                    reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
+            	}                               
+            }            
         }
         catch (Throwable err) {
             handleError(err);
@@ -2796,12 +2821,16 @@ public class WolfInns {
             reportEntireTable("Rooms");
             
             // Get hotel ID and room number to be deleted
-            String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
-    		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete\n> ", hotelId);
-
-            // Call method to actually interact with the DB
-            deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
-            
+            String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete"); 
+            if (!hotelId.equalsIgnoreCase("<QUIT>")) {
+            	
+            	String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete", hotelId);
+            	if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
+            		
+            		// Call method to actually interact with the DB
+                    deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
+            	}                
+            }    		           
         }
         catch (Throwable err) {
             handleError(err);
@@ -2822,18 +2851,26 @@ public class WolfInns {
     	
     	try { 
   		  
-    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "SSN", "Enter the customer's SSN\n> ");
-    		
-    		String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name\n> "); 
-    		
-    		String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth (in format YYYY-MM-DD)\n>");
-               
-    		String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number\n> "); 
-    		
-    		String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email\n> "); 
-              
-            addCustomer(ssn, name, dob, phoneNumber, email, true);
-           
+    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "SSN", "Enter the customer's SSN");
+    		if (!ssn.equalsIgnoreCase("<QUIT>")) {
+    			
+    			String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name"); 
+    			if (!name.equalsIgnoreCase("<QUIT>")) {
+    				
+    				String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth (in format YYYY-MM-DD)");
+    				if (!dob.equalsIgnoreCase("<QUIT>")) {
+    					
+    					String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number"); 
+    					if (!phoneNumber.equalsIgnoreCase("<QUIT>")) {
+    						
+    						String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email");                             
+    						if (!email.equalsIgnoreCase("<QUIT>")) {
+    							addCustomer(ssn, name, dob, phoneNumber, email, true);
+    						}                            
+    					}                		                	
+    				}                                	
+    			}        		        	
+    		}    		          
         }
         catch (Throwable err) {
             handleError(err);
@@ -2857,48 +2894,64 @@ public class WolfInns {
             // Print all customers to console so user has some context
             reportEntireTable("Customers");
             
-            String customerID = getValidDataFromUser("UPDATE_CUSTOMER", "ID", "Enter the ID for the customer you wish to make changes for\n> ");
-            
-            reportCustomerByID(customerID);
-                
-            while(!userWantsToStop) { 
+            String customerID = getValidDataFromUser("UPDATE_CUSTOMER", "ID", "Enter the ID for the customer you wish to make changes for");
+            if (!customerID.equalsIgnoreCase("<QUIT>")) {
             	
-            	// Get the attribute the user wants to update
-                System.out.print("\nChoose the attribute you wish to change\n1. SSN\n2. Name\n3. Date Of Birth\n4. Phone Number\n5. Email\n6. Exit\n> ");
-                int attributeToChange = Integer.parseInt(scanner.nextLine());
-            	
-            	switch(attributeToChange){
-                    case 1:
-                        String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER","SSN", "Enter the new value for customer's SSN\n>");
-                        updateCustomer(customerID, "SSN", customerSSN, true);
-                        break;
-	             	case 2:
-	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
-	             		updateCustomer(customerID, "Name", customerName, true);
-	             		break;
-	             	case 3:
-	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
-	             		updateCustomer(customerID, "DOB", dob, true);
-	             		break;
-	             	case 4:
-	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
-	             		updateCustomer(customerID, "PhoneNum", phoneNumber, true);
-	             		break;
-	             	case 5:
-	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
-	             		updateCustomer(customerID, "Email", email, true);
-	             		break;
-	             	case 6:
-	             		userWantsToStop = true;
-	             		break;
-	             	default: System.out.println("Please choose a number between 1 and 6"); 
-	            } 
-            } 
+            	reportCustomerByID(customerID);
                 
-            // Report results of all the updates
-            reportCustomerByID(customerID); 
-        
-             
+                while(!userWantsToStop) { 
+                	
+                	// Get the attribute the user wants to update
+                    System.out.print("\nChoose the attribute you wish to change\n1. SSN\n2. Name\n3. Date Of Birth\n4. Phone Number\n5. Email\n6. Exit\n> ");
+                    int attributeToChange = Integer.parseInt(scanner.nextLine());
+                	
+                	switch(attributeToChange){
+                        case 1:
+                            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER","SSN", "Enter the new value for customer's SSN");
+                            if (!customerSSN.equalsIgnoreCase("<QUIT>")) {
+                            	updateCustomer(customerID, "SSN", customerSSN, true);
+                            } else
+                            	userWantsToStop = true;
+                            break;
+    	             	case 2:
+    	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name");
+    	             		if (!customerName.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "Name", customerName, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 3:
+    	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth");
+    	             		if (!dob.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "DOB", dob, true);
+    	             		} else 
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 4:
+    	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number");
+    	             		if (!phoneNumber.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "PhoneNum", phoneNumber, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 5:
+    	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email");
+    	             		if (!email.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "Email", email, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 6:
+    	             		userWantsToStop = true;
+    	             		break;
+    	             	default: System.out.println("Please choose a number between 1 and 6"); 
+    	            } 
+                } 
+                    
+                // Report results of all the updates
+                reportCustomerByID(customerID); 
+                       
+            }                          
         }
         catch (Throwable err) {
             handleError(err);
@@ -2921,11 +2974,12 @@ public class WolfInns {
             reportEntireTable("Customers");
             
             // Get ID of the customer to be deleted
-            String ID = getValidDataFromUser("DELETE_CUSTOMER", "ID", "Enter the ID for the customer you wish to delete\n> ");  
-
-            // Call method to actually interact with the DB
-            deleteCustomer(ID, true); 
-            
+            String ID = getValidDataFromUser("DELETE_CUSTOMER", "ID", "Enter the ID for the customer you wish to delete"); 
+            if (!ID.equalsIgnoreCase("<QUIT>")) {
+            	// Call method to actually interact with the DB
+                deleteCustomer(ID, true); 
+            }
+                   
         }
         catch (Throwable err) {
             handleError(err);
