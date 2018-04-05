@@ -81,6 +81,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateHotelStreetAddress;
     private static PreparedStatement jdbcPrep_updateHotelCity;
     private static PreparedStatement jdbcPrep_udpateHotelState;
+    private static PreparedStatement jdbcPrep_updateHotelZip;
     private static PreparedStatement jdbcPrep_updateHotelPhoneNum;
     private static PreparedStatement jdbcPrep_updateHotelManagerID;
     private static PreparedStatement jdbcPrep_demoteOldManager;
@@ -118,18 +119,18 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateStaffPhoneNum;
     private static PreparedStatement jdbcPrep_updateStaffAddress;
     private static PreparedStatement jdbcPrep_updateStaffHotelID;
-    private static PreparedStatement jdbcPrep_updateStaffRangeHotelID;
     private static PreparedStatement jdbcPrep_getStaffByID;
     private static PreparedStatement jdbcPrep_deleteStaff;  
     
     // Declare variables - prepared statements - Customers
     private static PreparedStatement jdbcPrep_insertNewCustomer;
+    private static PreparedStatement jdbcPrep_updateCustomerSSN;
     private static PreparedStatement jdbcPrep_updateCustomerName;
     private static PreparedStatement jdbcPrep_updateCustomerDateOfBirth;
     private static PreparedStatement jdbcPrep_updateCustomerPhoneNumber;
     private static PreparedStatement jdbcPrep_updateCustomerEmail;
     private static PreparedStatement jdbcPrep_deleteCustomer; 
-    private static PreparedStatement jdbcPrep_getCustomerBySSN; 
+    private static PreparedStatement jdbcPrep_getCustomerByID; 
     private static PreparedStatement jdbcPrep_isValidCustomer; 
     private static PreparedStatement jdbcPrep_isCustomerCurrentlyStaying;
     
@@ -327,6 +328,13 @@ public class WolfInns {
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
      *                  04/04/18 -  ATTD -  Add prepared statement for mass population of Stays table.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Do not allow insertion of new staff member, if that staff member
+     *                                          is supposed to be the manager of a hotel which ALREADY has a manager.
+     *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
+     *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
+     *                                          no longer makes sense with tables populated with demo data.
      */
     public static void createPreparedStatements() {
         
@@ -341,13 +349,14 @@ public class WolfInns {
              * 2 - street address
              * 3 - city
              * 4 - state
-             * 5 - phone number
-             * 6 - manager ID
-             * 7 - manager ID (again)
+             * 5 - zip code
+             * 6 - phone number
+             * 7 - manager ID
+             * 8 - manager ID (again)
              */
             reusedSQLVar = 
-                "INSERT INTO Hotels (Name, StreetAddress, City, State, PhoneNum, ManagerID) " + 
-                "SELECT ?, ?, ?, ?, ?, ? " + 
+                "INSERT INTO Hotels (Name, StreetAddress, City, State, Zip, PhoneNum, ManagerID) " + 
+                "SELECT ?, ?, ?, ?, ?, ?, ? " + 
                 "FROM Staff " + 
                 "WHERE " + 
                 "Staff.ID = ? AND " + 
@@ -411,7 +420,18 @@ public class WolfInns {
                 "UPDATE Hotels " + 
                 "SET State = ? " + 
                 "WHERE ID = ?;";
-            jdbcPrep_udpateHotelState = jdbc_connection.prepareStatement(reusedSQLVar); 
+            jdbcPrep_udpateHotelState = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update hotel zip code
+             * Indices to use when calling this prepared statement: 
+             * 1 -  hotel zip code
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = 
+                "UPDATE Hotels " + 
+                "SET Zip = ? " + 
+                "WHERE ID = ?;";
+            jdbcPrep_updateHotelZip = jdbc_connection.prepareStatement(reusedSQLVar);
             
             /* Update hotel phone number
              * Indices to use when calling this prepared statement: 
@@ -443,13 +463,13 @@ public class WolfInns {
                 "SELECT RoomNum, HotelID, Category, MaxOcc, NightlyRate from Rooms LIMIT 1;";
             jdbcPrep_getOneExampleRoom = jdbc_connection.prepareStatement(reusedSQLVar);
             
-            /* Demote the old manager of a given hotel to front desk representative
+            /* Demote the old manager of a given hotel to front desk staff
              * Indices to use when calling this prepared statement: 
              * 1 -  hotel ID
              */
             reusedSQLVar = 
                 "UPDATE Staff " + 
-                "SET JobTitle = 'Front Desk Representative' " + 
+                "SET JobTitle = 'Front Desk Staff' " + 
                 "WHERE JobTitle = 'Manager' AND HotelID = ?;";
             jdbcPrep_demoteOldManager = jdbc_connection.prepareStatement(reusedSQLVar);
             
@@ -478,7 +498,7 @@ public class WolfInns {
              */
             reusedSQLVar = 
                 "SELECT " + 
-                "StreetAddress, City, State, ID AS HotelID, Name AS HotelName " + 
+                "StreetAddress, City, State, Zip, ID AS HotelID, Name AS HotelName " + 
                 "FROM Hotels WHERE StreetAddress = ? AND City = ? AND State = ?;";
             jdbcPrep_getHotelSummaryForAddress = jdbc_connection.prepareStatement(reusedSQLVar);
             
@@ -522,6 +542,12 @@ public class WolfInns {
             jdbcPrep_deleteHotel = jdbc_connection.prepareStatement(reusedSQLVar);
             
             /* Insert new staff member
+             * Do not allow insertion of new staff member, if that staff member
+             * is supposed to be the manager of a hotel which ALREADY has a manager
+             * The way we've structured the hotel-manager two-way link,
+             * we assign the manager on the hotel side before we assign the hotel on the manager side
+             * So this means it is NEVER appropriate to insert a manager and give them an assigned hotel in the same SQL statement
+             * Handle this restriction at the application level rather than at the SQL level (just easier that way)
              * Indices to use when calling this prepared statement:
              * 1 - name
              * 2 - date of birth
@@ -622,19 +648,7 @@ public class WolfInns {
                 "SET HotelID = ? " + 
                 "WHERE ID = ?;";
             jdbcPrep_updateStaffHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
-            
-            /* Update staff member assigned hotel ID, by range of staff ID
-             * Indices to use when calling this prepared statement: 
-             * 1 -  staff hotel ID
-             * 2 -  staff ID min (inclusive)
-             * 3 -  staff ID max (inclusive)
-             */
-            reusedSQLVar = 
-                "UPDATE Staff " + 
-                "SET HotelID = ? WHERE " + 
-                "ID >= ? AND ID <= ?;";
-            jdbcPrep_updateStaffRangeHotelID = jdbc_connection.prepareStatement(reusedSQLVar);
-            
+
             /* Get all values of a given tuple (by ID) from the Staff table
              * Indices to use when calling this prepared statement:
              * 1 -  ID
@@ -708,36 +722,40 @@ public class WolfInns {
             reusedSQLVar = "INSERT INTO Customers (SSN, Name, DOB, PhoneNum, Email) VALUES (? , ?, ?, ?, ?); ";
         	jdbcPrep_insertNewCustomer = jdbc_connection.prepareStatement(reusedSQLVar);
         	
-        	// Report customer by SSN
-        	reusedSQLVar = "SELECT * FROM Customers WHERE SSN = ?";
-        	jdbcPrep_getCustomerBySSN = jdbc_connection.prepareStatement(reusedSQLVar);
+        	// Report customer by ID
+        	reusedSQLVar = "SELECT * FROM Customers WHERE ID = ?";
+        	jdbcPrep_getCustomerByID = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+            // Update Customer SSN
+            reusedSQLVar = "UPDATE Customers SET SSN = ? WHERE ID = ?; ";
+            jdbcPrep_updateCustomerSSN = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update Customer Name
-        	reusedSQLVar = "UPDATE Customers SET Name = ? WHERE SSN = ?; ";
+        	reusedSQLVar = "UPDATE Customers SET Name = ? WHERE ID = ?; ";
         	jdbcPrep_updateCustomerName = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update Customer Date Of Birth
-        	reusedSQLVar = "UPDATE Customers SET DOB = ? WHERE SSN = ?; ";
+        	reusedSQLVar = "UPDATE Customers SET DOB = ? WHERE ID = ?; ";
         	jdbcPrep_updateCustomerDateOfBirth = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update Customer Phone Number
-        	reusedSQLVar = "UPDATE Customers SET PhoneNum = ? WHERE SSN = ?; ";
+        	reusedSQLVar = "UPDATE Customers SET PhoneNum = ? WHERE ID = ?; ";
         	jdbcPrep_updateCustomerPhoneNumber = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update Customer Email
-        	reusedSQLVar = "UPDATE Customers SET Email = ? WHERE SSN = ?; ";
+        	reusedSQLVar = "UPDATE Customers SET Email = ? WHERE ID = ?; ";
         	jdbcPrep_updateCustomerEmail = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Check if customer exists in the database
-        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Customers WHERE SSN = ?";
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Customers WHERE ID = ?";
         	jdbcPrep_isValidCustomer = jdbc_connection.prepareStatement(reusedSQLVar);  
         	
         	// Delete customer
-        	reusedSQLVar = "DELETE FROM Customers WHERE SSN = ?; ";
+        	reusedSQLVar = "DELETE FROM Customers WHERE ID = ?; ";
         	jdbcPrep_deleteCustomer = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Check if customer is associated with current(ongoing) stay
-        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE CustomerSSN = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE CustomerID = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";
         	jdbcPrep_isCustomerCurrentlyStaying = jdbc_connection.prepareStatement(reusedSQLVar);
         	
             /* Assign a room to a customer
@@ -746,7 +764,7 @@ public class WolfInns {
              * This is enforced by using a SELECT statement to produce values to be inserted.  
              * If the WHERE clause evaluates to false then no values will be produced, and thus the insertion will not take place.
              * Indices to use when calling this prepared statement:
-             * 1 -  Customer SSN
+             * 1 -  Customer ID
              * 2 -  Number of guests
              * 3 -  Payment method
              * 4 -  Card type
@@ -762,7 +780,7 @@ public class WolfInns {
              */
             reusedSQLVar = 
                 "INSERT INTO Stays " + 
-                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
+                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerID, NumGuests, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
                 "SELECT CURDATE(), CURTIME(), RoomNum, HotelID, ?, ?, ?, ?, ?, ? " + 
                 "FROM Rooms WHERE " + 
                 "RoomNum = ? AND HotelID = ? AND " + 
@@ -806,7 +824,7 @@ public class WolfInns {
              * 2 -  check in time
              * 3 -  room number
              * 4 -  hotel ID
-             * 5 -  customer SSN
+             * 5 -  customer ID
              * 6 -  number of guests
              * 7 -  check out time
              * 8 -  end date
@@ -817,7 +835,7 @@ public class WolfInns {
              */
             reusedSQLVar = 
                 "INSERT INTO Stays " + 
-                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerSSN, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
+                "(StartDate, CheckInTime, RoomNum, HotelID, CustomerID, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
             jdbcPrep_addStayNoSafetyChecks = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
@@ -908,6 +926,9 @@ public class WolfInns {
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/24/18 -  MTA -   Name the primary key constraints.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Start staff auto increment at 100, per demo data.
+     *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void createTables() {
         
@@ -928,20 +949,22 @@ public class WolfInns {
                  * requires "BIGINT" instead of just "INT"
                  */
                 jdbc_statement.executeUpdate("CREATE TABLE Customers ("+
+                    "ID INT NOT NULL AUTO_INCREMENT,"+
                     "SSN BIGINT NOT NULL,"+
                     "Name VARCHAR(255) NOT NULL,"+
                     "DOB DATE NOT NULL,"+
                     "PhoneNum BIGINT NOT NULL,"+
                     "Email VARCHAR(255) NOT NULL,"+
-                    "CONSTRAINT PK_CUSTOMERS PRIMARY KEY (SSN)"+
-                ")");
+                    "CONSTRAINT PK_CUSTOMERS PRIMARY KEY (ID)"+
+                ");");
+                jdbc_statement.executeUpdate("ALTER TABLE Customers AUTO_INCREMENT = 1001;");
     
                 // Create table: ServiceTypes
                 jdbc_statement.executeUpdate("CREATE TABLE ServiceTypes ("+
                     "Name ENUM('Phone','Dry Cleaning','Gym','Room Service','Catering','Special Request') NOT NULL,"+
                     "Cost INT NOT NULL,"+
                     "CONSTRAINT PK_SERVICE_TYPES PRIMARY KEY (Name)"+
-                ")");
+                ");");
     
                 /* Create table: Staff
                  * phone number to be entered as 10 digit int ex: 9993335555
@@ -957,13 +980,16 @@ public class WolfInns {
                     "Address VARCHAR(255) NOT NULL,"+
                     "HotelID INT,"+
                     "CONSTRAINT PK_STAFF PRIMARY KEY(ID)"+
-                ")");
+                ");");
+                jdbc_statement.executeUpdate("ALTER TABLE Staff AUTO_INCREMENT = 100;");
     
                 /* Create table: Hotels
                  * this is done after Staff table is created
                  * because manager ID references Staff table
                  * phone number to be entered as 10 digit int ex: 9993335555
                  * requires "BIGINT" instead of just "INT"
+                 * As noted in https://classic.wolfware.ncsu.edu/wrap-bin/mesgboard/csc:540::001:1:2018?task=ST&Forum=13&Topic=8,
+                 * hotel IDs actually start at 1, NOT at 1001 as is noted in the originally posted demo data
                  */
                 jdbc_statement.executeUpdate("CREATE TABLE Hotels ("+
                     "ID INT NOT NULL AUTO_INCREMENT,"+
@@ -971,6 +997,7 @@ public class WolfInns {
                     "StreetAddress VARCHAR(255) NOT NULL,"+
                     "City VARCHAR(255) NOT NULL,"+
                     "State CHAR(2) NOT NULL,"+
+                    "Zip INT NOT NULL,"+
                     "PhoneNum BIGINT Not Null,"+
                     "ManagerID INT Not Null,"+
                     "CONSTRAINT PK_HOTELS Primary Key(ID),"+
@@ -981,7 +1008,7 @@ public class WolfInns {
                      * A hotel cannot be without a manager
                      */
                     "CONSTRAINT FK_HMID FOREIGN KEY (ManagerID) REFERENCES Staff(ID) ON DELETE CASCADE"+
-                ")");
+                ");");
     
                 /* Alter table: Staff
                  * needs to happen after Hotels table is created
@@ -992,7 +1019,7 @@ public class WolfInns {
                      /* If a hotel is deleted, no need to delete the staff that work there,
                       * NULL is allowed (currently unassigned staff)
                       */
-                    "FOREIGN KEY (HotelID) REFERENCES Hotels(ID) ON DELETE SET NULL"
+                    "FOREIGN KEY (HotelID) REFERENCES Hotels(ID) ON DELETE SET NULL;"
                 ); 
     
                 // Create table: Rooms
@@ -1015,7 +1042,7 @@ public class WolfInns {
                     */
                     "CONSTRAINT FK_ROOMDRSID FOREIGN KEY (DRSStaff) REFERENCES Staff(ID) ON DELETE SET NULL,"+
                     "CONSTRAINT FK_ROOMDCID FOREIGN KEY (DCStaff) REFERENCES Staff(ID) ON DELETE SET NULL"+
-                ")");
+                ");");
     
                 // Create table: Stays
                 jdbc_statement.executeUpdate("CREATE TABLE Stays ("+
@@ -1024,7 +1051,7 @@ public class WolfInns {
                     "CheckInTime TIME NOT NULL,"+
                     "RoomNum INT NOT NULL,"+
                     "HotelID INT NOT NULL,"+
-                    "CustomerSSN BIGINT NOT NULL,"+
+                    "CustomerID INT NOT NULL,"+
                     "NumGuests INT NOT NULL,"+
                     "CheckOutTime TIME,"+
                     "EndDate DATE,"+
@@ -1042,8 +1069,8 @@ public class WolfInns {
                     */
                     "CONSTRAINT FK_STAYRID FOREIGN KEY (RoomNum, HotelID) REFERENCES Rooms(RoomNum, HotelID) ON DELETE CASCADE,"+
                     // If a customer is deleted, then the stay no longer makes sense and should be deleted
-                    "CONSTRAINT FK_STAYCSSN FOREIGN KEY (CustomerSSN) REFERENCES Customers(SSN) ON DELETE CASCADE"+
-                ")");
+                    "CONSTRAINT FK_STAYCID FOREIGN KEY (CustomerID) REFERENCES Customers(ID) ON DELETE CASCADE"+
+                ");");
     
                 // Create table: Provided
                 jdbc_statement.executeUpdate("CREATE TABLE Provided ("+
@@ -1058,7 +1085,7 @@ public class WolfInns {
                     "CONSTRAINT FK_PROVSTAFFID FOREIGN KEY (StaffID) REFERENCES Staff(ID) ON DELETE SET NULL,"+
                     // If a service type is deleted, then the service provided record no longer makes sense and should be deleted
                     "CONSTRAINT FK_PROVSERV FOREIGN KEY (ServiceName) REFERENCES ServiceTypes(Name) ON DELETE CASCADE"+
-                ")");
+                ");");
                 
                 // If success, commit
                 jdbc_connection.commit();
@@ -1099,6 +1126,7 @@ public class WolfInns {
      *                  03/08/18 -  ATTD -  Shifted some string constants purely for readability (no functional changes).
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Populate Customers table with demo data.
      */
     public static void populateCustomersTable() {
         
@@ -1109,17 +1137,20 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Customers
-            	addCustomer("555284568", "Isaac Gray", "1982-11-12", "9194562158", "issac.gray@gmail.com", false); 
-            	addCustomer("111038548", "Jay Sharp", "1956-07-09", "9191237548", "jay.sharp@gmail.com", false);
-            	addCustomer("222075875", "Jenson Lee", "1968-09-25", "9194563217", "jenson.lee@gmail.com", false);
-            	addCustomer("333127845", "Benjamin Cooke", "1964-01-07", "9191256324", "benjamin.cooke@gmail.com", false);  
-            	addCustomer("444167216", "Joe Bradley", "1954-04-07", "9194587569", "joe.bradley@gmail.com", false);    
-            	addCustomer("666034568", "Conor Stone", "1975-06-04", "9194567216", "conor.stone@gmail.com", false);
-            	addCustomer("777021654", "Elizabeth Davis", "1964-07-26", "9195432187", "elizabeth.davis@gmail.com", false);
-            	addCustomer("888091545", "Natasha Moore", "1966-08-14", "9194562347", "natasha.moore@gmail.com", false);
-            	addCustomer("888092545", "Gary Vee", "1996-03-10", "9199237455", "gary.vee@gmail.com", false);                                         
-                
+                /* Populating data for Customers
+                 * Signature for method called here:
+                 * String ssn, 
+                 * String name, 
+                 * String dob, 
+                 * String phoneNumber, 
+                 * String email, 
+                 * boolean reportSuccess
+                 */
+            	addCustomer("5939846", "David",    "1980-01-30", "123", "david@gmail.com",     false); 
+            	addCustomer("7778352", "Sarah",    "1971-01-30", "456", "sarah@gmail.com",     false);
+            	addCustomer("8589430", "Joseph",   "1987-01-30", "789", "joseph@gmail.com",    false);
+            	addCustomer("4409328", "Lucy",     "1985-01-30", "213", "lucy@gmail.com",      false);  
+
                 // If success, commit
                 jdbc_connection.commit();
                 
@@ -1158,6 +1189,7 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Populate ServiceTypes table with demo data.
      */
     public static void populateServiceTypesTable() {
         
@@ -1172,22 +1204,24 @@ public class WolfInns {
                 // TODO: use prepared statement instead
                 jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Phone', 25);");
+    				"('Phone', 5);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Dry Cleaning', 20);");
+    				"('Dry Cleaning', 16);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Gym', 35);");
+    				"('Gym', 15);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Room Service', 25);");
+    				"('Room Service', 10);");
     			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
     				"(Name, Cost) VALUES "+
-    				"('Catering', 50);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Special Request', 40);");
+    				"('Special Request', 20);");
+    			
+    			// Populate one extra service type that is not in demo data but is in project narrative
+                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
+                        "(Name, Cost) VALUES "+
+                        "('Catering', 50);");
     			
                 // If success, commit
                 jdbc_connection.commit();
@@ -1230,6 +1264,7 @@ public class WolfInns {
      *                  03/16/18 -  ATTD -  Changing departments to emphasize their meaninglessness.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/24/18 -  ATTD -  Call insert new staff member method, rather than having SQL directly in this method.
+     *                  04/04/18 -  ATTD -  Populate Staff table with demo data.
      */
     public static void populateStaffTable() {
         
@@ -1240,78 +1275,40 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Staff
+                /* Populating data for Staff
+                 * Signature for method called here:
+                 * String name, 
+                 * String dob, 
+                 * String jobTitle, 
+                 * String department, 
+                 * long phoneNum, 
+                 * String address, 
+                 * int hotelID, 
+                 * boolean reportSuccess
+                 */
+                updateInsertStaff ("Mary",      "1978-01-01", "Manager",            "Management",   654L, "90 ABC St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("John",      "1973-01-01", "Manager",            "Management",   564L, "1798 XYZ St , Rochester NY 54",  0, false);
+                updateInsertStaff ("Carol",     "1963-01-01", "Manager",            "Management",   546L, "351 MH St , Greensboro NC 27",   0, false);
+                updateInsertStaff ("Emma",      "1963-01-01", "Front Desk Staff",   "Management",   546L, "49 ABC St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Ava",       "1963-01-01", "Catering",           "Catering",     777L, "425 RG St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Peter",     "1966-01-01", "Manager",            "Management",   724L, "475 RG St , Raleigh NC 27",      0, false);
+                updateInsertStaff ("Olivia",    "1991-01-01", "Front Desk Staff",   "Management",   799L, "325 PD St , Raleigh NC 27",      0, false);
                 
-             // Staff for Hotel#1
-                updateInsertStaff ("Zoe Holmes", "1980-10-02", "Manager", "A", 8141113134L, "123 6th St. Melbourne, FL 32904", 0, false);
-                updateInsertStaff ("Katelyn Weeks", "1970-04-20", "Front Desk Representative", "B", 6926641058L, "123 6th St. Melbourne, FL 32904", 0, false);
-                updateInsertStaff ("Abby Huffman", "1990-12-14", "Room Service", "C", 6738742135L, "71 Pilgrim Avenue Chevy Chase, MD 20815", 0, false);
-                updateInsertStaff ("Oliver Gibson", "1985-05-12", "Room Service", "A", 1515218329L, "70 Bowman St. South Windsor, CT 06074", 0, false);
-                updateInsertStaff ("Michael Day", "1983-02-25", "Catering", "B", 3294931245L, "4 Goldfield Rd. Honolulu, HI 96815", 0, false);
-                updateInsertStaff ("David Adams", "1985-01-17", "Dry Cleaning", "C", 9194153214L, "44 Shirley Ave. West Chicago, IL 60185", 0, false);
-                updateInsertStaff ("Ishaan Goodman", "1993-04-19", "Gym", "A", 5203201425L, "514 S. Magnolia St. Orlando, FL 32806", 0, false);
-                updateInsertStaff ("Nicholas Read", "1981-01-14", "Catering", "B", 2564132017L, "236 Pumpkin Hill Court Leesburg, VA 20175", 0, false);
-
-                // Staff for Hotel#2
-                updateInsertStaff ("Dominic Mitchell", "1971-03-13", "Manager", "A", 2922497845L, "7005 South Franklin St. Somerset, NJ 08873", 0, false);
-                updateInsertStaff ("Oliver Lucas", "1961-05-11", "Front Desk Representative", "A", 2519881245L, "7 Edgefield St. Augusta, GA 30906", 0, false);
-                updateInsertStaff ("Molly Thomas", "1987-07-10", "Room Service", "B", 5425871245L, "541 S. Holly Street Norcross, GA 30092", 0, false);
-                updateInsertStaff ("Caitlin Cole", "1989-08-15", "Catering", "B", 4997845612L, "7 Ivy Ave. Traverse City, MI 49684", 0, false);
-                updateInsertStaff ("Victoria Medina", "1989-02-04", "Dry Cleaning", "C", 1341702154L, "8221 Trenton St. Jamestown, NY 14701", 0, false);
-                updateInsertStaff ("Will Rollins", "1982-07-06", "Gym", "C", 7071264587L, "346 Beacon Lane Quakertown, PA 18951", 0, false);
-
-                // Staff for Hotel#3
-                updateInsertStaff ("Masen Shepard", "1983-01-09", "Manager", "A", 8995412364L, "3 Fulton Ave. Bountiful, UT 84010", 0, false);
-                updateInsertStaff ("Willow Roberts", "1987-02-08", "Front Desk Representative", "A", 5535531245L, "7868 N. Lees Creek Street Chandler, AZ 85224", 0, false);
-                updateInsertStaff ("Maddison Davies", "1981-03-07", "Room Service", "A", 6784561245L, "61 New Road Ithaca, NY 14850", 0, false);
-                updateInsertStaff ("Crystal Barr", "1989-04-06", "Catering", "B", 4591247845L, "9094 6th Ave. Macomb, MI 48042", 0, false);
-                updateInsertStaff ("Dayana Tyson", "1980-05-05", "Dry Cleaning", "B", 4072134587L, "837 W. 10th St. Jonesboro, GA 30236", 0, false);
-                updateInsertStaff ("Tommy Perry", "1979-06-04", "Gym", "B", 5774812456L, "785 Bohemia Street Jupiter, FL 33458", 0, false);
-
-                // Staff for Hotel#4
-                updateInsertStaff ("Joshua Burke", "1972-01-10", "Manager", "C", 1245214521L, "8947 Briarwood St. Baldwin, NY 11510", 0, false);
-                updateInsertStaff ("Bobby Matthews", "1982-02-14", "Front Desk Representative", "C", 5771812456L, "25 W. Dogwood Lane Bemidji, MN 56601", 0, false);
-                updateInsertStaff ("Pedro Cohen", "1983-04-24", "Room Service", "C", 8774812456L, "9708 Brickyard Ave. Elyria, OH 44035", 0, false);
-                updateInsertStaff ("Alessandro Beck", "1981-06-12", "Catering", "A", 5774812452L, "682 Glen Ridge St. Leesburg, VA 20175", 0, false);
-                updateInsertStaff ("Emily Petty", "1984-08-19", "Dry Cleaning", "A", 5772812456L, "7604 Courtland St. Easley, SC 29640", 0, false);
-                updateInsertStaff ("Rudy Cole", "1972-01-09", "Gym", "A", 5774812856L, "37 Marconi Drive Owensboro, KY 42301", 0, false);
-
-                // Staff for Hotel#5
-                updateInsertStaff ("Blair Ball", "1981-01-10", "Manager", "A", 8854124568L, "551 New Saddle Ave. Cape Coral, FL 33904", 0, false);
-                updateInsertStaff ("Billy Lopez", "1982-05-11", "Front Desk Representative", "B", 5124562123L, "99 Miles Road Danbury, CT 06810", 0, false);
-                updateInsertStaff ("Lee Ward", "1983-06-12", "Room Service", "B", 9209124562L, "959 S. Tailwater St. Ridgewood, NJ 07450", 0, false);
-                updateInsertStaff ("Ryan Parker", "1972-08-13", "Catering", "B", 1183024152L, "157 State Dr. Attleboro, MA 02703", 0, false);
-                updateInsertStaff ("Glen Elliott", "1971-09-14", "Catering", "B", 6502134785L, "9775 Clinton Dr. Thornton, CO 80241", 0, false);
-                updateInsertStaff ("Ash Harrison", "1977-02-15", "Dry Cleaning", "C", 9192451365L, "9924 Jefferson Ave. Plainfield, NJ 07060", 0, false);
-                updateInsertStaff ("Leslie Little", "1979-12-16", "Gym", "C", 9192014512L, "7371 Pin Oak St. Dalton, GA 30721", 0, false);
-                updateInsertStaff ("Mason West", "1970-10-17", "Gym", "C", 6501231245L, "798 W. Valley Farms Lane Saint Petersburg, FL 33702", 0, false);
-
-                //Staff for Hotel#6
-                updateInsertStaff ("Riley Dawson", "1975-01-09", "Manager", "C", 1183021245L, "898 Ocean Court Hilliard, OH 43026", 0, false);
-                updateInsertStaff ("Gabe Howard", "1987-03-01", "Front Desk Representative", "A", 6501421523L, "914 Edgefield Dr. Hartselle, AL 35640", 0, false);
-                updateInsertStaff ("Jessie Nielsen", "1982-06-02", "Room Service", "A", 7574124587L, "7973 Edgewood Road Gallatin, TN 37066", 0, false);
-                updateInsertStaff ("Gabe Carlson", "1983-08-03", "Room Service", "A", 5771245865L, "339 Pine Lane Tampa, FL 33604", 0, false);
-                updateInsertStaff ("Carmen Lee", "1976-01-04", "Catering", "A", 9885234562L, "120 Longbranch Drive Port Richey, FL 34668", 0, false);
-                updateInsertStaff ("Mell Tran", "1979-06-05", "Dry Cleaning", "A", 9162451245L, "32 Pearl St. Peoria, IL 61604", 0, false);
-                updateInsertStaff ("Leslie Cook", "1970-10-08", "Gym", "B", 6501245126L, "59 W. High Ridge Street Iowa City, IA 52240", 0, false);
-
-                //Staff for Hotel#7
-                updateInsertStaff ("Rory Burke", "1971-01-05", "Manager", "B", 7702653764L, "9273 Ridge Drive Winter Springs, FL 32708", 0, false);
-                updateInsertStaff ("Macy Fuller", "1972-02-07", "Front Desk Representative", "B", 7485612345L, "676 Myers Street Baldwin, NY 11510", 0, false);
-                updateInsertStaff ("Megan Lloyd", "1973-03-01", "Room Service", "B", 7221452315L, "849 George Lane Park Ridge, IL 60068", 0, false);
-                updateInsertStaff ("Grace Francis", "1974-04-09", "Catering", "B", 3425612345L, "282 Old York Court Mechanicsburg, PA 17050", 0, false);
-                updateInsertStaff ("Macy Fuller", "1975-05-02", "Dry Cleaning", "C", 4665127845L, "57 Shadow Brook St. Hudson, NH 03051", 0, false);
-                updateInsertStaff ("Cory Hoover", "1976-06-12", "Gym", "C", 9252210735L, "892 Roosevelt Street Ithaca, NY 14850", 0, false);
-                updateInsertStaff ("Sam Graham", "1977-07-25", "Gym", "C", 7226251245L, "262 Bayberry St. Dorchester, MA 02125", 0, false);
-
-                //Staff for Hotel#8
-                updateInsertStaff ("Charlie Adams", "1981-01-01", "Manager", "C", 6084254152L, "9716 Glen Creek Dr. Newark, NJ 07103", 0, false);
-                updateInsertStaff ("Kiran West", "1985-02-02", "Front Desk Representative", "C", 9623154125L, "68 Smith Dr. Lexington, NC 27292", 0, false);
-                updateInsertStaff ("Franky John", "1986-03-03", "Room Service", "A", 8748544152L, "6 Shirley Road Fairborn, OH 45324", 0, false);
-                updateInsertStaff ("Charlie Bell", "1985-04-04", "Room Service", "A", 9845124562L, "66 Elm Street Jupiter, FL 33458", 0, false);
-                updateInsertStaff ("Jamie Young", "1986-06-05", "Catering", "A", 9892145214L, "8111 Birch Hill Avenue Ravenna, OH 44266", 0, false);
-                updateInsertStaff ("Jackie Miller", "1978-08-06", "Dry Cleaning", "A", 9795486234L, "9895 Redwood Court Glenview, IL 60025", 0, false);
-                updateInsertStaff ("Jude Cole", "1979-03-07", "Gym", "A", 9195642251L, "8512 Cambridge Ave. Lake In The Hills, IL 60156", 0, false);
+                /* Populate with additional staff beyond what is in the demo data, in order to have dedicated staff available for presidential suite
+                 * Room 1, hotel 4, which is in Raleigh
+                 * Note that staff IDs are auto-incremented starting at 100
+                 */
+                updateInsertStaff ("Suzy",      "1960-01-01", "Room Service",       "Room Service", 9198675309L, "123 Super St, Raleigh NC 27612",  0, false);
+                updateInsertStaff ("Edward",    "1961-01-01", "Catering",           "Catering",     9195551234L, "123 Rad Rd, Raleigh NC 27612",    0, false);
+                
+                /* Populate with additional staff beyond what is in the demo data, in order to have staff of the correct job titles to provide demo data services
+                 * Hotel 1 dry cleaning
+                 * Hotel 1 gym
+                 * Hotel 2 room service
+                 */
+                updateInsertStaff ("Clara",     "1962-01-01", "Dry Cleaning",       "Dry Cleaning", 9195552345L, "123 Crazy Ct, Raleigh NC 27612",  0, false);
+                updateInsertStaff ("Edward",    "1963-01-01", "Gym",                "Gym",          9195553456L, "123 Dope Dr, Raleigh NC 27612",   0, false);
+                updateInsertStaff ("Suzy",      "1964-01-01", "Room Service",       "Room Service", 9195554567L, "123 Boss Blvd, Raleigh NC 27612", 0, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1352,6 +1349,9 @@ public class WolfInns {
      *                  03/11/18 -  ATTD -  Removed 9th hotel.
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Updated manager IDs to start at 100, per demo data.
+     *                                      Populate Hotels table with demo data.
      */
     public static void populateHotelsTable() {
         
@@ -1362,15 +1362,21 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Hotels
-                updateInsertHotel("The Plaza", "768 5th Ave", "New York", "NY", 9194152368L, 1, false);
-                updateInsertHotel("DoubleTree", "4810 Page Creek Ln", "Raleigh", "NC", 9192012364L, 9, false);
-        		updateInsertHotel("Ramada", "1520 Blue Ridge Rd", "Raleigh", "NC", 9190174632L, 15, false);
-        		updateInsertHotel("Embassy Suites", "201 Harrison Oaks Blvd", "Raleigh", "NC", 6502137942L, 21, false);
-        		updateInsertHotel("Four Seasons", "57 E 57th St", "New York", "NY", 6501236874L, 27, false);
-        		updateInsertHotel("The Pierre", "2 E 61st St", "New York", "NY", 6501836874L, 35, false);
-        		updateInsertHotel("Fairfield Inn & Suites", "0040 Sellona St", "Raleigh", "NC", 6501236074L, 42, false);
-        		updateInsertHotel("Mandarin Oriental", "80 Columbus Cir", "New York", "NY", 6591236874L, 49, false);
+                /* Populating data for Hotels
+                 * Signature of method called here:
+                 * String hotelName, 
+                 * String streetAddress, 
+                 * String city, 
+                 * String state, 
+                 * int zip, 
+                 * long phoneNum, 
+                 * int managerID, 
+                 * boolean reportSuccess
+                 */
+                updateInsertHotel("Hotel A", "21 ABC St", "Raleigh", "NC", 27, 919L, 100, false);
+                updateInsertHotel("Hotel B", "25 XYZ St", "Rochester", "NY", 54, 718L, 101, false);
+        		updateInsertHotel("Hotel C", "29 PQR St", "Greensboro", "NC", 27, 984L, 102, false);
+        		updateInsertHotel("Hotel D", "28 GHW St", "Raleigh", "NC", 32, 920L, 105, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1408,6 +1414,8 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/27/18 -  ATTD -  Use prepared statement.
+     *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
+     *                                      Populate Staff table with demo data.
      */
     public static void updateHotelIdForStaff() {
     	
@@ -1418,45 +1426,59 @@ public class WolfInns {
              
              try {
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 1);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 1);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 8);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 /* Update staff member assigned hotel ID
+                  * Indices to use when calling this prepared statement: 
+                  * 1 -  staff hotel ID
+                  * 2 -  staff ID
+                  */
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 2);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 9);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 14);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 100);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 2);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 101);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 3);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 15);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 20);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 3);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 102);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 4);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 21);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 26);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 103);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 5);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 27);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 34);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 104);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 6);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 35);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 41);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 105);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 7);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 42);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 48);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 106);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
                  
-                 jdbcPrep_updateStaffRangeHotelID.setInt(1, 8);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(2, 49);
-                 jdbcPrep_updateStaffRangeHotelID.setInt(3, 55);
-                 jdbcPrep_updateStaffRangeHotelID.executeUpdate();
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 107);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 4);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 108);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 109);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 110);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
+                 
+                 jdbcPrep_updateStaffHotelID.setInt(1, 2);
+                 jdbcPrep_updateStaffHotelID.setInt(2, 111);
+                 jdbcPrep_updateStaffHotelID.executeUpdate();
 
                  // If success, commit
                  jdbc_connection.commit();
@@ -1499,6 +1521,9 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/24/18 -  MTA -   Using prepared statements to populate the data.
+     *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
+     *                                      Changing room categories to match those given in demo data.
+     *                                      Populate Rooms table with demo data.
      */
     public static void populateRoomsTable() {
         
@@ -1509,47 +1534,32 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Rooms
-                
-                // Hotel # 1   
-        		addRoom(1, 1, "ECONOMY", 3, 150, false);
-        		addRoom(2, 1, "PRESIDENTIAL_SUITE", 4, 450, false);
-        		addRoom(3, 1, "EXECUTIVE_SUITE", 4, 300, false);
+                /* Populating data for Rooms
+                 * Signature for method called here:
+                 * int roomNumber, 
+                 * int hotelId, 
+                 * String category, 
+                 * int maxOccupancy, 
+                 * int nightlyRate, 
+                 * boolean reportSuccess
+                 */
+        		addRoom(1, 1, "Economy",      1, 100,     false);
+        		addRoom(2, 1, "Deluxe",       2, 200,     false);
+        		addRoom(3, 2, "Economy",      1, 100,     false);
+        		addRoom(2, 3, "Executive",    3, 1000,    false);
+        		addRoom(1, 4, "Presidential", 4, 5000,    false);
+        		addRoom(5, 1, "Deluxe",       2, 200,     false);
         		
-        		// Hotel # 2 
-        		addRoom(1, 2, "DELUXE", 3, 200, false);
-        		addRoom(2, 2, "ECONOMY", 3, 125,false);
-        		addRoom(3, 2, "EXECUTIVE_SUITE", 4, 250, false);
-        		  
-        		// Hotel # 3
-        		addRoom(1, 3, "PRESIDENTIAL_SUITE", 3, 550, false);
-        		addRoom(2, 3, "ECONOMY", 2, 350, false);
-        		addRoom(3, 3, "DELUXE", 3, 450, false);
-        		 
-        		// Hotel # 4
-        		addRoom(1, 4, "ECONOMY", 4, 100, false);
-        		addRoom(2, 4, "EXECUTIVE_SUITE", 4, 250, false); 
-        		 
-        		// Hotel # 5
-        		addRoom(1, 5, "DELUXE", 3, 300, false); 
-        		addRoom(2, 5, "EXECUTIVE_SUITE", 4, 400, false); 
-        		addRoom(3, 5, "PRESIDENTIAL_SUITE", 4, 500, false); 
-        		 
-        		// Hotel # 6
-        		addRoom(1, 6, "ECONOMY", 2, 220, false); 
-        		addRoom(2, 6, "DELUXE", 4, 350, false); 
-        		 
-        		// Hotel # 7
-        		addRoom(1, 7, "ECONOMY", 2, 125, false); 
-        		addRoom(2, 7, "EXECUTIVE_SUITE", 4, 400, false); 
-        		 
-        		// Hotel # 8
-        		addRoom(1, 8, "ECONOMY", 2, 200, false); 
-        		addRoom(2, 8, "DELUXE", 3, 250, false); 
-        		addRoom(3, 8, "EXECUTIVE_SUITE", 3, 300, false); 
-        		addRoom(4, 8, "PRESIDENTIAL_SUITE", 4, 450, false); 	
-        		updateRoom(4, 8, "DRSStaff", "51", false);
-        		updateRoom(4, 8, "DCStaff", "53", false);
+        		/* Presidential suites require dedicated staff
+        		 * Signature for method called here:
+        		 * int roomNumber, 
+        		 * int hotelId, 
+        		 * String columnName, 
+        		 * String columnValue, 
+        		 * boolean reportSuccess
+                 */
+        		updateRoom(1, 4, "DRSStaff",  "107", false);
+        		updateRoom(1, 4, "DCStaff",   "108", false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1599,22 +1609,102 @@ public class WolfInns {
      *                  03/17/18 -  ATTD -  Billing address IS allowed be NULL (when payment method is not card) per team discussion.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Use prepared statement method to populate Stays table.
+     *                                      Populate Stays table with demo data.
      */
     public static void populateStaysTable() {
         
         try {
             
-            // Stays where the guest has already checked out
-            updateInsertStayNoSafetyChecks("2018-01-12", "20:10:00", 1, 1, 555284568L, 3, "10:00:00", "2018-01-20", "CARD", "VISA", 4400123454126587L, "7178 Kent St. Enterprise, AL 36330");
-            updateInsertStayNoSafetyChecks("2018-02-15", "10:20:00", 3, 2, 111038548L, 2, "08:00:00", "2018-02-18", "CASH", "", -1, "");
-            updateInsertStayNoSafetyChecks("2018-03-01", "15:00:00", 1, 3, 222075875L, 1, "13:00:00", "2018-03-05", "CARD", "HOTEL", 1100214521684512L, "178 Shadow Brook St. West Chicago, IL 60185");
-            updateInsertStayNoSafetyChecks("2018-02-20", "07:00:00", 2, 4, 333127845L, 4, "15:00:00", "2018-02-27", "CARD", "MASTERCARD", 4400124565874591L, "802B Studebaker Drive Clinton Township, MI 48035");
-            updateInsertStayNoSafetyChecks("2018-03-05", "11:00:00", 3, 5, 444167216L, 4, "08:00:00", "2018-03-12", "CARD", "VISA", 4400127465892145L, "83 Inverness Court Longwood, FL 32779");
-            updateInsertStayNoSafetyChecks("2018-03-01", "18:00:00", 1, 6, 666034568L, 1, "23:00:00", "2018-03-01", "CASH", "", -1, "");
-
-            // Stays that are still going on
-            updateInsertStayNoSafetyChecks("2018-01-20", "06:00:00", 2, 7, 777021654L, 3, "", "", "CARD", "HOTEL", 1100214532567845L, "87 Gregory Street Lawndale, CA 90260");
-            updateInsertStayNoSafetyChecks("2018-02-14", "09:00:00", 4, 8, 888091545L, 2, "", "", "CARD", "VISA", 4400178498564512L, "34 Hall Ave. Cranberry Twp, PA 16066");
+            /* Signature of method we're calling here:
+             * String startDate,
+             * String checkInTime,
+             * int roomNum, 
+             * int hotelID, 
+             * int customerID,
+             * int numGuests, 
+             * String checkOutTime,     // blank for ongoing stay
+             * String endDate,          // blank for ongoing stay
+             * String paymentMethod, 
+             * String cardType,         // blank if not paying with card
+             * long cardNumber,         // -1 if not paying with card
+             * String billingAddress    // blank if not paying with card
+             */
+            updateInsertStayNoSafetyChecks(
+                "2017-05-10", 
+                "15:17:00", 
+                1, 
+                1, 
+                1001,
+                1, 
+                "10:22:00", 
+                "2017-05-13", 
+                "CARD", 
+                "VISA", 
+                1052L, 
+                "980 TRT St , Raleigh NC"
+            );
+            updateInsertStayNoSafetyChecks(
+                "2017-05-10", 
+                "16:11:00", 
+                2, 
+                1, 
+                1002, 
+                2, 
+                "09:27:00", 
+                "2017-05-13", 
+                "CARD", 
+                "HOTEL", 
+                3020L, 
+                "7720 MHT St , Greensboro NC"
+            );
+            updateInsertStayNoSafetyChecks(
+                "2016-05-10", 
+                "15:45:00", 
+                3, 
+                2, 
+                1003, 
+                1, 
+                "11:10:00", 
+                "2016-05-14", 
+                "CARD", 
+                "VISA", 
+                2497L, 
+                "231 DRY St , Rochester NY 78"
+            );
+            updateInsertStayNoSafetyChecks(
+                "2018-05-10", 
+                "14:30:00", 
+                2, 
+                3, 
+                1004, 
+                2, 
+                "10:00:00", 
+                "2018-05-12", 
+                "CASH", 
+                "", 
+                -1, 
+                "24 BST Dr , Dallas TX 14"
+            );
+            
+            /* Populate with additional stay beyond what is in the demo data, in order to have "Room#4" unavailable as noted in demo data
+             * Room Number 2
+             * Hotel 3
+             * Executive (so, no dedicated staff are required)
+             */
+            updateInsertStayNoSafetyChecks(
+                "2018-04-04", 
+                "15:59:00", 
+                2, 
+                3, 
+                1004, 
+                2, 
+                "", 
+                "", 
+                "CASH", 
+                "", 
+                -1, 
+                "24 BST Dr , Dallas TX 14"
+            );
             
         }
         catch (Throwable err) {
@@ -1638,6 +1728,8 @@ public class WolfInns {
      *                  03/12/18 -  ATTD -  Corrected JDBC transaction code (add try-catch).
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Update staff IDs to start at 100, per demo data.
+     *                                      Populate Provided table with demo data.
      */
     public static void populateProvidedTable() {
         
@@ -1652,34 +1744,19 @@ public class WolfInns {
                 // TODO: use prepared statement instead
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 7, 'Gym')");
+    				" (1, 109, 'Dry Cleaning')");
                 jdbc_statement.executeUpdate("INSERT INTO Provided " + 
                     " (StayID, StaffID, ServiceName) VALUES " +
-                    " (1, 7, 'Gym')");
+                    " (1, 110, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 5, 'Catering')");
+    				" (2, 110, 'Gym')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (2, 11, 'Room Service')");
+    				" (3, 111, 'Room Service')");
         		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
     				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (3, 19, 'Dry Cleaning')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (4, 26, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (5, 32, 'Dry Cleaning')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (6, 38, 'Room Service')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (7, 48, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (8, 54, 'Dry Cleaning')");
+    				" (4, 102, 'Phone')");
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1877,6 +1954,7 @@ public class WolfInns {
      * Modifications:   04/01/18 -  ATTD -  Created method.
      *                  04/02/18 -  ATTD -  Print out customers to help user pick a valid SSN.
      *                  04/03/18 -  ATTD -  Debug assigning a room to a customer.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void frontDeskAssignRoom() {
         
@@ -1886,7 +1964,7 @@ public class WolfInns {
             String roomNum = "";
             String hotelID = "";
             String numGuests = "";
-            String customerSSN = "";
+            String customerID = "";
             String paymentMethod = "";
             String cardType = "";
             String cardNumber = "";
@@ -1915,11 +1993,11 @@ public class WolfInns {
                         System.out.print("\nEnter the number of guests staying in this room\n> ");
                         numGuests = scanner.nextLine();
                         if (isValueSane("NumGuests", numGuests)) {
-                            // Get customer SSN (print out all customers to help user pick a valid SSN
+                            // Get customer ID (print out all customers to help user pick a valid ID)
                             reportEntireTable("Customers");
-                            System.out.print("\nEnter the customer's SSN\n> ");
-                            customerSSN = scanner.nextLine();
-                            if (isValueSane("CustomerSSN", customerSSN)) {
+                            System.out.print("\nEnter the customer's ID\n> ");
+                            customerID = scanner.nextLine();
+                            if (isValueSane("CustomerID", customerID)) {
                                 // Get payment method
                                 System.out.print("\nEnter the payment method\n> ");
                                 paymentMethod = scanner.nextLine();
@@ -1942,7 +2020,7 @@ public class WolfInns {
                                                     updateInsertStay(
                                                         Integer.parseInt(roomNum), 
                                                         Integer.parseInt(hotelID), 
-                                                        Long.parseLong(customerSSN), 
+                                                        Integer.parseInt(customerID), 
                                                         Integer.parseInt(numGuests), 
                                                         paymentMethod, 
                                                         cardType, 
@@ -1958,7 +2036,7 @@ public class WolfInns {
                                         updateInsertStay(
                                             Integer.parseInt(roomNum), 
                                             Integer.parseInt(hotelID), 
-                                            Long.parseLong(customerSSN), 
+                                            Integer.parseInt(customerID), 
                                             Integer.parseInt(numGuests), 
                                             paymentMethod, 
                                             "", 
@@ -2096,6 +2174,10 @@ public class WolfInns {
      * 
      * Modifications:   03/07/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  For Rooms table, also print out whether the room is available.
+     *                                      For Staff table, also print out staff member's age.
+     *                                      For Stays table, also print out customer's SSN.
+     *                                      This is to more easily demonstrate that the demo data was populated correctly.
      */
     public static void reportEntireTable(String tableName) {
 
@@ -2103,8 +2185,47 @@ public class WolfInns {
             
             // Report entire table (no transaction needed for a query)
             System.out.println("\nEntries in the " + tableName + " table:\n");
-            // TODO: use prepared statement instead
-            jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
+            // TODO: use prepared statements instead
+            /* Special printing for Rooms table
+             * Also print out whether the room is available.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            if (tableName.equalsIgnoreCase("Rooms")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT HotelID, RoomNum, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff, " + 
+                    "IF(EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL), 'No', 'Yes') AS Available " + 
+                    "FROM " + tableName + " ORDER BY HotelID, RoomNum"
+                );
+            }
+            /* Special printing for Staff table
+             * Also print out staff member's age.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            else if (tableName.equalsIgnoreCase("Staff")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT HotelID, ID, Name, DOB, FLOOR(DATEDIFF(CURDATE(), DOB) / 365) AS Age, JobTitle, Dep, PhoneNum, Address " + 
+                    "FROM " + tableName + " ORDER BY HotelID"
+                );
+            }
+            /* Special printing for Stays table
+             * Also print out customer's SSN.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */  
+            else if (tableName.equalsIgnoreCase("Stays")) {
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT ID, StartDate, CheckInTime, EndDate, CheckOutTime, RoomNum, HotelID, CustomerID, " + 
+                    "(SELECT SSN FROM Customers WHERE Customers.ID = Stays.CustomerID) AS CustomerSSN, " + 
+                    "NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress " + 
+                    "FROM " + tableName
+                );
+            }
+            // Other tables have no special printing needs
+            else {
+                jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
+            }
             printQueryResultSet(jdbc_result);
             
         }
@@ -2221,19 +2342,20 @@ public class WolfInns {
     }
     
     /** 
-     * Report task:   Report all values of a single tuple of the Customers table, by customerSSN
+     * Report task:   Report all values of a single tuple of the Customers table, by customer ID
      * 
-     * Arguments -    customerSSN - Customer Social Security Number
+     * Arguments -    customerID - Customer ID
      * Return -       None
      * 
-     * Modifications: 03/27/18 -  MTA -  Created method.
+     * Modifications:   03/27/18 -  MTA -  Created method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static void reportCustomerBySSN(String ssn) {
+    public static void reportCustomerByID(String ID) {
 
         try {
         	 
-        	jdbcPrep_getCustomerBySSN.setLong(1, Long.parseLong(ssn)); 
-            jdbc_result = jdbcPrep_getCustomerBySSN.executeQuery();
+        	jdbcPrep_getCustomerByID.setInt(1, Integer.parseInt(ID)); 
+            jdbc_result = jdbcPrep_getCustomerByID.executeQuery();
             
             // Print result
             System.out.println("\nInformation:\n");
@@ -2386,6 +2508,7 @@ public class WolfInns {
      * Modifications:   03/08/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new attribute / value sanity checking method.
      *                                      Use new general error handler.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
      */
     public static void manageHotelAdd() {
 
@@ -2396,10 +2519,12 @@ public class WolfInns {
             String streetAddress = "";
             String city = "";
             String state = "";
+            String zipAsString = "";
             String phoneNumAsString = "";
             String managerIdAsString = "";
             long phoneNum = 0;
             int managerID = 0;
+            int zip = 0;
             
             // Get name
             System.out.print("\nEnter the hotel name\n> ");
@@ -2417,18 +2542,24 @@ public class WolfInns {
                         System.out.print("\nEnter the hotel's state\n> ");
                         state = scanner.nextLine();
                         if (isValueSane("State", state)) {
-                            // Get phone number
-                            System.out.print("\nEnter the hotel's phone number\n> ");
-                            phoneNumAsString = scanner.nextLine();
-                            if (isValueSane("PhoneNum", phoneNumAsString)) {
-                                phoneNum = Long.parseLong(phoneNumAsString);
-                                // Get manager
-                                System.out.print("\nEnter the hotel's manager's staff ID\n> ");
-                                managerIdAsString = scanner.nextLine();
-                                if (isValueSane("ManagerID", managerIdAsString)) {
-                                    managerID = Integer.parseInt(managerIdAsString);
-                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                                    updateInsertHotel(hotelName, streetAddress, city, state, phoneNum, managerID, true);
+                            // Get zip code
+                            System.out.print("\nEnter the hotel's zip code\n> ");
+                            zipAsString = scanner.nextLine();
+                            if (isValueSane("Zip", zipAsString)) {
+                                zip = Integer.parseInt(zipAsString);
+                                // Get phone number
+                                System.out.print("\nEnter the hotel's phone number\n> ");
+                                phoneNumAsString = scanner.nextLine();
+                                if (isValueSane("PhoneNum", phoneNumAsString)) {
+                                    phoneNum = Long.parseLong(phoneNumAsString);
+                                    // Get manager
+                                    System.out.print("\nEnter the hotel's manager's staff ID\n> ");
+                                    managerIdAsString = scanner.nextLine();
+                                    if (isValueSane("ManagerID", managerIdAsString)) {
+                                        managerID = Integer.parseInt(managerIdAsString);
+                                        // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                        updateInsertHotel(hotelName, streetAddress, city, state, zip, phoneNum, managerID, true);
+                                    }
                                 }
                             }
                         }
@@ -2560,6 +2691,7 @@ public class WolfInns {
      *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
      *                                      - for developer ease
      *                                      - because "isValueSane" method uses table attribute names
+     *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      */
     public static void manageRoomAdd() {
     	
@@ -2569,13 +2701,17 @@ public class WolfInns {
     		
     		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number\n> ", hotelId); 
     		
-    		String category = getValidDataFromUser("ADD_ROOM","Category", "Enter the room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
+    		String category = getValidDataFromUser(
+		        "ADD_ROOM",
+		        "Category", 
+		        "Enter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
+	        );
                
     		String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy\n> "); 
     		
     		String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate\n> "); 
               
-            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category.toUpperCase(), Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
+            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
            
         }
         catch (Throwable err) {
@@ -2591,6 +2727,7 @@ public class WolfInns {
      *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
      *                                      - for developer ease
      *                                      - because "isValueSane" method uses table attribute names
+     *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      */
     public static void manageRoomUpdate() {
     	try {
@@ -2612,7 +2749,11 @@ public class WolfInns {
             	
             	switch(attributeToChange){
 	             	case 1:
-	             		String category = getValidDataFromUser("UPDATE_ROOM","Category", "Enter the new value for room's category.\nAvailable options are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' \n>");
+	             		String category = getValidDataFromUser(
+             		        "UPDATE_ROOM",
+             		        "Category", 
+             		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
+         		        );
 	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
 	             		break;
 	             	case 2:
@@ -2654,7 +2795,7 @@ public class WolfInns {
             // Print hotels to console so user has some context
             reportEntireTable("Rooms");
             
-            // Get hotelid and roomnumber to be deleted
+            // Get hotel ID and room number to be deleted
             String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
     		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete\n> ", hotelId);
 
@@ -2685,13 +2826,13 @@ public class WolfInns {
     		
     		String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name\n> "); 
     		
-    		String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth(in format YYYY-MM-DD)\n>");
+    		String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth (in format YYYY-MM-DD)\n>");
                
     		String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number\n> "); 
     		
     		String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email\n> "); 
               
-            addCustomer( ssn, name, dob, phoneNumber, email, true);
+            addCustomer(ssn, name, dob, phoneNumber, email, true);
            
         }
         catch (Throwable err) {
@@ -2704,7 +2845,8 @@ public class WolfInns {
      * Task: Manage
      * Operation: Update customer
      * 
-     * Modifications: 03/27/18 - MTA - Added method
+     * Modifications:   03/27/18 -  MTA -   Added method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void manageCustomerUpdate() {
     	
@@ -2712,45 +2854,49 @@ public class WolfInns {
 
     		boolean userWantsToStop = false; 
     		 
-            // Print hotels to console so user has some context
+            // Print all customers to console so user has some context
             reportEntireTable("Customers");
             
-            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to make changes for\n> ");
+            String customerID = getValidDataFromUser("UPDATE_CUSTOMER", "ID", "Enter the ID for the customer you wish to make changes for\n> ");
             
-            reportCustomerBySSN(customerSSN);
+            reportCustomerByID(customerID);
                 
             while(!userWantsToStop) { 
             	
             	// Get the attribute the user wants to update
-                System.out.print("\nChoose the attribute you wish to change\n1. Name\n2. Date Of Birth\n3. Phone Number\n4. Email\n5. Exit\n> ");
+                System.out.print("\nChoose the attribute you wish to change\n1. SSN\n2. Name\n3. Date Of Birth\n4. Phone Number\n5. Email\n6. Exit\n> ");
                 int attributeToChange = Integer.parseInt(scanner.nextLine());
             	
             	switch(attributeToChange){
-	             	case 1:
-	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
-	             		updateCustomer(customerSSN, "Name", customerName, true);
-	             		break;
+                    case 1:
+                        String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER","SSN", "Enter the new value for customer's SSN\n>");
+                        updateCustomer(customerID, "SSN", customerSSN, true);
+                        break;
 	             	case 2:
-	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
-	             		updateCustomer(customerSSN, "DOB", dob, true);
+	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
+	             		updateCustomer(customerID, "Name", customerName, true);
 	             		break;
 	             	case 3:
-	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
-	             		updateCustomer(customerSSN, "PhoneNum", phoneNumber, true);
+	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
+	             		updateCustomer(customerID, "DOB", dob, true);
 	             		break;
 	             	case 4:
-	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
-	             		updateCustomer(customerSSN, "Email", email, true);
+	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
+	             		updateCustomer(customerID, "PhoneNum", phoneNumber, true);
 	             		break;
 	             	case 5:
+	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
+	             		updateCustomer(customerID, "Email", email, true);
+	             		break;
+	             	case 6:
 	             		userWantsToStop = true;
 	             		break;
-	             	default: System.out.println("Please choose a number between 1 to 5"); 
+	             	default: System.out.println("Please choose a number between 1 and 6"); 
 	            } 
             } 
                 
             // Report results of all the updates
-            reportCustomerBySSN(customerSSN); 
+            reportCustomerByID(customerID); 
         
              
         }
@@ -2764,20 +2910,21 @@ public class WolfInns {
      * Task: Manage
      * Operation: Delete a customer
      * 
-     * Modifications: 03/27/18 - MTA - Added method
+     * Modifications:   03/27/18 -  MTA -   Added method.
+     *                  04/04/18 -  ATTD -  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void manageCustomerDelete() {
     	
     	try { 
             
-            // Print hotels to console so user has some context
+            // Print all customers to console so user has some context
             reportEntireTable("Customers");
             
-            // Get SSN of the customer to be deleted
-            String ssn = getValidDataFromUser("DELETE_CUSTOMER", "SSN", "Enter the SSN for the customer you wish to delete\n> ");  
+            // Get ID of the customer to be deleted
+            String ID = getValidDataFromUser("DELETE_CUSTOMER", "ID", "Enter the ID for the customer you wish to delete\n> ");  
 
             // Call method to actually interact with the DB
-            deleteCustomer(ssn, true); 
+            deleteCustomer(ID, true); 
             
         }
         catch (Throwable err) {
@@ -2800,6 +2947,8 @@ public class WolfInns {
      *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
      *                                      - for developer ease
      *                                      - because "isValueSane" method uses table attribute names
+ *                      04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
+ *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static String getValidDataFromUser (String operation, String fieldName, String message, String...params ){
     	
@@ -2877,17 +3026,17 @@ public class WolfInns {
     			}     
         	}  
         	
-        	else if (fieldName.equalsIgnoreCase("SSN")) {
+        	else if (fieldName.equalsIgnoreCase("ID")) {
        		 
+        	    boolean isSane = isValueSane(fieldName, value);
         		if (operation.equals("UPDATE_CUSTOMER") || operation.equals("DELETE_CUSTOMER")) {
-        			boolean isSane = isValueSane(fieldName, value);
         			if (isSane) {
-        				// Extra checks for SSN when adding customer info:
-        				// 1.check if the entered SSN is valid i.e exists in Customers table
+        				// Extra checks for ID when updating / deleting customer info:
+        				// 1.check if the entered ID is valid i.e exists in Customers table
             			boolean isExistingCustomer = isValidCustomer(value);
             			if (isExistingCustomer) {  
             				if (operation.equals("DELETE_CUSTOMER")) {
-            					// Extra checks for SSN when deleting customer info:
+            					// Extra checks for ID when deleting customer info:
                     			// 2. Check if customer is currently staying in any hotel
             					boolean isCurrentlyStaying = isCustomerCurrentlyStaying(value);
             					if (!isCurrentlyStaying) {
@@ -2899,9 +3048,12 @@ public class WolfInns {
             					isValid = true; 
             				}            				
             			} else {
-            				System.out.println("ERROR: The entered SSN does not exist in our database");  
+            				System.out.println("ERROR: The entered ID does not exist in our database");  
             			}
         			}  
+        		}
+        		else {
+        		    isValid = isSane;
         		}
         		   
         	}  
@@ -2916,7 +3068,7 @@ public class WolfInns {
         // Now the data is valid, return it
         return value;
     }
-    
+   
     /** 
      * Management task: Add a new staff member
      * 
@@ -3109,6 +3261,9 @@ public class WolfInns {
      *                                      - Customer name
      *                                      - Customer SSN
      *                                      Used "equalsIgnoreCase" more widely (better than "equals").
+     *                  04/04/18 -  ATTD -  Allow 3-digit phone numbers per demo data.
+     *                                      Allow 4-digit SSNs per demo data.
+     *                                      Changing room categories to match those given in demo data.
      */
     public static boolean isValueSane(String attributeName, String proposedValue) {
         
@@ -3139,8 +3294,8 @@ public class WolfInns {
                     if (Long.parseLong(proposedValue) <= 0) {
                         System.out.println("Phone number '" + proposedValue + "' malformed, should be positive (cannot proceed)\n");
                         okaySoFar = false;
-                    } else if (proposedValue.length() != 10) {
-                        System.out.println("Phone number '" + proposedValue + "' malformed, should have 10 digits (cannot proceed)\n");
+                    } else if (proposedValue.length() < 3) {
+                        System.out.println("Phone number '" + proposedValue + "' malformed, should have at least 3 digits (cannot proceed)\n");
                         okaySoFar = false;
                     }  
                 }
@@ -3155,8 +3310,8 @@ public class WolfInns {
                     if (Long.parseLong(proposedValue) <= 0) {
                         System.out.println("SSN '" + proposedValue + "' malformed, should be positive (cannot proceed)\n");
                         okaySoFar = false;
-                    } else if (proposedValue.length() != 9) {
-                        System.out.println("SSN '" + proposedValue + "' malformed, should have 9 digits (cannot proceed)\n");
+                    } else if (proposedValue.length() < 4) {
+                        System.out.println("SSN '" + proposedValue + "' malformed, should have at least 4 digits (cannot proceed)\n");
                         okaySoFar = false;
                     }  
                 }
@@ -3218,9 +3373,17 @@ public class WolfInns {
             }  
             
             // Check if entered room category is valid ( i.e 'Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite' )
-            if (attributeName.equalsIgnoreCase("Category") && 
-        	     !(proposedValue.equalsIgnoreCase("ECONOMY") || proposedValue.equalsIgnoreCase("DELUXE") || proposedValue.equalsIgnoreCase("EXECUTIVE_SUITE") || proposedValue.equalsIgnoreCase("PRESIDENTIAL_SUITE"))) {
-        		 	System.out.println("\nERROR: Allowed values for room category are 'ECONOMY', 'DELUXE', 'EXECUTIVE_SUITE', 'PRESIDENTIAL_SUITE' ");
+            if (
+                attributeName.equalsIgnoreCase("Category") && 
+        	     !(
+    	             proposedValue.equalsIgnoreCase("Economy") || 
+    	             proposedValue.equalsIgnoreCase("Deluxe") || 
+    	             proposedValue.equalsIgnoreCase("Executive"
+                 ) || 
+                     proposedValue.equalsIgnoreCase("Presidential")
+	             )
+    	     ) {
+        		 	System.out.println("\nERROR: Allowed values for room category are 'Economy', 'Deluxe', 'Executive', 'Presidential' ");
         		 	okaySoFar = false; 
             } 
             
@@ -3441,6 +3604,7 @@ public class WolfInns {
      *              streetAddress - The street address of the hotel to insert
      *              city -          The city in which the hotel is located
      *              state -         The state in which the hotel is located
+     *              zip -           The zip code of the hotel
      *              phoneNum -      The phone number of the hotel
      *              managerID -     The staff ID of the person to promote to manager of the new hotel
      *              reportSuccess - True if we should print success message to console (should be false for mass population of hotels)
@@ -3452,10 +3616,12 @@ public class WolfInns {
      *                  03/20/18 -  ATTD -  Switch to using prepared statements.
      *                  03/21/18 -  ATTD -  Debug inserting new hotel with prepared statements.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
      */
-    public static void updateInsertHotel (String hotelName, String streetAddress, String city, String state, long phoneNum, int managerID, boolean reportSuccess) {
+    public static void updateInsertHotel (String hotelName, String streetAddress, String city, String state, int zip, long phoneNum, int managerID, boolean reportSuccess) {
         
         // Declare variables
+        int previousNewestHotelID;
         int newHotelID;
         
         try {
@@ -3464,19 +3630,31 @@ public class WolfInns {
             jdbc_connection.setAutoCommit(false);
             
             try {
+                
+                // Keep track of whether the hotel was actually added, by making sure the newest hotel ID changes
+                jdbc_result = jdbcPrep_getNewestHotelID.executeQuery();
+                jdbc_result.next();
+                previousNewestHotelID = jdbc_result.getInt(1);
 
                 /* Insert new hotel, using prepared statement
-                 * Drop disable unique checks to avoid complaint
-                 * This is needed because the hotel may get a manager who is already managing a different hotel
-                 * We will fix this shortly but we need to avoid complaint in the meantime
+                 * Indices to use when calling this prepared statement:
+                 * 1 - name
+                 * 2 - street address
+                 * 3 - city
+                 * 4 - state
+                 * 5 - zip code
+                 * 6 - phone number
+                 * 7 - manager ID
+                 * 8 - manager ID (again)
                  */
                 jdbcPrep_insertNewHotel.setString(1, hotelName);
                 jdbcPrep_insertNewHotel.setString(2, streetAddress);
                 jdbcPrep_insertNewHotel.setString(3, city);
                 jdbcPrep_insertNewHotel.setString(4, state);
-                jdbcPrep_insertNewHotel.setLong(5, phoneNum);
-                jdbcPrep_insertNewHotel.setInt(6, managerID);
-                jdbcPrep_insertNewHotel.setInt(7, managerID); 
+                jdbcPrep_insertNewHotel.setInt(5, zip);
+                jdbcPrep_insertNewHotel.setLong(6, phoneNum);
+                jdbcPrep_insertNewHotel.setInt(7, managerID);
+                jdbcPrep_insertNewHotel.setInt(8, managerID); 
                 jdbcPrep_insertNewHotel.executeUpdate();
                 
                 // Update new hotel's manager (job title and hotel assignment), using prepared statement
@@ -3485,11 +3663,14 @@ public class WolfInns {
                 // If success, commit
                 jdbc_connection.commit();
                 
-                // Then, tell the user about the success
-                if (reportSuccess) {
-                    jdbc_result = jdbcPrep_getNewestHotelID.executeQuery();
-                    jdbc_result.next();
-                    newHotelID = jdbc_result.getInt(1);
+                // Then, tell the user about the failure or success
+                jdbc_result = jdbcPrep_getNewestHotelID.executeQuery();
+                jdbc_result.next();
+                newHotelID = jdbc_result.getInt(1);
+                if (previousNewestHotelID == newHotelID) {
+                    System.out.println("\n'" + hotelName + "' hotel was NOT added (this can happen if e.g. an invalid manager ID was provided)\n");
+                }
+                else if (reportSuccess) {
                     System.out.println("\n'" + hotelName + "' hotel added (hotel ID: " + newHotelID + ")!\n");
                 }
                 
@@ -3524,6 +3705,8 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/23/18 -  ATTD -  Created method.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
      */
     public static void updateChangeHotelInfo (int hotelID, String attributeToChange, String valueToChangeTo) {
         
@@ -3554,6 +3737,11 @@ public class WolfInns {
                     jdbcPrep_udpateHotelState.setInt(2, hotelID);
                     jdbcPrep_udpateHotelState.executeUpdate();
                     break;
+                case "Zip":
+                    jdbcPrep_updateHotelZip.setString(1, valueToChangeTo);
+                    jdbcPrep_updateHotelZip.setInt(2, hotelID);
+                    jdbcPrep_updateHotelZip.executeUpdate();
+                    break;
                 case "PhoneNum":
                     jdbcPrep_updateHotelPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
                     jdbcPrep_updateHotelPhoneNum.setInt(2, hotelID);
@@ -3561,7 +3749,7 @@ public class WolfInns {
                     break;
                 case "ManagerID":
                     /* This one is a special case
-                     * 1 -  Demote old manager to front desk representative
+                     * 1 -  Demote old manager to front desk staff
                      * 2 -  Actually update the manager ID of the hotel
                      * 3 -  Update new manager to have the correct job title and hotel assignment
                      */
@@ -3672,6 +3860,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/24/18 -  ATTD -  Created method.
+     *                  04/04/18 -  ATTD -  Handle manager-hotel two-way link.
      */
     public static void updateInsertStaff (String name, String dob, String jobTitle, String department, long phoneNum, String address, int hotelID, boolean reportSuccess) {
         
@@ -3679,55 +3868,86 @@ public class WolfInns {
         int newStaffID;
         
         try {
-
-            // Start transaction
-            jdbc_connection.setAutoCommit(false);
             
-            try {
-
-                /* Insert new staff member, using prepared statement
-                 * If a zero is passed for hotel ID,
-                 * that means the new staff member isn't to be assigned to any particular hotel,
-                 * so set hotel ID in the tuple to NULL
-                 */
-                jdbcPrep_insertNewStaff.setString(1, name);
-                jdbcPrep_insertNewStaff.setString(2, dob);
-                jdbcPrep_insertNewStaff.setString(3, jobTitle);
-                jdbcPrep_insertNewStaff.setString(4, department);
-                jdbcPrep_insertNewStaff.setLong(5, phoneNum);
-                jdbcPrep_insertNewStaff.setString(6, address);
-                if (hotelID == 0) {
-                    jdbcPrep_insertNewStaff.setNull(7, java.sql.Types.INTEGER);
-                }
-                else {
-                    jdbcPrep_insertNewStaff.setInt(7, hotelID); 
-                }
-                jdbcPrep_insertNewStaff.executeUpdate();
-
-                // If success, commit
-                jdbc_connection.commit();
-                
-                // Then, tell the user about the success
-                if (reportSuccess) {
-                    jdbc_result = jdbcPrep_getNewestStaffID.executeQuery();
-                    jdbc_result.next();
-                    newStaffID = jdbc_result.getInt(1);
-                    System.out.println("\n'" + name + "' staff member added (staff ID: " + newStaffID + ")!\n");
-                }
-                
+            /* Handle manager-hotel two-way link
+             * Do not allow insertion of new staff member, if that staff member
+             * is supposed to be the manager of a hotel which ALREADY has a manager
+             * The way we've structured the hotel-manager two-way link,
+             * we assign the manager on the hotel side before we assign the hotel on the manager side
+             * So this means it is NEVER appropriate to insert a manager and give them an assigned hotel in the same SQL statement
+             * Handle this restriction at the application level rather than at the SQL level (just easier that way)
+             */
+            if (jobTitle.equals("Manager") && hotelID != 0) {
+                System.out.println(
+                    "\n'" + 
+                    name + 
+                    "' staff member NOT added " + 
+                    "(to add a manager, must first add that manager with no hotel ID, then create hotel referencing the manager, finally assign manager to hotel)" + 
+                    "\n"
+                );
             }
-            catch (Throwable err) {
+            else {
                 
-                // Handle error
-                handleError(err);
+                // Start transaction
+                jdbc_connection.setAutoCommit(false);
                 
-                // Roll back the entire transaction
-                jdbc_connection.rollback();
-                
-            }
-            finally {
-                // Restore normal auto-commit mode
-                jdbc_connection.setAutoCommit(true);
+                try {
+    
+                    /* Insert new staff member
+                     * 
+                     * If a zero is passed for hotel ID,
+                     * that means the new staff member isn't to be assigned to any particular hotel,
+                     * so set hotel ID in the tuple to NULL
+                     * 
+                     * Indices to use when calling this prepared statement:
+                     * 1 - name
+                     * 2 - date of birth
+                     * 3 - job title
+                     * 4 - department
+                     * 5 - phone number
+                     * 6 - address
+                     * 7 - hotel ID
+                     */
+                    jdbcPrep_insertNewStaff.setString(1, name);
+                    jdbcPrep_insertNewStaff.setString(2, dob);
+                    jdbcPrep_insertNewStaff.setString(3, jobTitle);
+                    jdbcPrep_insertNewStaff.setString(4, department);
+                    jdbcPrep_insertNewStaff.setLong(5, phoneNum);
+                    jdbcPrep_insertNewStaff.setString(6, address);
+                    if (hotelID == 0) {
+                        jdbcPrep_insertNewStaff.setNull(7, java.sql.Types.INTEGER);
+                    }
+                    else {
+                        jdbcPrep_insertNewStaff.setInt(7, hotelID); 
+                    }
+                    jdbcPrep_insertNewStaff.executeUpdate();
+    
+                    // If success, commit
+                    jdbc_connection.commit();
+                    
+                    // Then, tell the user about the success
+                    if (reportSuccess) {
+                        jdbc_result = jdbcPrep_getNewestStaffID.executeQuery();
+                        jdbc_result.next();
+                        newStaffID = jdbc_result.getInt(1);
+                        System.out.println("\n'" + name + "' staff member added (staff ID: " + newStaffID + ")!\n");
+                    }
+                    
+                }
+                catch (Throwable err) {
+                    
+                    // Handle error
+                    handleError(err);
+                    
+                    // Roll back the entire transaction
+                    jdbc_connection.rollback();
+                    
+                }
+                finally {
+                    // Restore normal auto-commit mode
+                    jdbc_connection.setAutoCommit(true);
+                }
+            
             }
             
         }
@@ -3855,7 +4075,7 @@ public class WolfInns {
      * 
      * Arguments -  roomNumber    - Room number 
      *              hotelId       - Hotel to which the room belongs
-     *              category      - Room Category ('Economy', 'Deluxe', 'Executive Suite', 'Presidential Suite')
+     *              category      - Room Category ('Economy', 'Deluxe', 'Executive', 'Presidential')
      *              maxOccupancy  - Max Occupancy for the room
      *              nightlyRate   - Nightly rate for the room
      *              reportSuccess - True if need to print success message after method completes
@@ -3863,8 +4083,9 @@ public class WolfInns {
      * 
      * Modifications:   03/24/18 -  MTA -  Added method. 
      * 					03/25/18 -  MTA -  Updated method signature.
+     *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      */
-    public static void addRoom( int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate, boolean reportSuccess){
+    public static void addRoom(int roomNumber, int hotelId, String category, int maxOccupancy, int nightlyRate, boolean reportSuccess){
     
         try {
 
@@ -3913,7 +4134,7 @@ public class WolfInns {
         }
     }
   
-     /** 
+    /** 
      * DB Update: Add new customer
      * 
      * Arguments -  ssn           - Customer Social Security Number
@@ -3926,7 +4147,7 @@ public class WolfInns {
      * 
      * Modifications:   03/27/18 -  MTA -  Added method. 
      */
-    public static void addCustomer( String ssn, String name, String dob, String phoneNumber, String email, boolean reportSuccess){
+    public static void addCustomer(String ssn, String name, String dob, String phoneNumber, String email, boolean reportSuccess){
     
         try {
 
@@ -3979,15 +4200,16 @@ public class WolfInns {
     /** 
 	 * DB Update: Update customer details
 	 * 
-	 * Arguments -  ssn   - Customer Social Security Number 
-	 *              columnName    - Name of the column for Rooms table that is being updated 
-	 *              columnValue   - Value of column for Rooms table that is being updated 
-	 *              reportSuccess - True if need to print success message after method completes 
+	 * Arguments -  ID -               Customer ID 
+	 *              columnName -       Name of the column for Rooms table that is being updated 
+	 *              columnValue -      Value of column for Rooms table that is being updated 
+	 *              reportSuccess -    True if need to print success message after method completes 
 	 * Return -     None
 	 * 
-	 * Modifications:   03/28/18 -  MTA -  Added method. 
+	 * Modifications:  03/28/18 -  MTA -   Added method. 
+	 *                 04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
 	 */
-	public static void updateCustomer( String ssn, String columnName, String columnValue, boolean reportSuccess){
+	public static void updateCustomer(String ID, String columnName, String columnValue, boolean reportSuccess){
 	
 	    try {
 	
@@ -3997,35 +4219,36 @@ public class WolfInns {
 	        try {
 	        	
 	        	switch (columnName) {
-				case "Name":
-					jdbcPrep_updateCustomerName.setString(1, columnValue); 
-					jdbcPrep_updateCustomerName.setLong(2, Long.parseLong(ssn)); 
-					jdbcPrep_updateCustomerName.executeUpdate();
-					break;
-					
-				case "DOB":
-					jdbcPrep_updateCustomerDateOfBirth.setString(1, columnValue); 
-					jdbcPrep_updateCustomerDateOfBirth.setLong(2, Long.parseLong(ssn)); 
-					jdbcPrep_updateCustomerDateOfBirth.executeUpdate();
-					break;
-					
-				case "PhoneNum":
-					jdbcPrep_updateCustomerPhoneNumber.setString(1, columnValue); 
-					jdbcPrep_updateCustomerPhoneNumber.setLong(2, Long.parseLong(ssn)); 
-					jdbcPrep_updateCustomerPhoneNumber.executeUpdate();
-					break;
-					
-				case "Email":
-					jdbcPrep_updateCustomerEmail.setString(1, columnValue); 
-					jdbcPrep_updateCustomerEmail.setLong(2, Long.parseLong(ssn)); 
-					jdbcPrep_updateCustomerEmail.executeUpdate();
-					break;
-
-				default:
-					System.out.println(
-                        "\nCannot update the '" + columnName + "' attribute of customer, because this is not a recognized attribute for Wolf Inns Customers\n"
-                    );
-					break;
+                    case "SSN":
+                        jdbcPrep_updateCustomerSSN.setString(1, columnValue); 
+                        jdbcPrep_updateCustomerSSN.setInt(2, Integer.parseInt(ID)); 
+                        jdbcPrep_updateCustomerSSN.executeUpdate();
+                        break;
+    				case "Name":
+    					jdbcPrep_updateCustomerName.setString(1, columnValue); 
+    					jdbcPrep_updateCustomerName.setInt(2, Integer.parseInt(ID)); 
+    					jdbcPrep_updateCustomerName.executeUpdate();
+    					break;
+    				case "DOB":
+    					jdbcPrep_updateCustomerDateOfBirth.setString(1, columnValue); 
+    					jdbcPrep_updateCustomerDateOfBirth.setInt(2, Integer.parseInt(ID)); 
+    					jdbcPrep_updateCustomerDateOfBirth.executeUpdate();
+    					break;
+    				case "PhoneNum":
+    					jdbcPrep_updateCustomerPhoneNumber.setString(1, columnValue); 
+    					jdbcPrep_updateCustomerPhoneNumber.setInt(2, Integer.parseInt(ID)); 
+    					jdbcPrep_updateCustomerPhoneNumber.executeUpdate();
+    					break;
+    				case "Email":
+    					jdbcPrep_updateCustomerEmail.setString(1, columnValue); 
+    					jdbcPrep_updateCustomerEmail.setInt(2, Integer.parseInt(ID)); 
+    					jdbcPrep_updateCustomerEmail.executeUpdate();
+    					break;
+    				default:
+    					System.out.println(
+                            "\nCannot update the '" + columnName + "' attribute of customer, because this is not a recognized attribute for Wolf Inns Customers\n"
+                        );
+    					break;
 				}
 	        	 
 	            // If success, commit
@@ -4068,7 +4291,7 @@ public class WolfInns {
 	 * 
 	 * Modifications:   03/25/18 -  MTA -  Added method. 
 	 */
-	public static void updateRoom( int roomNumber, int hotelId, String columnName, String columnValue, boolean reportSuccess){
+	public static void updateRoom(int roomNumber, int hotelId, String columnName, String columnValue, boolean reportSuccess){
 	
 	    try {
 	
@@ -4201,13 +4424,14 @@ public class WolfInns {
     /** 
      * DB Update: Delete customer
      * 
-     * Arguments -  ssn       -  Customer Social Security Number 
+     * Arguments -  ID -            Customer ID
      *              reportSuccess - True if need to print success message after method completes
      * Return -     None
      * 
-     * Modifications:   03/28/18 -  MTA -  Added method. 
+     * Modifications:   03/28/18 -  MTA -   Added method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static void deleteCustomer(String ssn, boolean reportSuccess) {
+    public static void deleteCustomer(String ID, boolean reportSuccess) {
     	try {
 
             // Start transaction
@@ -4215,7 +4439,7 @@ public class WolfInns {
             
             try {                      
   
-            	jdbcPrep_deleteCustomer.setLong(1, Long.parseLong(ssn)); 
+            	jdbcPrep_deleteCustomer.setInt(1, Integer.parseInt(ID)); 
             	
             	jdbcPrep_deleteCustomer.executeUpdate();
 
@@ -4251,7 +4475,7 @@ public class WolfInns {
      * 
      * Arguments -  roomNum -           The room the customer will stay in
      *              hotelID -           The hotel the customer will stay in
-     *              customerSSN -       The customer's SSN
+     *              customerID -        The customer's ID
      *              numGuests -         The number of guests staying in the room
      *              paymentMethod -     The method of payment (card, etc).
      *              cardType -          The type of card (or blank string if not paying with card)
@@ -4263,11 +4487,13 @@ public class WolfInns {
      * Modifications:   04/01/18 -  ATTD -  Created method.
      *                  04/02/18 -  ATTD -  Do not assign room if number of guests exceeds maximum occupancy.
      *                  04/04/18 -  ATTD -  Debug assigning a room to a customer.
+     *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
+     *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void updateInsertStay (
         int roomNum, 
         int hotelID, 
-        long customerSSN,
+        int customerID,
         int numGuests, 
         String paymentMethod, 
         String cardType, 
@@ -4297,7 +4523,7 @@ public class WolfInns {
                 /* Insert new stay, using prepared statement
                  * If the payment method is not "CARD", pass NULL for card type, card number, and billing address
                  * Indices to use when calling this prepared statement:
-                 * 1 -  Customer SSN
+                 * 1 -  Customer ID
                  * 2 -  Number of guests
                  * 3 -  Payment method
                  * 4 -  Card type
@@ -4311,7 +4537,7 @@ public class WolfInns {
                  * 12 - Billing address (again)
                  * 13 - Number of guests (again)
                  */
-                jdbcPrep_assignRoom.setLong(1, customerSSN);
+                jdbcPrep_assignRoom.setInt(1, customerID);
                 jdbcPrep_assignRoom.setInt(2, numGuests);
                 jdbcPrep_assignRoom.setInt(13, numGuests);
                 jdbcPrep_assignRoom.setString(3, paymentMethod);
@@ -4350,7 +4576,7 @@ public class WolfInns {
                 while (jdbc_result.next()) {
                     roomType = jdbc_result.getString("Category");     
                 }
-                if (roomType == "PRESIDENTIAL_SUITE") {
+                if (roomType == "Presidential") {
                     jdbcPrep_assignDedicatedStaff.setInt(1, hotelID);
                     jdbcPrep_assignDedicatedStaff.setInt(2, roomNum);
                     jdbcPrep_assignDedicatedStaff.setInt(3, hotelID);
@@ -4479,7 +4705,7 @@ public class WolfInns {
      *              checkInTime -       The start time of the guest stay
      *              roomNum -           The room the customer will stay in
      *              hotelID -           The hotel the customer will stay in
-     *              customerSSN -       The customer's SSN
+     *              customerID -        The customer's ID
      *              numGuests -         The number of guests staying in the room
      *              checkOutTime -      The end time of the guest stay (or blank string if stay is ongoing)
      *              endDate -           The end date of the guest stay (or blank string if stay is ongoing)
@@ -4490,13 +4716,14 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   04/04/18 -  ATTD -  Created method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void updateInsertStayNoSafetyChecks (
         String startDate,
         String checkInTime,
         int roomNum, 
         int hotelID, 
-        long customerSSN,
+        int customerID,
         int numGuests, 
         String checkOutTime,
         String endDate,
@@ -4515,7 +4742,7 @@ public class WolfInns {
              * 2 -  check in time
              * 3 -  room number
              * 4 -  hotel ID
-             * 5 -  customer SSN
+             * 5 -  customer ID
              * 6 -  number of guests
              * 7 -  check out time
              * 8 -  end date
@@ -4528,7 +4755,7 @@ public class WolfInns {
             jdbcPrep_addStayNoSafetyChecks.setTime(2, java.sql.Time.valueOf(checkInTime));
             jdbcPrep_addStayNoSafetyChecks.setInt(3, roomNum);
             jdbcPrep_addStayNoSafetyChecks.setInt(4, hotelID);
-            jdbcPrep_addStayNoSafetyChecks.setLong(5, customerSSN);
+            jdbcPrep_addStayNoSafetyChecks.setInt(5, customerID);
             jdbcPrep_addStayNoSafetyChecks.setInt(6, numGuests);
             if (checkOutTime.length() > 0 && endDate.length() > 0) {
                 jdbcPrep_addStayNoSafetyChecks.setTime(7, java.sql.Time.valueOf(checkOutTime));
@@ -4675,16 +4902,17 @@ public class WolfInns {
     /** 
      * DB Check: Check if customer exists in Customers table
      * 
-     * Arguments -  ssn       - Customer SSN  
-     * Return -     boolean   - True if the customer is present in Customers table
+     * Arguments -  ID -        Customer ID  
+     * Return -     boolean -   True if the customer is present in Customers table
       * 
-     * Modifications:   03/28/18 -  MTA -  Added method. 
+     * Modifications:   03/28/18 -  MTA -   Added method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static boolean isValidCustomer(String ssn){  
+    public static boolean isValidCustomer(String ID){  
     	
     	try {      		
 	        try {				
-	        	jdbcPrep_isValidCustomer.setLong(1, Long.parseLong(ssn)); 
+	        	jdbcPrep_isValidCustomer.setInt(1, Integer.parseInt(ID)); 
 				 
 				 ResultSet rs = jdbcPrep_isValidCustomer.executeQuery();
 				 int cnt = 0;
@@ -4712,16 +4940,17 @@ public class WolfInns {
     /** 
      * DB Check: Check if customer is associated with current guest stay 
      * 
-     * Arguments -  ssn       - Room number                 
-     * Return -     boolean   - True if the customer is associated with current guest stay 
+     * Arguments -  ID -        Customer ID              
+     * Return -     boolean-    True if the customer is associated with current guest stay 
      * 
-     * Modifications:   03/28/18 -  MTA -  Added method. 
+     * Modifications:   03/28/18 -  MTA -   Added method.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static boolean isCustomerCurrentlyStaying(String ssn){  
+    public static boolean isCustomerCurrentlyStaying(String ID){  
     	
     	try {      		
 	        try {	        				 
-				 jdbcPrep_isCustomerCurrentlyStaying.setLong(1, Long.parseLong(ssn)); 
+				 jdbcPrep_isCustomerCurrentlyStaying.setInt(1, Integer.parseInt(ID)); 
 				 
 				 ResultSet rs = jdbcPrep_isCustomerCurrentlyStaying.executeQuery();
 				 int cnt = 0;
@@ -4757,6 +4986,7 @@ public class WolfInns {
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  03/24/18 -  MTA -   Handle primary key violation.
      *                  03/28/18 -  ATTD -  Handle unknown column in WHERE clause.
+     *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
     public static void handleError(Throwable err, String... pkViolation) {
         
@@ -4842,9 +5072,9 @@ public class WolfInns {
                     "\nCannot use this combination of room number / hotel ID the stay, because it is not registered as a Wolf Inns hotel room\n"
                 );
             }
-            else if (errorMessage.contains("FK_STAYCSSN")) {
+            else if (errorMessage.contains("FK_STAYCID")) {
                 System.out.println(
-                    "\nCannot use this customer SSN the stay, because there is no registered Wolf Inns customer with that SSN\n"
+                    "\nCannot use this customer ID the stay, because there is no registered Wolf Inns customer with that ID\n"
                 );
             }
             else if (errorMessage.contains("PK_STAYS")) {
@@ -4856,17 +5086,17 @@ public class WolfInns {
             // PROVIDED constraint violated
             else if (errorMessage.contains("FK_PROVSTAYID")) {
                 System.out.println(
-                    "\nCannot use this stay ID for the provided service, because it is not registerd as a Wolf Inns customer stay\n"
+                    "\nCannot use this stay ID for the provided service, because it is not registered as a Wolf Inns customer stay\n"
                 );
             }
             else if (errorMessage.contains("FK_PROVSTAFFID")) {
                 System.out.println(
-                    "\nCannot use this staff member for the provided service, because they are not registerd as a Wolf Inns staff member\n"
+                    "\nCannot use this staff member for the provided service, because they are not registered as a Wolf Inns staff member\n"
                 );
             }
             else if (errorMessage.contains("FK_PROVSERV")) {
                 System.out.println(
-                    "\nCannot use this service name for the provided service, because it is not registerd as a Wolf Inns available service\n"
+                    "\nCannot use this service name for the provided service, because it is not registered as a Wolf Inns available service\n"
                 );
             }
             else if (errorMessage.contains("PK_PROVIDED")) {
@@ -4878,7 +5108,7 @@ public class WolfInns {
             // Customer constraint violated
             else if (errorMessage.contains("PK_CUSTOMERS") || (pkViolation.length > 0 && pkViolation[0].contains("PK_CUSTOMERS"))) {
                 System.out.println(
-                    "\nCannot use this SSN for the customer, because it is already used for another customer\n"
+                    "\nCannot use this ID for the customer, because it is already used for another customer\n"
                 );
             }
             
@@ -4951,6 +5181,10 @@ public class WolfInns {
      *                                      Add ability to check if rooms are available.
      *                  03/27/18 -  MTA -   Add ability to add, update and delete customer.
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
+     *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
+     *                                          no longer makes sense with tables populated with demo data.
      */
     public static void main(String[] args) {
         
@@ -5186,6 +5420,7 @@ public class WolfInns {
             jdbcPrep_updateHotelStreetAddress.close();
             jdbcPrep_updateHotelCity.close();
             jdbcPrep_udpateHotelState.close();
+            jdbcPrep_updateHotelZip.close();
             jdbcPrep_updateHotelPhoneNum.close();
             jdbcPrep_updateHotelManagerID.close();
             jdbcPrep_demoteOldManager.close();
@@ -5206,7 +5441,6 @@ public class WolfInns {
             jdbcPrep_updateStaffPhoneNum.close(); 
             jdbcPrep_updateStaffAddress.close(); 
             jdbcPrep_updateStaffHotelID.close();
-            jdbcPrep_updateStaffRangeHotelID.close();
             jdbcPrep_getStaffByID.close();
             jdbcPrep_deleteStaff.close();
             // Rooms
@@ -5226,12 +5460,13 @@ public class WolfInns {
             jdbcPrep_releaseDedicatedStaff.close();
             // Customers
             jdbcPrep_insertNewCustomer.close();
+            jdbcPrep_updateCustomerSSN.close();
             jdbcPrep_updateCustomerName.close();
             jdbcPrep_updateCustomerDateOfBirth.close();
             jdbcPrep_updateCustomerPhoneNumber.close();
             jdbcPrep_updateCustomerEmail.close();
             jdbcPrep_deleteCustomer.close();
-            jdbcPrep_getCustomerBySSN.close();
+            jdbcPrep_getCustomerByID.close();
             jdbcPrep_isValidCustomer.close();                 
             jdbcPrep_isCustomerCurrentlyStaying.close();
             // Stays
