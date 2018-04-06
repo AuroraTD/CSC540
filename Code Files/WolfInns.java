@@ -35,50 +35,50 @@ public class WolfInns {
     
     // Declare constants - commands
     
-    // TODO: might be good to change capitalization to make these easier to read on the console
+    private static final String CMD_MAIN =                                  "MAIN";
+    private static final String CMD_QUIT =                                  "QUIT";
+    private static final String CMD_FRONTDESK =                             "FRONTDESK";
+    private static final String CMD_REPORTS =                               "REPORTS";
+    private static final String CMD_MANAGE =                                "MANAGE";
     
-    private static final String CMD_MAIN =                  "MAIN";
-    private static final String CMD_QUIT =                  "QUIT";
-    private static final String CMD_FRONTDESK =             "FRONTDESK";
-    private static final String CMD_REPORTS =               "REPORTS";
-    private static final String CMD_MANAGE =                "MANAGE";
+    private static final String CMD_FRONTDESK_AVAILABLE =                   "AVAILABILITY";
+    private static final String CMD_FRONTDESK_ASSIGN =                      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_CHECKOUT =                    "CHECKOUT";
+    private static final String CMD_FRONTDESK_ENTER_SERVICE =               "ENTERSERVICERECORD";
     
-    private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
-    private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
-    private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
-    private static final String CMD_FRONTDESK_ENTER_SERVICE =    "ENTERSERVICERECORD";
+    private static final String CMD_REPORT_REVENUE =                        "REVENUE";
+    private static final String CMD_REPORT_HOTELS =                         "HOTELS";
+    private static final String CMD_REPORT_ROOMS =                          "ROOMS";
+    private static final String CMD_REPORT_STAFF =                          "STAFF";
+    private static final String CMD_REPORT_CUSTOMERS =                      "CUSTOMERS";
+    private static final String CMD_REPORT_STAYS =                          "STAYS";
+    private static final String CMD_REPORT_SERVICES =                       "SERVICES";
+    private static final String CMD_REPORT_PROVIDED =                       "PROVIDED";
     
-    private static final String CMD_REPORT_REVENUE =        "REVENUE";
-    private static final String CMD_REPORT_HOTELS =         "HOTELS";
-    private static final String CMD_REPORT_ROOMS =          "ROOMS";
-    private static final String CMD_REPORT_STAFF =          "STAFF";
-    private static final String CMD_REPORT_CUSTOMERS =      "CUSTOMERS";
-    private static final String CMD_REPORT_STAYS =          "STAYS";
-    private static final String CMD_REPORT_SERVICES =       "SERVICES";
-    private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL =             "OCCUPANCYBYHOTEL";
     private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE =         "OCCUPANCYBYROOMTYPE";
     private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE =        "OCCUPANCYBYDATERANGE";
     private static final String CMD_REPORT_OCCUPANCY_BY_CITY =              "OCCUPANCYBYCITY";
     private static final String CMD_REPORT_TOTAL_OCCUPANCY =                "TOTALOCCUPANCY";
     private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED =   "PERCENTAGEOFROOMSOCCUPIED";
+    
     private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE =          "STAFFGROUPEDBYROLE";
     private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY =      "STAFFSERVINGDURINGSTAY";
     
-    private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
-    private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
-    private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
-    private static final String CMD_MANAGE_STAFF_ADD =      "ADDSTAFF";
-    private static final String CMD_MANAGE_STAFF_UPDATE =   "UPDATESTAFF";
-    private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
+    private static final String CMD_MANAGE_HOTEL_ADD =                      "ADDHOTEL";
+    private static final String CMD_MANAGE_HOTEL_UPDATE =                   "UPDATEHOTEL";
+    private static final String CMD_MANAGE_HOTEL_DELETE =                   "DELETEHOTEL";
+    private static final String CMD_MANAGE_STAFF_ADD =                      "ADDSTAFF";
+    private static final String CMD_MANAGE_STAFF_UPDATE =                   "UPDATESTAFF";
+    private static final String CMD_MANAGE_STAFF_DELETE =                   "DELETESTAFF";
     
-    private static final String CMD_MANAGE_ROOM_ADD =       "ADDROOM";
-    private static final String CMD_MANAGE_ROOM_UPDATE =    "UPDATEROOM";
-    private static final String CMD_MANAGE_ROOM_DELETE =    "DELETEROOM"; 
+    private static final String CMD_MANAGE_ROOM_ADD =                       "ADDROOM";
+    private static final String CMD_MANAGE_ROOM_UPDATE =                    "UPDATEROOM";
+    private static final String CMD_MANAGE_ROOM_DELETE =                    "DELETEROOM"; 
     
-    private static final String CMD_MANAGE_CUSTOMER_ADD =     "ADDCUSTOMER";
-    private static final String CMD_MANAGE_CUSTOMER_UPDATE =  "UPDATECUSTOMER";
-    private static final String CMD_MANAGE_CUSTOMER_DELETE =  "DELETECUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_ADD =                   "ADDCUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_UPDATE =                "UPDATECUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_DELETE =                "DELETECUSTOMER";
     
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
