@@ -14,10 +14,19 @@
  */
 
 // Imports
-import java.util.Scanner;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Scanner;
 
 // WolfInns class
 public class WolfInns {
@@ -46,6 +55,12 @@ public class WolfInns {
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
     private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
+    private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE = "OCCUPANCYBYDATERANGE";
+    private static final String CMD_REPORT_OCCUPANCY_BY_CITY = "OCCUPANCYBYCITY";
+    private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
+    private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED = "PERCENTAGEOFROOMSOCCUPIED";
+    private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE = "STAFFGROUPEDBYROLE";
+    private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY = "STAFFSERVINGDURINGSTAY";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -144,6 +159,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateAmountOwed;
     private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
     private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
+    private static PreparedStatement jdbcPrep_isValidStayId;
     
     // Declare variables - prepared statements - Table reporting
     private static PreparedStatement jdbcPrep_reportTableRooms;
@@ -153,6 +169,13 @@ public class WolfInns {
     // Declare variables - prepared statements - Reports
     private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
     private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
+    private static PreparedStatement jdbcPrep_reportOccupancyByDateRange;
+    private static PreparedStatement jdbcPrep_reportOccupancyByCity;
+    private static PreparedStatement jdbcPrep_reportTotalOccupancy;
+    private static PreparedStatement jdbcPrep_reportPercentageOfRoomsOccupied;
+    private static PreparedStatement jdbcPrep_reportStaffGroupedByRole;
+    private static PreparedStatement jdbcPrep_reportStaffServingDuringStay;
+    private static PreparedStatement jdbcPrep_reportHotelRevenueByDateRange;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -235,7 +258,19 @@ public class WolfInns {
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_HOTEL + "'");
                     System.out.println("\t- run report on occupancy by hotel"); 
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE + "'");
-                    System.out.println("\t- run report on occupancy by room type");                     
+                    System.out.println("\t- run report on occupancy by room type");  
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_DATE_RANGE + "'");
+                    System.out.println("\t- run report on occupancy by date range"); 
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_CITY + "'");
+                    System.out.println("\t- run report on occupancy by city");  
+                    System.out.println("'" + CMD_REPORT_TOTAL_OCCUPANCY + "'");
+                    System.out.println("\t- run report on total occupancy");  
+                    System.out.println("'" + CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED + "'");
+                    System.out.println("\t- run report on percentage of rooms occupied");                     
+                    System.out.println("'" + CMD_REPORT_STAFF_GROUPED_BY_ROLE + "'");
+                    System.out.println("\t- run report on staff grouped by role");
+                    System.out.println("'" + CMD_REPORT_STAFF_SERVING_DURING_STAY + "'");
+                    System.out.println("\t- run report on staff serving the customer during the stay");                    
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -965,6 +1000,10 @@ public class WolfInns {
             reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
             jdbcPrep_updateCheckOutTimeAndEndDate = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Check if Stay id exists in the Stays table
+            reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE ID = ?;";
+            jdbcPrep_isValidStayId = jdbc_connection.prepareStatement(reusedSQLVar);
+                        
             // Report Occupancy By Hotel
             reusedSQLVar = "SELECT " +
             				"HotelID, " +
@@ -1001,6 +1040,74 @@ public class WolfInns {
             				") AS X " +
             				"GROUP BY Category; ";
             jdbcPrep_reportOccupancyByRoomType = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By Date Range
+            reusedSQLVar = "SELECT SUM(OccupiedFlag) AS RoomsOccupied " +
+            				"FROM ( " +
+            				"SELECT RoomNum, HotelID, IF (count(*) > 0, 1, 0) AS OccupiedFlag " + 
+            				"FROM Stays WHERE " +
+            				"StartDate <= ? AND " + 
+            				"CURDATE() >= ? AND " +
+            				"(EndDate >= ? OR EndDate IS NULL) " +
+            				" GROUP BY RoomNum, HotelID " +
+            				") AS X; ";
+            jdbcPrep_reportOccupancyByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By City
+            reusedSQLVar = "SELECT " +
+            				"City, " +
+            				"count(*) AS TotalRooms, " +
+            				"COALESCE(SUM(OccupiedFlag),0) AS OccupiedRooms, " +
+            				"count(*) - COALESCE(SUM(OccupiedFlag),0) AS AvailableRooms " +
+            				"FROM ( " +
+            				"Rooms NATURAL LEFT OUTER JOIN  " +
+            				"( " +
+            				"SELECT RoomNum, HotelID, 1 AS OccupiedFlag " +
+            				"FROM Stays AS X  " +
+            				"WHERE CheckOutTime IS NULL OR EndDate IS NULL " +
+            				") AS Y NATURAL LEFT OUTER JOIN " +
+            				"(SELECT ID AS HotelID, City FROM Hotels) AS Z" +
+            				") " +
+            				"GROUP BY City; ";
+            jdbcPrep_reportOccupancyByCity = jdbc_connection.prepareStatement(reusedSQLVar);                        
+
+            // Report Total Occupancy
+            reusedSQLVar = "SELECT count(*) AS TotalOccupancy " +
+            				"FROM Stays " +
+            				"WHERE " +
+            				"CheckOutTime IS NULL OR " +
+            				"EndDate IS NULL; ";
+            jdbcPrep_reportTotalOccupancy = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Percentage Of Rooms Occupied
+            reusedSQLVar = "SELECT (SUM(OccupiedFlag) / count(*)) * 100 AS PercentOccupied " +
+            				"FROM ( " +
+            				"Rooms NATURAL LEFT OUTER JOIN " +
+            				"( " +
+            				"SELECT RoomNum, HotelID, 1 AS OccupiedFlag " +
+            				"FROM Stays AS X " +
+            				"WHERE CheckOutTime IS NULL OR EndDate IS NULL " +
+            				") AS Y); ";
+            jdbcPrep_reportPercentageOfRoomsOccupied = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Staff grouped by role
+            reusedSQLVar = "SELECT * FROM Staff ORDER BY JobTitle; ";
+            jdbcPrep_reportStaffGroupedByRole = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Staff serving the customer during stay
+            reusedSQLVar = "SELECT ServiceName, StaffID, Name, JobTitle, Dep " + 
+            				"FROM Provided, Staff " +
+            				"WHERE Provided.StaffID = Staff.ID AND StayID = ?;" ;
+            jdbcPrep_reportStaffServingDuringStay = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            // Report Hotel revenue during given date range
+            reusedSQLVar = "SELECT SUM(AmountOwed) AS Revenue " + 
+            				"FROM Stays " +
+            				"WHERE ( " +
+            				"HotelID = ? AND " +
+            				"EndDate >= ? " +
+            				"AND EndDate <= ? );" ;
+            jdbcPrep_reportHotelRevenueByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);                    
                                   
         }
         catch (Throwable err) {
@@ -2377,6 +2484,220 @@ public class WolfInns {
         }
                         
     }
+    
+    /** 
+     * Report task: Report occupancy by date range
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByDateRange() {
+  
+    	try { 
+    		  
+    		String startDate = getValidDataFromUser("REPORT_BY_DATE_RANGE", "StartDate", "Enter the start date (in format YYYY-MM-DD)");
+			if (!startDate.equalsIgnoreCase("<QUIT>")) {
+				
+				String endDate = getValidDataFromUser("REPORT_BY_DATE_RANGE", "EndDate", "Enter the end date (in format YYYY-MM-DD)", startDate);
+				if (!endDate.equalsIgnoreCase("<QUIT>")) { 
+					
+					// Get the report data and display the results
+					getOccupancyByDateRange(startDate, endDate);
+					
+				}                		                	
+			}                                	
+    	}		 
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
+    
+    
+    /** 
+     * Report task: Report occupancy by city
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByCity() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportOccupancyByCity.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting occupancy By City:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+        
+    /** 
+     * Report task: Report total occupancy
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportTotalOccupancy() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportTotalOccupancy.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting total occupancy:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+  
+    /** 
+     * Report task: Report percentage of rooms occupied
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportPercentageOfRoomsOccupied() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportPercentageOfRoomsOccupied.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting percentage of rooms occupied:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+    
+    /** 
+     * Report task: Report staff grouped by role
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportStaffGroupedByRole() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportStaffGroupedByRole.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting staff grouped by their role:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+    /** 
+     * Report task: Report staff serving the customer during stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportStaffServingDuringStay() {
+  
+    	try { 
+  		  
+    		String stayId = getValidDataFromUser("REPORT_STAFF_BY_STAY", "StayID", "Enter the stay id");
+			if (!stayId.equalsIgnoreCase("<QUIT>")) {
+				
+				// Get the report data and display the results
+				getStaffServingDuringStay(stayId);
+				               		                	
+			}                                	
+    	}		 
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+    /** 
+     * Report task: Report staff serving customer during stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void getStaffServingDuringStay(String stayId) {
+  
+        try {
+                        
+            jdbcPrep_reportStaffServingDuringStay.setInt(1, Integer.parseInt(stayId)); 
+            jdbc_result = jdbcPrep_reportStaffServingDuringStay.executeQuery();
+                                     
+            // Print result
+            System.out.println("\nReporting staff serving customer during their stay:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
+    
+        
+    /** 
+     * Report task: Report occupancy by date range
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void getOccupancyByDateRange(String startDate, String endDate) {
+  
+        try {
+                        
+            jdbcPrep_reportOccupancyByDateRange.setDate(1, java.sql.Date.valueOf(endDate));
+            jdbcPrep_reportOccupancyByDateRange.setDate(2, java.sql.Date.valueOf(startDate));
+            jdbcPrep_reportOccupancyByDateRange.setDate(3, java.sql.Date.valueOf(startDate));
+            jdbc_result = jdbcPrep_reportOccupancyByDateRange.executeQuery();
+                                     
+            // Print result
+            System.out.println("\nReporting occupancy from " + startDate + " to " + endDate);
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
 
     /** 
      * Report task: Report all results from a given table
@@ -3202,8 +3523,9 @@ public class WolfInns {
      *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
      *                                      - for developer ease
      *                                      - because "isValueSane" method uses table attribute names
- *                      04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
- *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
+     *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/05/18 -  MTA -   Added validations for Start and End Date fields while generating report by date range
      */
     public static String getValidDataFromUser (String operation, String fieldName, String message, String...params ){
     	
@@ -3311,7 +3633,68 @@ public class WolfInns {
         		    isValid = isSane;
         		}
         		   
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("StartDate")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+        		 
+    			if (isSane) {  
+    				// Extra checks for Start Date when reporting occupancy by date range :
+        			// 1. Check if the Start Date is less than current date
+    				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd"); 
+            		Date currentDate,startDate;
+    				try {
+    					currentDate = new Date();
+    					startDate = df.parse(value);
+    					boolean isValidStartDate = startDate.before(currentDate);
+            			if (isValidStartDate) { 
+            				isValid = true;  
+            			} else {
+            				System.out.println("ERROR: Entered start date must be less than the current date");
+            			}  
+    				} catch (ParseException e) {
+    					System.out.println("Start Date must be entered in the format 'YYYY-MM-DD'");
+    					e.printStackTrace();
+    				}  
+    			}  
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("EndDate")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+        		 
+    			if (isSane) {  
+    				// Extra checks for End Date when reporting occupancy by date range :        			
+    				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd"); 
+            		Date startDate, endDate;
+    				try { 
+    					endDate = df.parse(value);
+    					startDate = df.parse(params[0]);
+    					// 1. End Date is after Start Date
+            			if (endDate.after(startDate)) { 
+            				isValid = true;  
+            			} else {
+            				System.out.println("ERROR: Entered end date must be greater than the start date");
+            			}  
+    				} catch (ParseException e) {
+    					System.out.println("End Date must be entered in the format 'YYYY-MM-DD'");
+    					e.printStackTrace();
+    				}  
+    			}  
         	}  
+        	
+        	else if (fieldName.equalsIgnoreCase("StayID")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+    			if (isSane) {  
+    				// Extra checks for Stay id when reporting Staff serving customer during stay:
+        			// 1. Check if the Stay id is valid
+        			boolean isValidStayId = isValidStayId(Integer.parseInt(value));
+        			if (isValidStayId) { 
+        				isValid = true;  
+        			} else {
+        				System.out.println("ERROR: The entered stay id does not exist in database");
+        			}  
+    			}  
+        	}
         	
         	else {
         		isValid = isValueSane(fieldName, value);
@@ -3811,26 +4194,36 @@ public class WolfInns {
         try {
             
             // Declare variables
-            double revenue;
+            double revenue = 0.0;
             NumberFormat currency;
 
             /* Get revenue for one hotel from a date range
              * Revenue is earned when the guest checks OUT
              * So we always look at the end date for the customer's stay
              * No transaction needed for a query
-             */
-            // TODO: use prepared statement instead
-            jdbc_result = jdbc_statement.executeQuery("SELECT SUM(AmountOwed) " + 
-                "FROM Stays " +
-                "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
-            
-            jdbc_result.next();
-            revenue = jdbc_result.getDouble(1);
-            
-            // Print report
-            currency = NumberFormat.getCurrencyInstance();
-            System.out.println("\nRevenue earned: " + currency.format(revenue) + "\n");
-            
+             */            
+            try {
+                
+                jdbcPrep_reportHotelRevenueByDateRange.setInt(1, hotelID);
+                jdbcPrep_reportHotelRevenueByDateRange.setDate(2, java.sql.Date.valueOf(queryStartDate));
+                jdbcPrep_reportHotelRevenueByDateRange.setDate(3, java.sql.Date.valueOf(queryEndDate));
+                jdbc_result = jdbcPrep_reportHotelRevenueByDateRange.executeQuery();
+                                         
+                // Print report
+                ResultSet rs = jdbcPrep_reportHotelRevenueByDateRange.executeQuery(); 
+				 
+				while (rs.next()) {
+					revenue = rs.getDouble("Revenue"); 	
+				}
+				// Print report
+                currency = NumberFormat.getCurrencyInstance();
+                System.out.println("\nRevenue earned: " + currency.format(revenue) + "\n");
+                
+            }
+            catch (Throwable err) {
+                handleError(err);
+            }
+                  
         }
         catch (Throwable err) {
             handleError(err);
@@ -5214,6 +5607,43 @@ public class WolfInns {
     }
     
     /** 
+     * DB Check: Check if given stay id exists in the database
+     * 
+     * Arguments -  stayId       - Stay Id  
+     * Return -     boolean       - True if the stay id exists
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method. 
+     */
+    public static boolean isValidStayId(int stayId) {
+    	try {   	        
+    		try {  				 
+    			jdbcPrep_isValidStayId.setInt(1, stayId); 
+				 
+				 ResultSet rs = jdbcPrep_isValidStayId.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        }  
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    
+    /** 
      * General error handler
      * Turn obscure error stack into human-understandable feedback
      * 
@@ -5559,6 +5989,24 @@ public class WolfInns {
                             case CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE:
                             	reportOccupancyByRoomType();
                             	break;
+                            case CMD_REPORT_OCCUPANCY_BY_DATE_RANGE:
+                            	reportOccupancyByDateRange();
+                            	break;
+                            case CMD_REPORT_OCCUPANCY_BY_CITY:
+                            	reportOccupancyByCity();
+                            	break;
+                            case CMD_REPORT_TOTAL_OCCUPANCY:
+                            	reportTotalOccupancy();
+                            	break;
+                            case CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED:
+                            	reportPercentageOfRoomsOccupied();
+                            	break;
+                            case CMD_REPORT_STAFF_GROUPED_BY_ROLE:
+                            	reportStaffGroupedByRole();
+                            	break;
+                            case CMD_REPORT_STAFF_SERVING_DURING_STAY:
+                            	reportStaffServingDuringStay();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5698,6 +6146,7 @@ public class WolfInns {
             jdbcPrep_getStayByRoomAndHotel.close();
             jdbcPrep_getItemizedReceipt.close();
             jdbcPrep_updateAmountOwed.close();
+            jdbcPrep_isValidStayId.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
@@ -5707,6 +6156,13 @@ public class WolfInns {
             // Reports
             jdbcPrep_reportOccupancyByHotel.close();
             jdbcPrep_reportOccupancyByRoomType.close();
+            jdbcPrep_reportOccupancyByDateRange.close();
+            jdbcPrep_reportOccupancyByCity.close();
+            jdbcPrep_reportTotalOccupancy.close();
+            jdbcPrep_reportPercentageOfRoomsOccupied.close();
+            jdbcPrep_reportStaffGroupedByRole.close();
+            jdbcPrep_reportStaffServingDuringStay.close();
+            jdbcPrep_reportHotelRevenueByDateRange.close();
             // Connection
             jdbc_connection.close();
         
