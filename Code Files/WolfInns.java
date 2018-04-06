@@ -58,6 +58,7 @@ public class WolfInns {
     private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE = "OCCUPANCYBYDATERANGE";
     private static final String CMD_REPORT_OCCUPANCY_BY_CITY = "OCCUPANCYBYCITY";
     private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
+    private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED = "PERCENTAGEOFROOMSOCCUPIED";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -168,6 +169,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_reportOccupancyByDateRange;
     private static PreparedStatement jdbcPrep_reportOccupancyByCity;
     private static PreparedStatement jdbcPrep_reportTotalOccupancy;
+    private static PreparedStatement jdbcPrep_reportPercentageOfRoomsOccupied;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -257,6 +259,8 @@ public class WolfInns {
                     System.out.println("\t- run report on occupancy by city");  
                     System.out.println("'" + CMD_REPORT_TOTAL_OCCUPANCY + "'");
                     System.out.println("\t- run report on total occupancy");  
+                    System.out.println("'" + CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED + "'");
+                    System.out.println("\t- run report on percentage of rooms occupied");                      
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -1060,6 +1064,18 @@ public class WolfInns {
             				"CheckOutTime IS NULL OR " +
             				"EndDate IS NULL; ";
             jdbcPrep_reportTotalOccupancy = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Percentage Of Rooms Occupied
+            reusedSQLVar = "SELECT (SUM(OccupiedFlag) / count(*)) * 100 AS PercentOccupied " +
+            				"FROM ( " +
+            				"Rooms NATURAL LEFT OUTER JOIN " +
+            				"( " +
+            				"SELECT RoomNum, HotelID, 1 AS OccupiedFlag " +
+            				"FROM Stays AS X " +
+            				"WHERE CheckOutTime IS NULL OR EndDate IS NULL " +
+            				") AS Y); ";
+            jdbcPrep_reportPercentageOfRoomsOccupied = jdbc_connection.prepareStatement(reusedSQLVar);
+            
                                   
         }
         catch (Throwable err) {
@@ -2509,6 +2525,32 @@ public class WolfInns {
 			 
             // Print result
             System.out.println("\nReporting total occupancy:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+  
+    /** 
+     * Report task: Report percentage of rooms occupied
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportPercentageOfRoomsOccupied() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportPercentageOfRoomsOccupied.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting percentage of rooms occupied:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -5785,6 +5827,9 @@ public class WolfInns {
                             case CMD_REPORT_TOTAL_OCCUPANCY:
                             	reportTotalOccupancy();
                             	break;
+                            case CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED:
+                            	reportPercentageOfRoomsOccupied();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5936,6 +5981,7 @@ public class WolfInns {
             jdbcPrep_reportOccupancyByDateRange.close();
             jdbcPrep_reportOccupancyByCity.close();
             jdbcPrep_reportTotalOccupancy.close();
+            jdbcPrep_reportPercentageOfRoomsOccupied.close();
             // Connection
             jdbc_connection.close();
         
