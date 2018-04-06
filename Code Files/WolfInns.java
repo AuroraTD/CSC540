@@ -34,8 +34,6 @@ public class WolfInns {
     
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
-    private static final String CMD_FRONTDESK_RELEASE =     "RELEASEROOM";
-    
     private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
     
     private static final String CMD_REPORT_REVENUE =        "REVENUE";
@@ -213,8 +211,6 @@ public class WolfInns {
                     System.out.println("\t- check room availability");
                     System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
                     System.out.println("\t- assign a room to a customer");
-                    System.out.println("'" + CMD_FRONTDESK_RELEASE + "'");
-                    System.out.println("\t- release a room");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -892,6 +888,7 @@ public class WolfInns {
              * Second, a relation showing costs incurred by getting extra services (catering, etc)
              * Indices to use when calling this prepared statement:
              * 1 -  stay ID
+             * 2 -  stay ID (again)
              */
             reusedSQLVar = 
                 "(" + 
@@ -1682,6 +1679,8 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
      *                                      Changing room categories to match those given in demo data.
      *                                      Populate Rooms table with demo data.
+     *                  04/05/18 -  ATTD -  Remove code to give presidential suite dedicated staff.
+     *                                      The room in question is not occupied at the time of application start-up!
      */
     public static void populateRoomsTable() {
         
@@ -1707,17 +1706,6 @@ public class WolfInns {
         		addRoom(2, 3, "Executive",    3, 1000,    false);
         		addRoom(1, 4, "Presidential", 4, 5000,    false);
         		addRoom(5, 1, "Deluxe",       2, 200,     false);
-        		
-        		/* Presidential suites require dedicated staff
-        		 * Signature for method called here:
-        		 * int roomNumber, 
-        		 * int hotelId, 
-        		 * String columnName, 
-        		 * String columnValue, 
-        		 * boolean reportSuccess
-                 */
-        		updateRoom(1, 4, "DRSStaff",  "107", false);
-        		updateRoom(1, 4, "DCStaff",   "108", false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -2216,38 +2204,9 @@ public class WolfInns {
         }
         
     }
-    
+
     /** 
-     * Front Desk task: Release a room
-     * 
-     * Arguments -  None
-     * Return -     None
-     * 
-     * Modifications:   04/04/18 -  MTA -  Added method. 
-     */
-    public static void frontDeskReleaseRoom() {
-        
-        try { 
-        	
-        	// Get the hotel id and room number to be released from the user
-        	String hotelId = getValidDataFromUser("RELEASE_ROOM", "HotelId", "Enter the hotel id for which you wish to release room "); 
-        	if (!hotelId.equalsIgnoreCase("<QUIT>")) {
-        		String roomNumber = getValidDataFromUser("RELEASE_ROOM", "RoomNum", "Enter the room number you wish to release ", hotelId);  
-        		if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
-	        		// Release the room
-	        		releaseRoom(hotelId, roomNumber, true); 
-        		}
-        	}                         
-        }
-        catch (Throwable err) {
-            handleError(err);
-        } 
-    }
-    
-    // BILLING
-    
-    /** 
-     * Billing task: Generate bill and itemized receipt for a customer's stay
+     * Front desk task: Check a customer out (generate itemized receipt & bill, release room)
      * 
      * Arguments -  None
      * Return -     None
@@ -2255,6 +2214,7 @@ public class WolfInns {
      * Modifications:   03/11/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/05/18 -  ATTD -  Improve user friendliness (help user find a stay ID to bill for).
+     *                                      Roll in release of room (written by Manjusha) for streamlined check-out process.
      */
     public static void checkCustomerOut() {
         
@@ -2284,17 +2244,25 @@ public class WolfInns {
                     printQueryResultSet(jdbc_result);
                     
                     // Get room number
-                    System.out.print("\nEnter the room  number you wish to check a customer out of\n> ");
+                    System.out.print("\nEnter the room number you wish to check a customer out of\n> ");
                     roomNum = scanner.nextLine();
                     if (isValueSane("RoomNum", roomNum)) {
-                        // Get stay ID based on room number and hotel
+
+                        /* Get stay ID based on room number and hotel BEFORE releasing room
+                         * (could be several stays with same room / hotel, we want unreleased stay)
+                         */
                         jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
                         jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
                         jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
                         jdbc_result.next();
                         stayID = jdbc_result.getInt(1);
-                        // Call method to actually interact with the DB
+                        
+                        // AFTER getting the stay ID (needs room to be UNreleased), release the room so another customer can use it
+                        releaseRoom(hotelID, roomNum);
+                        
+                        // Create itemized receipt & bill, print all info to console
                         queryItemizedReceipt(stayID, true);
+                        
                     }
                     
                 }
@@ -3750,23 +3718,31 @@ public class WolfInns {
             
             try {
                 
+                /* Pull out info that tells us whether the customer will get a discount
+                 * Columns in result:
+                 * 1 -  customer
+                 * 2 -  start date
+                 * 3 -  end date
+                 * 4 -  hotel
+                 * 5 -  room
+                 * 6 -  payment method
+                 * 7 -  card type
+                 */
+                jdbcPrep_getSummaryOfStay.setInt(1,stayID);
+                jdbc_result = jdbcPrep_getSummaryOfStay.executeQuery();
+                jdbc_result.next();
+                discountApplies = jdbc_result.getString(6).equalsIgnoreCase("CARD") && jdbc_result.getString(7).equalsIgnoreCase("HOTEL");
+                
                 // If reporting to screen, print a summary of the stay for context
                 if (reportResults) {
                     System.out.println("\nYour Stay:\n");
-                    jdbcPrep_getSummaryOfStay.setInt(1,stayID);
-                    jdbc_result = jdbcPrep_getSummaryOfStay.executeQuery();
+                    jdbc_result.beforeFirst();
                     printQueryResultSet(jdbc_result);
                 }
-                
-                /* Before overwriting this JDBC result, pull out info that tells us whether the customer will get a discount
-                 * Payment method is in column 5
-                 * Card type is in column 6
-                 */
-                jdbc_result.beforeFirst();
-                discountApplies = jdbc_result.getString(5).equalsIgnoreCase("CARD") && jdbc_result.getString(6).equalsIgnoreCase("HOTEL");
-                
+
                 // Generate an itemized receipt for the stay
                 jdbcPrep_getItemizedReceipt.setInt(1, stayID);
+                jdbcPrep_getItemizedReceipt.setInt(2, stayID);
                 jdbc_result = jdbcPrep_getItemizedReceipt.executeQuery();
                 
                 // Print the itemized receipt
@@ -4904,16 +4880,12 @@ public class WolfInns {
      * 
      * Arguments -  hotelID -           The hotel for the room to be released
      * 				roomNum -           The room number of the room to be released
-     *              reportSuccess -     True if we should print success message to console (should be false for mass population of hotels)
      * Return -     None
      * 
-     * Modifications:   04/04/18 -  MTA -  Added method
+     * Modifications:   04/04/18 -  MTA -   Added method.
+     *                  04/05/18 -  ATTD -  Remove unused reportSuccess argument.
      */
-    public static void releaseRoom ( 
-        String hotelID, 
-        String roomNum, 
-        boolean reportSuccess
-    ) {
+    public static void releaseRoom (String hotelID, String roomNum) {
           
         try {
                
@@ -4941,10 +4913,10 @@ public class WolfInns {
 				jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
 				jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
 
-                // Once both actions(Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
                 jdbc_connection.commit();
                 
-                System.out.println("The room has been successfully released!");
+                System.out.println("\nThe room has been successfully released!");
                 
             }
             catch (Throwable err) {
@@ -5540,9 +5512,6 @@ public class WolfInns {
                                 break;
                             case CMD_FRONTDESK_ASSIGN:
                                 frontDeskAssignRoom();
-                                break;
-                            case CMD_FRONTDESK_RELEASE:
-                                frontDeskReleaseRoom();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
