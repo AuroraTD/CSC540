@@ -48,6 +48,7 @@ public class WolfInns {
     private static final String CMD_REPORT_SERVICES =       "SERVICES";
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
+    private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -144,6 +145,7 @@ public class WolfInns {
     
     // Declare variables - prepared statements - Reports
     private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
+    private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -232,7 +234,9 @@ public class WolfInns {
                     System.out.println("'" + CMD_REPORT_PROVIDED + "'");
                     System.out.println("\t- run report on services provided to guests");
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_HOTEL + "'");
-                    System.out.println("\t- run report on occupancy by hotel");                                       
+                    System.out.println("\t- run report on occupancy by hotel"); 
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE + "'");
+                    System.out.println("\t- run report on occupancy by room type");                     
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -868,6 +872,27 @@ public class WolfInns {
             				") AS Y) " +
             				"GROUP BY HotelID;";
             jdbcPrep_reportOccupancyByHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By Room Type
+            reusedSQLVar = "SELECT Category AS RoomType, count(*) AS TotalRooms, SUM(OccupiedFlag) AS Occupancy, " +
+            				"count(*) - SUM(OccupiedFlag) AS Availability " +
+            				"FROM (" + 
+            				"SELECT RoomNum, HotelID, Category, IF( " +
+            				"EXISTS( " +
+            				"SELECT * " +
+            				"FROM Stays " +
+            				"WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND ( " +
+            				"CheckOutTime IS NULL OR " +
+            				"EndDate IS NULL " +
+            				") " +
+            				"), " +
+            				"1, " +
+            				"0 " +
+            				") AS OccupiedFlag " +
+            				"FROM Rooms " +
+            				") AS X " +
+            				"GROUP BY Category; ";
+            jdbcPrep_reportOccupancyByRoomType = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
         }
         catch (Throwable err) {
@@ -2204,6 +2229,32 @@ public class WolfInns {
 			 
             // Print result
             System.out.println("\nReporting occupancy By Hotel:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+                        
+    }
+    
+    
+    /** 
+     * Report task: Report occupancy by room type
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByRoomType() {
+
+        try {
+                        
+        	jdbc_result = jdbcPrep_reportOccupancyByRoomType.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting occupancy By Room Type:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -5443,6 +5494,9 @@ public class WolfInns {
                             case CMD_REPORT_OCCUPANCY_BY_HOTEL:
                                 reportOccupancyByHotel();
                                 break;
+                            case CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE:
+                            	reportOccupancyByRoomType();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5581,6 +5635,7 @@ public class WolfInns {
             jdbcPrep_updateCheckOutTimeAndEndDate.close();
             // Reports
             jdbcPrep_reportOccupancyByHotel.close();
+            jdbcPrep_reportOccupancyByRoomType.close();
             // Connection
             jdbc_connection.close();
         
