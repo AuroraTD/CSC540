@@ -175,6 +175,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_reportPercentageOfRoomsOccupied;
     private static PreparedStatement jdbcPrep_reportStaffGroupedByRole;
     private static PreparedStatement jdbcPrep_reportStaffServingDuringStay;
+    private static PreparedStatement jdbcPrep_reportHotelRevenueByDateRange;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -1097,7 +1098,16 @@ public class WolfInns {
             reusedSQLVar = "SELECT ServiceName, StaffID, Name, JobTitle, Dep " + 
             				"FROM Provided, Staff " +
             				"WHERE Provided.StaffID = Staff.ID AND StayID = ?;" ;
-            jdbcPrep_reportStaffServingDuringStay = jdbc_connection.prepareStatement(reusedSQLVar);            
+            jdbcPrep_reportStaffServingDuringStay = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
+            // Report Hotel revenue during given date range
+            reusedSQLVar = "SELECT SUM(AmountOwed) AS Revenue " + 
+            				"FROM Stays " +
+            				"WHERE ( " +
+            				"HotelID = ? AND " +
+            				"EndDate >= ? " +
+            				"AND EndDate <= ? );" ;
+            jdbcPrep_reportHotelRevenueByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);                    
                                   
         }
         catch (Throwable err) {
@@ -4184,26 +4194,36 @@ public class WolfInns {
         try {
             
             // Declare variables
-            double revenue;
+            double revenue = 0.0;
             NumberFormat currency;
 
             /* Get revenue for one hotel from a date range
              * Revenue is earned when the guest checks OUT
              * So we always look at the end date for the customer's stay
              * No transaction needed for a query
-             */
-            // TODO: use prepared statement instead
-            jdbc_result = jdbc_statement.executeQuery("SELECT SUM(AmountOwed) " + 
-                "FROM Stays " +
-                "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
-            
-            jdbc_result.next();
-            revenue = jdbc_result.getDouble(1);
-            
-            // Print report
-            currency = NumberFormat.getCurrencyInstance();
-            System.out.println("\nRevenue earned: " + currency.format(revenue) + "\n");
-            
+             */            
+            try {
+                
+                jdbcPrep_reportHotelRevenueByDateRange.setInt(1, hotelID);
+                jdbcPrep_reportHotelRevenueByDateRange.setDate(2, java.sql.Date.valueOf(queryStartDate));
+                jdbcPrep_reportHotelRevenueByDateRange.setDate(3, java.sql.Date.valueOf(queryEndDate));
+                jdbc_result = jdbcPrep_reportHotelRevenueByDateRange.executeQuery();
+                                         
+                // Print report
+                ResultSet rs = jdbcPrep_reportHotelRevenueByDateRange.executeQuery(); 
+				 
+				while (rs.next()) {
+					revenue = rs.getDouble("Revenue"); 	
+				}
+				// Print report
+                currency = NumberFormat.getCurrencyInstance();
+                System.out.println("\nRevenue earned: " + currency.format(revenue) + "\n");
+                
+            }
+            catch (Throwable err) {
+                handleError(err);
+            }
+                  
         }
         catch (Throwable err) {
             handleError(err);
@@ -6142,6 +6162,7 @@ public class WolfInns {
             jdbcPrep_reportPercentageOfRoomsOccupied.close();
             jdbcPrep_reportStaffGroupedByRole.close();
             jdbcPrep_reportStaffServingDuringStay.close();
+            jdbcPrep_reportHotelRevenueByDateRange.close();
             // Connection
             jdbc_connection.close();
         
