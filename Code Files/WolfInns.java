@@ -57,6 +57,7 @@ public class WolfInns {
     private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
     private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE = "OCCUPANCYBYDATERANGE";
     private static final String CMD_REPORT_OCCUPANCY_BY_CITY = "OCCUPANCYBYCITY";
+    private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -166,6 +167,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
     private static PreparedStatement jdbcPrep_reportOccupancyByDateRange;
     private static PreparedStatement jdbcPrep_reportOccupancyByCity;
+    private static PreparedStatement jdbcPrep_reportTotalOccupancy;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -252,7 +254,9 @@ public class WolfInns {
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_DATE_RANGE + "'");
                     System.out.println("\t- run report on occupancy by date range"); 
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_CITY + "'");
-                    System.out.println("\t- run report on occupancy by city");                     
+                    System.out.println("\t- run report on occupancy by city");  
+                    System.out.println("'" + CMD_REPORT_TOTAL_OCCUPANCY + "'");
+                    System.out.println("\t- run report on total occupancy");  
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -1047,7 +1051,15 @@ public class WolfInns {
             				"(SELECT ID AS HotelID, City FROM Hotels) AS Z" +
             				") " +
             				"GROUP BY City; ";
-            jdbcPrep_reportOccupancyByCity = jdbc_connection.prepareStatement(reusedSQLVar);            
+            jdbcPrep_reportOccupancyByCity = jdbc_connection.prepareStatement(reusedSQLVar);                        
+
+            // Report Total Occupancy
+            reusedSQLVar = "SELECT count(*) AS TotalOccupancy " +
+            				"FROM Stays " +
+            				"WHERE " +
+            				"CheckOutTime IS NULL OR " +
+            				"EndDate IS NULL; ";
+            jdbcPrep_reportTotalOccupancy = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
         }
         catch (Throwable err) {
@@ -2472,6 +2484,31 @@ public class WolfInns {
 			 
             // Print result
             System.out.println("\nReporting occupancy By City:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+        
+    /** 
+     * Report task: Report total occupancy
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportTotalOccupancy() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportTotalOccupancy.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting total occupancy:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -5741,8 +5778,13 @@ public class WolfInns {
                             	break;
                             case CMD_REPORT_OCCUPANCY_BY_DATE_RANGE:
                             	reportOccupancyByDateRange();
+                            	break;
                             case CMD_REPORT_OCCUPANCY_BY_CITY:
                             	reportOccupancyByCity();
+                            	break;
+                            case CMD_REPORT_TOTAL_OCCUPANCY:
+                            	reportTotalOccupancy();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5893,6 +5935,7 @@ public class WolfInns {
             jdbcPrep_reportOccupancyByRoomType.close();
             jdbcPrep_reportOccupancyByDateRange.close();
             jdbcPrep_reportOccupancyByCity.close();
+            jdbcPrep_reportTotalOccupancy.close();
             // Connection
             jdbc_connection.close();
         
