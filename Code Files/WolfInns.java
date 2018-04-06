@@ -47,6 +47,7 @@ public class WolfInns {
     private static final String CMD_REPORT_STAYS =          "STAYS";
     private static final String CMD_REPORT_SERVICES =       "SERVICES";
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
+    private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -141,6 +142,9 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
     private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
     
+    // Declare variables - prepared statements - Reports
+    private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
+    
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
      */
@@ -227,6 +231,8 @@ public class WolfInns {
                     System.out.println("\t- run report on service types");
                     System.out.println("'" + CMD_REPORT_PROVIDED + "'");
                     System.out.println("\t- run report on services provided to guests");
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_HOTEL + "'");
+                    System.out.println("\t- run report on occupancy by hotel");                                       
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -847,6 +853,22 @@ public class WolfInns {
             reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
             jdbcPrep_updateCheckOutTimeAndEndDate = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Report Occupancy By Hotel
+            reusedSQLVar = "SELECT " +
+            				"HotelID, " +
+            				"count(*) AS TotalRooms, " + 
+            				"COALESCE(SUM(OccupiedFlag),0) AS OccupiedRooms, " + 
+            				"count(*) - COALESCE(SUM(OccupiedFlag),0) AS AvailableRooms " +
+            				"FROM (" +
+            				"Rooms NATURAL LEFT OUTER JOIN " + 
+            				"( " +
+            				"SELECT RoomNum, HotelID, 1 AS OccupiedFlag " +
+            				"FROM Stays AS X " + 
+            				"WHERE CheckOutTime IS NULL OR EndDate IS NULL " +
+            				") AS Y) " +
+            				"GROUP BY HotelID;";
+            jdbcPrep_reportOccupancyByHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+                                  
         }
         catch (Throwable err) {
             handleError(err);
@@ -2164,6 +2186,31 @@ public class WolfInns {
             handleError(err);
         }
         
+    }
+        
+    /** 
+     * Report task: Report occupancy by hotel
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByHotel() {
+
+        try {
+                        
+        	jdbc_result = jdbcPrep_reportOccupancyByHotel.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting occupancy By Hotel:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+                        
     }
 
     /** 
@@ -5392,6 +5439,9 @@ public class WolfInns {
                                 break;
                             case CMD_REPORT_PROVIDED:
                                 reportEntireTable("Provided");
+                                break;                           
+                            case CMD_REPORT_OCCUPANCY_BY_HOTEL:
+                                reportOccupancyByHotel();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
@@ -5529,6 +5579,8 @@ public class WolfInns {
             jdbcPrep_addStayNoSafetyChecks.close();
             jdbcPrep_getStayIdForOccupiedRoom.close();
             jdbcPrep_updateCheckOutTimeAndEndDate.close();
+            // Reports
+            jdbcPrep_reportOccupancyByHotel.close();
             // Connection
             jdbc_connection.close();
         
