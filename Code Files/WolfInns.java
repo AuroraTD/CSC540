@@ -34,6 +34,7 @@ public class WolfInns {
     
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_RELEASE =     "RELEASEROOM";
     
     private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
     
@@ -45,6 +46,8 @@ public class WolfInns {
     private static final String CMD_REPORT_STAYS =          "STAYS";
     private static final String CMD_REPORT_SERVICES =       "SERVICES";
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
+    private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
+    private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -106,6 +109,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getOccupiedRoomsInHotel; 
     private static PreparedStatement jdbcPrep_getOneExampleRoom;
     private static PreparedStatement jdbcPrep_assignDedicatedStaff;
+    private static PreparedStatement jdbcPrep_releaseDedicatedStaff;    
     
     // Declare variables - prepared statements - STAFF
     private static PreparedStatement jdbcPrep_insertNewStaff;
@@ -140,11 +144,17 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getStayByRoomAndHotel;
     private static PreparedStatement jdbcPrep_getItemizedReceipt;
     private static PreparedStatement jdbcPrep_updateAmountOwed;
+    private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
+    private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
     
     // Declare variables - prepared statements - Table reporting
     private static PreparedStatement jdbcPrep_reportTableRooms;
     private static PreparedStatement jdbcPrep_reportTableStaff;
     private static PreparedStatement jdbcPrep_reportTableStays;
+    
+    // Declare variables - prepared statements - Reports
+    private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
+    private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -203,6 +213,8 @@ public class WolfInns {
                     System.out.println("\t- check room availability");
                     System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
                     System.out.println("\t- assign a room to a customer");
+                    System.out.println("'" + CMD_FRONTDESK_RELEASE + "'");
+                    System.out.println("\t- release a room");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -224,6 +236,10 @@ public class WolfInns {
                     System.out.println("\t- run report on service types");
                     System.out.println("'" + CMD_REPORT_PROVIDED + "'");
                     System.out.println("\t- run report on services provided to guests");
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_HOTEL + "'");
+                    System.out.println("\t- run report on occupancy by hotel"); 
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE + "'");
+                    System.out.println("\t- run report on occupancy by room type");                     
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -816,6 +832,10 @@ public class WolfInns {
                 "WHERE RoomNum = ? AND HotelID = ? AND EXISTS(SELECT * FROM Stays WHERE RoomNum = ? AND HotelID = ? AND EndDate IS NULL);";
             jdbcPrep_assignDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Release the dedicated staff when releasing room
+            reusedSQLVar = "UPDATE Rooms SET DCStaff = NULL, DRSStaff = NULL WHERE HotelID = ? AND RoomNum = ?;";
+            jdbcPrep_releaseDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar); 
+            
             /* Get the newest stay in the DB
              * Indices to use when calling this prepared statement: n/a
              */
@@ -842,6 +862,10 @@ public class WolfInns {
                 "(StartDate, CheckInTime, RoomNum, HotelID, CustomerID, NumGuests, CheckOutTime, EndDate, PaymentMethod, CardType, CardNumber, BillingAddress) " + 
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
             jdbcPrep_addStayNoSafetyChecks = jdbc_connection.prepareStatement(reusedSQLVar);
+                                  
+            // Get the Stay ID for given room
+            reusedSQLVar = "SELECT ID FROM Stays WHERE HotelID = ? AND RoomNum = ?;";
+            jdbcPrep_getStayIdForOccupiedRoom = jdbc_connection.prepareStatement(reusedSQLVar);
             
             /* Get a brief, user-friendly summary of a single customer stay
              * Indices to use when calling this prepared statement:
@@ -940,6 +964,47 @@ public class WolfInns {
                 "FROM Stays;";
             jdbcPrep_reportTableStays = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Update the CheckOutTime and EndDate while releasing the room
+            reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
+            jdbcPrep_updateCheckOutTimeAndEndDate = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By Hotel
+            reusedSQLVar = "SELECT " +
+            				"HotelID, " +
+            				"count(*) AS TotalRooms, " + 
+            				"COALESCE(SUM(OccupiedFlag),0) AS OccupiedRooms, " + 
+            				"count(*) - COALESCE(SUM(OccupiedFlag),0) AS AvailableRooms " +
+            				"FROM (" +
+            				"Rooms NATURAL LEFT OUTER JOIN " + 
+            				"( " +
+            				"SELECT RoomNum, HotelID, 1 AS OccupiedFlag " +
+            				"FROM Stays AS X " + 
+            				"WHERE CheckOutTime IS NULL OR EndDate IS NULL " +
+            				") AS Y) " +
+            				"GROUP BY HotelID;";
+            jdbcPrep_reportOccupancyByHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By Room Type
+            reusedSQLVar = "SELECT Category AS RoomType, count(*) AS TotalRooms, SUM(OccupiedFlag) AS Occupancy, " +
+            				"count(*) - SUM(OccupiedFlag) AS Availability " +
+            				"FROM (" + 
+            				"SELECT RoomNum, HotelID, Category, IF( " +
+            				"EXISTS( " +
+            				"SELECT * " +
+            				"FROM Stays " +
+            				"WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND ( " +
+            				"CheckOutTime IS NULL OR " +
+            				"EndDate IS NULL " +
+            				") " +
+            				"), " +
+            				"1, " +
+            				"0 " +
+            				") AS OccupiedFlag " +
+            				"FROM Rooms " +
+            				") AS X " +
+            				"GROUP BY Category; ";
+            jdbcPrep_reportOccupancyByRoomType = jdbc_connection.prepareStatement(reusedSQLVar);
+                                  
         }
         catch (Throwable err) {
             handleError(err);
@@ -2152,6 +2217,33 @@ public class WolfInns {
         
     }
     
+    /** 
+     * Front Desk task: Release a room
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  MTA -  Added method. 
+     */
+    public static void frontDeskReleaseRoom() {
+        
+        try { 
+        	
+        	// Get the hotel id and room number to be released from the user
+        	String hotelId = getValidDataFromUser("RELEASE_ROOM", "HotelId", "Enter the hotel id for which you wish to release room "); 
+        	if (!hotelId.equalsIgnoreCase("<QUIT>")) {
+        		String roomNumber = getValidDataFromUser("RELEASE_ROOM", "RoomNum", "Enter the room number you wish to release ", hotelId);  
+        		if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
+	        		// Release the room
+	        		releaseRoom(hotelId, roomNumber, true); 
+        		}
+        	}                         
+        }
+        catch (Throwable err) {
+            handleError(err);
+        } 
+    }
+    
     // BILLING
     
     /** 
@@ -2265,6 +2357,57 @@ public class WolfInns {
             handleError(err);
         }
         
+    }
+        
+    /** 
+     * Report task: Report occupancy by hotel
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByHotel() {
+
+        try {
+                        
+        	jdbc_result = jdbcPrep_reportOccupancyByHotel.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting occupancy By Hotel:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+                        
+    }
+    
+    
+    /** 
+     * Report task: Report occupancy by room type
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByRoomType() {
+
+        try {
+                        
+        	jdbc_result = jdbcPrep_reportOccupancyByRoomType.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting occupancy By Room Type:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+                        
     }
 
     /** 
@@ -2787,22 +2930,31 @@ public class WolfInns {
     	
     	try { 
     		  
-    		String hotelId = getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room\n> ");
-    		
-    		String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number\n> ", hotelId); 
-    		
-    		String category = getValidDataFromUser(
-		        "ADD_ROOM",
-		        "Category", 
-		        "Enter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
-	        );
-               
-    		String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy\n> "); 
-    		
-    		String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate\n> "); 
-              
-            addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
-           
+    		String hotelId = getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room");    	
+    		if (!hotelId.equalsIgnoreCase("<QUIT>")) { 
+    			
+    			String roomNumber = getValidDataFromUser("ADD_ROOM", "RoomNum", "Enter the room number", hotelId); 
+    			if (!roomNumber.equalsIgnoreCase("<QUIT>")) { 
+    				
+    				String category = getValidDataFromUser(
+	    		        "ADD_ROOM",
+	    		        "Category", 
+	    		        "Enter the room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential'"
+	    	        );
+    				if (!category.equalsIgnoreCase("<QUIT>")) { 
+    					
+    					String maxOccupancy = getValidDataFromUser("ADD_ROOM","MaxOcc", "Enter the room's maximum occupancy"); 
+    					if (!maxOccupancy.equalsIgnoreCase("<QUIT>")) { 
+    						
+    						String nightlyRate = getValidDataFromUser("ADD_ROOM", "NightlyRate", "Enter the room's nightly rate"); 
+    						if (!nightlyRate.equalsIgnoreCase("<QUIT>")) { 
+    							
+    							addRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), category, Integer.parseInt(maxOccupancy), Integer.parseInt(nightlyRate), true);
+    						}        	                
+    					}    					    	        	
+    				}	                   	        	
+    			}        		        	
+    		} 
         }
         catch (Throwable err) {
             handleError(err);
@@ -2826,43 +2978,59 @@ public class WolfInns {
             // Print hotels to console so user has some context
             reportEntireTable("Rooms");
             
-            String hotelId = getValidDataFromUser("UPDATE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to make changes for\n> ");
-            String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNum", "Enter the room number you wish to make changes for\n> ", hotelId); 
-            
-            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
-                
-            while(!userWantsToStop) { 
+            String hotelId = getValidDataFromUser("UPDATE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to make changes for");
+            if (!hotelId.equalsIgnoreCase("<QUIT>")) { 
             	
-            	// Get the attribute the user wants to update
-                System.out.print("\nChoose the attribute you wish to change\n1. Room Category\n2. Max Occupancy\n3. Nightly Rate\n4. Exit\n> ");
-                int attributeToChange = Integer.parseInt(scanner.nextLine());
+            	String roomNumber = getValidDataFromUser("UPDATE_ROOM", "RoomNum", "Enter the room number you wish to make changes for", hotelId);
+            	if (!roomNumber.equalsIgnoreCase("<QUIT>")) { 
             	
-            	switch(attributeToChange){
-	             	case 1:
-	             		String category = getValidDataFromUser(
-             		        "UPDATE_ROOM",
-             		        "Category", 
-             		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential' \n>"
-         		        );
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
-	             		break;
-	             	case 2:
-	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","MaxOcc", "Enter the new value for room's maximum occupancy\n> ");
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
-	             		break;
-	             	case 3:
-	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "NightlyRate", "Enter the new value for room's nightly rate\n> ");
-	             		updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
-	             		break;
-	             	case 4:
-	             		userWantsToStop = true;
-	             		break;
-	             	default: System.out.println("Please choose a number between 1 to 4"); 
-	            } 
-            } 
-                
-            // Report results of all the updates
-            reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber)); 
+            		reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
+                    
+                    while(!userWantsToStop) { 
+                    	
+                    	// Get the attribute the user wants to update
+                        System.out.print("\nChoose the attribute you wish to change\n1. Room Category\n2. Max Occupancy\n3. Nightly Rate\n4. Exit\n> ");
+                        int attributeToChange = Integer.parseInt(scanner.nextLine());
+                    	
+                    	switch(attributeToChange){
+        	             	case 1:
+        	             		String category = getValidDataFromUser(
+                     		        "UPDATE_ROOM",
+                     		        "Category", 
+                     		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential'"
+                 		        );
+        	             		if (!category.equalsIgnoreCase("<QUIT>")) { 
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
+        	             		} else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 2:
+        	             		String maxOccupancy = getValidDataFromUser("UPDATE_ROOM","MaxOcc", "Enter the new value for room's maximum occupancy");
+        	             		if (!maxOccupancy.equalsIgnoreCase("<QUIT>")) {
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "MaxOcc", maxOccupancy, true);
+        	             		}
+        	             		else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 3:
+        	             		String nightlyRate = getValidDataFromUser("UPDATE_ROOM", "NightlyRate", "Enter the new value for room's nightly rate");
+        	             		if (!nightlyRate.equalsIgnoreCase("<QUIT>")) {
+        	             			updateRoom(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "NightlyRate", nightlyRate, true);
+        	             		}
+        	             		else
+        	             			userWantsToStop = true;
+        	             		break;
+        	             	case 4:
+        	             		userWantsToStop = true;
+        	             		break;
+        	             	default: System.out.println("Please choose a number between 1 to 4"); 
+        	            } 
+                    } 
+                        
+                    // Report results of all the updates
+                    reportRoomByHotelIdRoomNum(Integer.parseInt(hotelId), Integer.parseInt(roomNumber));
+            	}                               
+            }            
         }
         catch (Throwable err) {
             handleError(err);
@@ -2886,12 +3054,16 @@ public class WolfInns {
             reportEntireTable("Rooms");
             
             // Get hotel ID and room number to be deleted
-            String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete\n> "); 
-    		String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete\n> ", hotelId);
-
-            // Call method to actually interact with the DB
-            deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
-            
+            String hotelId = getValidDataFromUser("DELETE_ROOM", "HotelId", "Enter the hotel ID for the room you wish to delete"); 
+            if (!hotelId.equalsIgnoreCase("<QUIT>")) {
+            	
+            	String roomNumber = getValidDataFromUser("DELETE_ROOM", "RoomNum", "Enter the room number you wish to delete", hotelId);
+            	if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
+            		
+            		// Call method to actually interact with the DB
+                    deleteRoom(Integer.parseInt(hotelId), Integer.parseInt(roomNumber), true);
+            	}                
+            }    		           
         }
         catch (Throwable err) {
             handleError(err);
@@ -2912,18 +3084,26 @@ public class WolfInns {
     	
     	try { 
   		  
-    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "SSN", "Enter the customer's SSN\n> ");
-    		
-    		String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name\n> "); 
-    		
-    		String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth (in format YYYY-MM-DD)\n>");
-               
-    		String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number\n> "); 
-    		
-    		String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email\n> "); 
-              
-            addCustomer(ssn, name, dob, phoneNumber, email, true);
-           
+    		String ssn = getValidDataFromUser("ADD_CUSTOMER", "SSN", "Enter the customer's SSN");
+    		if (!ssn.equalsIgnoreCase("<QUIT>")) {
+    			
+    			String name = getValidDataFromUser("ADD_CUSTOMER", "Name", "Enter the customer's name"); 
+    			if (!name.equalsIgnoreCase("<QUIT>")) {
+    				
+    				String dob = getValidDataFromUser("ADD_CUSTOMER", "DOB", "Enter the customer's Date Of Birth (in format YYYY-MM-DD)");
+    				if (!dob.equalsIgnoreCase("<QUIT>")) {
+    					
+    					String phoneNumber = getValidDataFromUser("ADD_CUSTOMER", "PhoneNum", "Enter the customer's phone number"); 
+    					if (!phoneNumber.equalsIgnoreCase("<QUIT>")) {
+    						
+    						String email = getValidDataFromUser("ADD_CUSTOMER", "Email", "Enter the customer's email");                             
+    						if (!email.equalsIgnoreCase("<QUIT>")) {
+    							addCustomer(ssn, name, dob, phoneNumber, email, true);
+    						}                            
+    					}                		                	
+    				}                                	
+    			}        		        	
+    		}    		          
         }
         catch (Throwable err) {
             handleError(err);
@@ -2947,48 +3127,64 @@ public class WolfInns {
             // Print all customers to console so user has some context
             reportEntireTable("Customers");
             
-            String customerID = getValidDataFromUser("UPDATE_CUSTOMER", "ID", "Enter the ID for the customer you wish to make changes for\n> ");
-            
-            reportCustomerByID(customerID);
-                
-            while(!userWantsToStop) { 
+            String customerID = getValidDataFromUser("UPDATE_CUSTOMER", "ID", "Enter the ID for the customer you wish to make changes for");
+            if (!customerID.equalsIgnoreCase("<QUIT>")) {
             	
-            	// Get the attribute the user wants to update
-                System.out.print("\nChoose the attribute you wish to change\n1. SSN\n2. Name\n3. Date Of Birth\n4. Phone Number\n5. Email\n6. Exit\n> ");
-                int attributeToChange = Integer.parseInt(scanner.nextLine());
-            	
-            	switch(attributeToChange){
-                    case 1:
-                        String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER","SSN", "Enter the new value for customer's SSN\n>");
-                        updateCustomer(customerID, "SSN", customerSSN, true);
-                        break;
-	             	case 2:
-	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name\n>");
-	             		updateCustomer(customerID, "Name", customerName, true);
-	             		break;
-	             	case 3:
-	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth\n> ");
-	             		updateCustomer(customerID, "DOB", dob, true);
-	             		break;
-	             	case 4:
-	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number\n> ");
-	             		updateCustomer(customerID, "PhoneNum", phoneNumber, true);
-	             		break;
-	             	case 5:
-	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email\n> ");
-	             		updateCustomer(customerID, "Email", email, true);
-	             		break;
-	             	case 6:
-	             		userWantsToStop = true;
-	             		break;
-	             	default: System.out.println("Please choose a number between 1 and 6"); 
-	            } 
-            } 
+            	reportCustomerByID(customerID);
                 
-            // Report results of all the updates
-            reportCustomerByID(customerID); 
-        
-             
+                while(!userWantsToStop) { 
+                	
+                	// Get the attribute the user wants to update
+                    System.out.print("\nChoose the attribute you wish to change\n1. SSN\n2. Name\n3. Date Of Birth\n4. Phone Number\n5. Email\n6. Exit\n> ");
+                    int attributeToChange = Integer.parseInt(scanner.nextLine());
+                	
+                	switch(attributeToChange){
+                        case 1:
+                            String customerSSN = getValidDataFromUser("UPDATE_CUSTOMER","SSN", "Enter the new value for customer's SSN");
+                            if (!customerSSN.equalsIgnoreCase("<QUIT>")) {
+                            	updateCustomer(customerID, "SSN", customerSSN, true);
+                            } else
+                            	userWantsToStop = true;
+                            break;
+    	             	case 2:
+    	             		String customerName = getValidDataFromUser("UPDATE_CUSTOMER","Name", "Enter the new value for customer's name");
+    	             		if (!customerName.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "Name", customerName, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 3:
+    	             		String dob = getValidDataFromUser("UPDATE_CUSTOMER","DOB", "Enter the new value for customer's date of birth");
+    	             		if (!dob.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "DOB", dob, true);
+    	             		} else 
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 4:
+    	             		String phoneNumber = getValidDataFromUser("UPDATE_CUSTOMER", "PhoneNum", "Enter the new value for customer's phone number");
+    	             		if (!phoneNumber.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "PhoneNum", phoneNumber, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 5:
+    	             		String email = getValidDataFromUser("UPDATE_CUSTOMER", "Email", "Enter the new value for customer's email");
+    	             		if (!email.equalsIgnoreCase("<QUIT>")) {
+    	             			updateCustomer(customerID, "Email", email, true);
+    	             		} else
+    	             			userWantsToStop = true;
+    	             		break;
+    	             	case 6:
+    	             		userWantsToStop = true;
+    	             		break;
+    	             	default: System.out.println("Please choose a number between 1 and 6"); 
+    	            } 
+                } 
+                    
+                // Report results of all the updates
+                reportCustomerByID(customerID); 
+                       
+            }                          
         }
         catch (Throwable err) {
             handleError(err);
@@ -3011,11 +3207,12 @@ public class WolfInns {
             reportEntireTable("Customers");
             
             // Get ID of the customer to be deleted
-            String ID = getValidDataFromUser("DELETE_CUSTOMER", "ID", "Enter the ID for the customer you wish to delete\n> ");  
-
-            // Call method to actually interact with the DB
-            deleteCustomer(ID, true); 
-            
+            String ID = getValidDataFromUser("DELETE_CUSTOMER", "ID", "Enter the ID for the customer you wish to delete"); 
+            if (!ID.equalsIgnoreCase("<QUIT>")) {
+            	// Call method to actually interact with the DB
+                deleteCustomer(ID, true); 
+            }
+                   
         }
         catch (Throwable err) {
             handleError(err);
@@ -3050,8 +3247,13 @@ public class WolfInns {
         while(!isValid) {
         	// Ask user to enter/re-enter the data
         	String messagePrefix = (attempt == 0) ? "\n" : "\nRe-";
-        	System.out.println(messagePrefix + message); 
+        	String messagePostfix = (attempt == 0) ? "\n" : ". Else press q to go back to previous menu.\n>";
+        	System.out.println(messagePrefix + message + messagePostfix); 
         	value = scanner.nextLine(); 
+        	
+        	if (value.equalsIgnoreCase("q")) {
+        		return "<QUIT>";
+        	}
         	
         	if (fieldName.equalsIgnoreCase("HotelId")) {
         		boolean isSane = isValueSane(fieldName, value); 
@@ -3067,19 +3269,28 @@ public class WolfInns {
     			}  
         	} 
         	
-        	else if (fieldName.equalsIgnoreCase("RoomNum") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM"))) {
+        	else if (fieldName.equalsIgnoreCase("RoomNum") && (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM") || operation.equals("RELEASE_ROOM"))) {
         		boolean isSane = isValueSane(fieldName, value); 
     			if (isSane) {  
     				// Extra checks for Room Number when deleting/updating room :
         			// 1. Check if the entered room number is present for given hotel
         			boolean isAssociated = isValidRoomForHotel(Integer.parseInt(params[0]), Integer.parseInt(value));
-        			if (isAssociated) { 
-        				// 2. Make sure there are no guests staying in this room currently
-    	    			boolean isRoomOccupied = isRoomCurrentlyOccupied(Integer.parseInt(params[0]), Integer.parseInt(value));
-    	    			if (!isRoomOccupied) {
-    	    				isValid = true;  
-    	    			} else { 
-    	    				System.out.println("ERROR: The room is currently occupied, hence cannot be modified"); 
+        			if (isAssociated) {  
+    	    			boolean isRoomOccupied = isRoomCurrentlyOccupied(Integer.parseInt(params[0]), Integer.parseInt(value)); 
+    	    			// 2. If updating/deleting the room, make sure there are no guests staying in this room currently 
+    	    			if (operation.equals("DELETE_ROOM") || operation.equals("UPDATE_ROOM")) {
+    	    				if (!isRoomOccupied) {
+        	    				isValid = true;  
+        	    			} else { 
+        	    				System.out.println("ERROR: The room is currently occupied, hence cannot be modified"); 
+        	    			}   
+    	    			// 2. If releasing the room, make sure it is currently occupied
+    	    			} else if (operation.equals("RELEASE_ROOM")){
+    	    				if (isRoomOccupied) {
+        	    				isValid = true;  
+        	    			} else { 
+        	    				System.out.println("ERROR: The room is currently not occupied, hence cannot be released"); 
+        	    			}   
     	    			} 
         			} else { 
         				System.out.println("ERROR: The room number is not associated with this hotel");   
@@ -4687,6 +4898,76 @@ public class WolfInns {
         
     }
     
+    
+    /** 
+     * DB Update: Release Room
+     * 
+     * Arguments -  hotelID -           The hotel for the room to be released
+     * 				roomNum -           The room number of the room to be released
+     *              reportSuccess -     True if we should print success message to console (should be false for mass population of hotels)
+     * Return -     None
+     * 
+     * Modifications:   04/04/18 -  MTA -  Added method
+     */
+    public static void releaseRoom ( 
+        String hotelID, 
+        String roomNum, 
+        boolean reportSuccess
+    ) {
+          
+        try {
+               
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+        
+            	jdbcPrep_getStayIdForOccupiedRoom.setLong(1, Long.parseLong(hotelID));
+            	jdbcPrep_getStayIdForOccupiedRoom.setLong(2, Long.parseLong(roomNum)); 
+                 
+            	// Get the Stay ID for given room
+            	ResultSet rs = jdbcPrep_getStayIdForOccupiedRoom.executeQuery();
+				int stayId = 0; 
+				while (rs.next()) {
+					stayId = rs.getInt("ID"); 	
+				}
+				
+				// Now update the CheckOutTime and EndDate to current date				 
+				jdbcPrep_updateCheckOutTimeAndEndDate.setInt(1, stayId);
+				jdbcPrep_updateCheckOutTimeAndEndDate.executeUpdate();
+				
+				// Now release the dedicated staff assigned to the room				 
+				jdbcPrep_releaseDedicatedStaff.setLong(1, Long.parseLong(hotelID));
+				jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
+				jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
+
+                // Once both actions(Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                jdbc_connection.commit();
+                
+                System.out.println("The room has been successfully released!");
+                
+            }
+            catch (Throwable err) {
+                
+                // Handle error
+                handleError(err);
+                
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+                
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
     /** 
      * DB Update: Insert Stay (with no user interaction, safety checks) - for mass population
      * 
@@ -5260,6 +5541,9 @@ public class WolfInns {
                             case CMD_FRONTDESK_ASSIGN:
                                 frontDeskAssignRoom();
                                 break;
+                            case CMD_FRONTDESK_RELEASE:
+                                frontDeskReleaseRoom();
+                                break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5299,7 +5583,13 @@ public class WolfInns {
                                 break;
                             case CMD_REPORT_PROVIDED:
                                 reportEntireTable("Provided");
+                                break;                           
+                            case CMD_REPORT_OCCUPANCY_BY_HOTEL:
+                                reportOccupancyByHotel();
                                 break;
+                            case CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE:
+                            	reportOccupancyByRoomType();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5419,6 +5709,7 @@ public class WolfInns {
             jdbcPrep_getOccupiedRoomsInHotel.close();
             jdbcPrep_getOneExampleRoom.close();
             jdbcPrep_assignDedicatedStaff.close();
+            jdbcPrep_releaseDedicatedStaff.close();
             // Customers
             jdbcPrep_insertNewCustomer.close();
             jdbcPrep_updateCustomerSSN.close();
@@ -5442,6 +5733,11 @@ public class WolfInns {
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
             jdbcPrep_reportTableStays.close();
+            jdbcPrep_getStayIdForOccupiedRoom.close();
+            jdbcPrep_updateCheckOutTimeAndEndDate.close();
+            // Reports
+            jdbcPrep_reportOccupancyByHotel.close();
+            jdbcPrep_reportOccupancyByRoomType.close();
             // Connection
             jdbc_connection.close();
         
