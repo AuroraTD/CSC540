@@ -35,6 +35,8 @@ public class WolfInns {
     
     // Declare constants - commands
     
+    // TODO: might be good to change capitalization to make these easier to read on the console
+    
     private static final String CMD_MAIN =                  "MAIN";
     private static final String CMD_QUIT =                  "QUIT";
     private static final String CMD_FRONTDESK =             "FRONTDESK";
@@ -44,6 +46,7 @@ public class WolfInns {
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
     private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
+    private static final String CMD_FRONTDESK_ENTER_SERVICE =    "ENTERSERVICERECORD";
     
     private static final String CMD_REPORT_REVENUE =        "REVENUE";
     private static final String CMD_REPORT_HOTELS =         "HOTELS";
@@ -53,14 +56,14 @@ public class WolfInns {
     private static final String CMD_REPORT_STAYS =          "STAYS";
     private static final String CMD_REPORT_SERVICES =       "SERVICES";
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
-    private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
-    private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
-    private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE = "OCCUPANCYBYDATERANGE";
-    private static final String CMD_REPORT_OCCUPANCY_BY_CITY = "OCCUPANCYBYCITY";
-    private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
-    private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED = "PERCENTAGEOFROOMSOCCUPIED";
-    private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE = "STAFFGROUPEDBYROLE";
-    private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY = "STAFFSERVINGDURINGSTAY";
+    private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL =             "OCCUPANCYBYHOTEL";
+    private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE =         "OCCUPANCYBYROOMTYPE";
+    private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE =        "OCCUPANCYBYDATERANGE";
+    private static final String CMD_REPORT_OCCUPANCY_BY_CITY =              "OCCUPANCYBYCITY";
+    private static final String CMD_REPORT_TOTAL_OCCUPANCY =                "TOTALOCCUPANCY";
+    private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED =   "PERCENTAGEOFROOMSOCCUPIED";
+    private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE =          "STAFFGROUPEDBYROLE";
+    private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY =      "STAFFSERVINGDURINGSTAY";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -137,7 +140,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getStaffByID;
     private static PreparedStatement jdbcPrep_deleteStaff;  
     
-    // Declare variables - prepared statements - Customers
+    // Declare variables - prepared statements - CUSTOMERS
     private static PreparedStatement jdbcPrep_insertNewCustomer;
     private static PreparedStatement jdbcPrep_updateCustomerSSN;
     private static PreparedStatement jdbcPrep_updateCustomerName;
@@ -149,7 +152,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_isValidCustomer; 
     private static PreparedStatement jdbcPrep_isCustomerCurrentlyStaying;
     
-    // Declare variables - prepared statements - Stays
+    // Declare variables - prepared statements - STAYS
     private static PreparedStatement jdbcPrep_assignRoom;
     private static PreparedStatement jdbcPrep_getNewestStay;
     private static PreparedStatement jdbcPrep_addStayNoSafetyChecks;
@@ -161,12 +164,17 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
     private static PreparedStatement jdbcPrep_isValidStayId;
     
-    // Declare variables - prepared statements - Table reporting
+    // Declare variables - prepared statements - SERVICES
+    private static PreparedStatement jdbcPrep_getEligibleStaffForService;
+    private static PreparedStatement jdbcPrep_insertNewServiceRecord;
+    private static PreparedStatement jdbcPrep_getNewestServiceRecord;
+    
+    // Declare variables - prepared statements - TABLES
     private static PreparedStatement jdbcPrep_reportTableRooms;
     private static PreparedStatement jdbcPrep_reportTableStaff;
     private static PreparedStatement jdbcPrep_reportTableStays;
     
-    // Declare variables - prepared statements - Reports
+    // Declare variables - prepared statements - REPORTS
     private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
     private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
     private static PreparedStatement jdbcPrep_reportOccupancyByDateRange;
@@ -181,6 +189,8 @@ public class WolfInns {
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
      */
     private static Scanner scanner;
+    
+    // TODO: might be good to standardize function naming a bit to make things easier for the grader in our huge file :)
     
     // SETUP
     
@@ -206,6 +216,7 @@ public class WolfInns {
      *                  03/27/18 -  ATTD -  Add ability to check room availability.
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
+     *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -232,8 +243,11 @@ public class WolfInns {
                     System.out.println("\t- check customer out (generate receipt & bill, release room)");
                     System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
                     System.out.println("\t- check room availability");
+                    // TODO: might want to rename this one to CHECKIN (to match CHECKOUT)?
                     System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
                     System.out.println("\t- assign a room to a customer");
+                    System.out.println("'" + CMD_FRONTDESK_ENTER_SERVICE + "'");
+                    System.out.println("\t- enter a service record");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -381,6 +395,7 @@ public class WolfInns {
      *                                          no longer makes sense with tables populated with demo data.
      *                  04/05/18 -  ATTD -  Add prepared statements related to customer billing (itemized receipt, bill).
      *                                      Add prepared statements for table reporting.
+     *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      */
     public static void createPreparedStatements() {
         
@@ -1107,7 +1122,57 @@ public class WolfInns {
             				"HotelID = ? AND " +
             				"EndDate >= ? " +
             				"AND EndDate <= ? );" ;
-            jdbcPrep_reportHotelRevenueByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);                    
+            jdbcPrep_reportHotelRevenueByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get a bit of info about all staff eligible to provide a given service for a given room in a given hotel
+             * Must have correct job title
+             * Must be serving the hotel
+             * Must not be dedicated to a different room
+             * Indices to use when calling this prepared statement:
+             * 1 -  service name
+             * 2 -  service name (again)
+             * 3 -  service name (again)
+             * 4 -  hotel ID
+             * 5 -  room number
+             */
+            reusedSQLVar = 
+                "SELECT ID, Name, JobTitle FROM Staff WHERE " +
+                "(? = Staff.JobTitle OR ? = 'Phone' OR ? = 'Special Request' OR Staff.JobTitle = 'Manager') AND " + 
+                "Staff.HotelID = ? AND " + 
+                "NOT EXISTS (SELECT * FROM Rooms WHERE Rooms.RoomNum <> ? AND (DRSStaff = Staff.ID OR DCStaff = Staff.ID));";
+            jdbcPrep_getEligibleStaffForService = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Insert new service record for stay
+             * Staff member must have correct job title
+             * Staff member must be serving the hotel
+             * Staff member must not be dedicated to a different room
+             * Indices to use when calling this prepared statement:
+             * 1 -  stay ID
+             * 2 -  staff ID
+             * 3 -  name of service
+             */
+            reusedSQLVar = 
+                "INSERT INTO Provided (StayID, StaffID, ServiceName) " + 
+                "SELECT Stays.ID, Staff.ID, ServiceTypes.Name " + 
+                "FROM Stays, Staff, ServiceTypes WHERE " + 
+                "Stays.ID = ? AND " + 
+                "Staff.ID = ? AND " + 
+                "ServiceTypes.Name = ? AND (" + 
+                "Staff.JobTitle = ServiceTypes.Name OR " + 
+                "ServiceTypes.Name = 'Phone' OR " + 
+                "ServiceTypes.Name = 'Special Request' OR " + 
+                "Staff.JobTitle = 'Manager') AND " + 
+                "Staff.HotelID = Stays.HotelID AND " + 
+                "NOT EXISTS (SELECT * FROM Rooms WHERE " + 
+                "RoomNum <> Stays.RoomNum AND (DRSStaff = Staff.ID OR DCStaff = Staff.ID)" + 
+                ");";
+            jdbcPrep_insertNewServiceRecord = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get the newest service record in the DB
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT * FROM Provided WHERE ID >= ALL (SELECT ID FROM Provided);";
+            jdbcPrep_getNewestServiceRecord = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
         }
         catch (Throwable err) {
@@ -1983,6 +2048,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Update staff IDs to start at 100, per demo data.
      *                                      Populate Provided table with demo data.
+     *                  04/06/18 -  ATTD -  Use new method which in turn uses prepared statement.
      */
     public static void populateProvidedTable() {
         
@@ -1994,23 +2060,12 @@ public class WolfInns {
             try {
             
                 // Populating data for Provided
-                // TODO: use prepared statement instead
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (1, 109, 'Dry Cleaning')");
-                jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-                    " (StayID, StaffID, ServiceName) VALUES " +
-                    " (1, 110, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (2, 110, 'Gym')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (3, 111, 'Room Service')");
-        		jdbc_statement.executeUpdate("INSERT INTO Provided " + 
-    				" (StayID, StaffID, ServiceName) VALUES " +
-    				" (4, 102, 'Phone')");
-        		
+                updateInsertServiceRecord(1, 109, "Dry Cleaning", false);
+                updateInsertServiceRecord(1, 110, "Gym", false);
+                updateInsertServiceRecord(2, 110, "Gym", false);
+                updateInsertServiceRecord(3, 111, "Room Service", false);
+                updateInsertServiceRecord(4, 102, "Phone", false);
+
                 // If success, commit
                 jdbc_connection.commit();
                 
@@ -2313,6 +2368,112 @@ public class WolfInns {
     }
 
     /** 
+     * Front desk task: Enter a new service record for a customer stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/06/18 -  ATTD -  Created method.
+     */
+    public static void frontDeskEnterService() {
+        
+        try {
+
+            // Declare variables
+            String hotelID;
+            String roomNum;
+            String serviceName;
+            String staffID;
+            int stayID;
+            
+            // Print hotels to console so user has some context
+            reportEntireTable("Hotels");
+            
+            // Get hotel ID
+            System.out.print("\nEnter the hotel ID for the stay you wish to enter a new service record for\n> ");
+            hotelID = scanner.nextLine();
+            if (isValueSane("ID", hotelID)) {
+                
+                // Are there any occupied rooms in this hotel?
+                jdbcPrep_getOccupiedRoomsInHotel.setInt(1, Integer.parseInt(hotelID));
+                jdbc_result = jdbcPrep_getOccupiedRoomsInHotel.executeQuery();
+                if (jdbc_result.next()) {
+                    
+                    // Print all occupied rooms in that hotel so user has some context
+                    System.out.println("\nOccupied rooms in this hotel:\n");
+                    jdbc_result.beforeFirst();
+                    printQueryResultSet(jdbc_result);
+                    
+                    // Get room number
+                    System.out.print("\nEnter the room number for the stay you wish to enter a new service record for\n> ");
+                    roomNum = scanner.nextLine();
+                    if (isValueSane("RoomNum", roomNum)) {
+
+                        // Get stay ID based on room number and hotel
+                        jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
+                        jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
+                        jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
+                        jdbc_result.next();
+                        stayID = jdbc_result.getInt(1);
+                        
+                        // Print all available services so user has some context
+                        System.out.println("\nAvailable Services:\n");
+                        reportEntireTable("ServiceTypes");
+                        
+                        // Get service type
+                        System.out.print("\nEnter the name of the service provided to the guest\n> ");
+                        serviceName = scanner.nextLine();
+                        if (isValueSane("ServiceName", serviceName)) {
+                            
+                            /* Print  a bit of info about all staff eligible to provide a given service for a given room in a given hotel
+                             * Must have correct job title
+                             * Must be serving the hotel
+                             * Must not be dedicated to a different room
+                             * Indices to use when calling this prepared statement:
+                             * 1 -  service name
+                             * 2 -  service name (again)
+                             * 3 -  service name (again)
+                             * 4 -  hotel ID
+                             * 5 -  room number
+                             */
+                            System.out.print("\nStaff eligible to provide this service:\n\n");
+                            jdbcPrep_getEligibleStaffForService.setString(1, serviceName);
+                            jdbcPrep_getEligibleStaffForService.setString(2, serviceName);
+                            jdbcPrep_getEligibleStaffForService.setString(3, serviceName);
+                            jdbcPrep_getEligibleStaffForService.setInt(4, Integer.parseInt(hotelID));
+                            jdbcPrep_getEligibleStaffForService.setInt(5, Integer.parseInt(roomNum));
+                            jdbc_result = jdbcPrep_getEligibleStaffForService.executeQuery();
+                            printQueryResultSet(jdbc_result);
+                            
+                            // Get staff ID
+                            System.out.print("\nEnter the staff ID for the staff member providing the service to the guest\n> ");
+                            staffID = scanner.nextLine();
+                            if (isValueSane("StaffID", staffID)) {
+                                
+                                // Call method that interacts with the DB
+                                updateInsertServiceRecord(stayID, Integer.parseInt(staffID), serviceName, true);
+                                
+                            }
+
+                        }
+
+                    }
+                    
+                }
+                else {
+                    System.out.println("\nThere are no occupied rooms in this hotel!\n");
+                }
+                
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
      * Front desk task: Check a customer out (generate itemized receipt & bill, release room)
      * 
      * Arguments -  None
@@ -2323,7 +2484,7 @@ public class WolfInns {
      *                  04/05/18 -  ATTD -  Improve user friendliness (help user find a stay ID to bill for).
      *                                      Roll in release of room (written by Manjusha) for streamlined check-out process.
      */
-    public static void checkCustomerOut() {
+    public static void frontDeskCheckOut() {
         
         try {
 
@@ -5241,7 +5402,7 @@ public class WolfInns {
                 else {
                     userGuidance = 
                        "Room NOT Assigned " + 
-                       "(this can happen if the number of guests is too high";
+                       "(this can happen if the number of guests is too high)";
                     System.out.println("\n" + userGuidance + "\n");
                 }
                 
@@ -5267,6 +5428,92 @@ public class WolfInns {
         
     }
     
+    
+    /** 
+     * DB Update: Insert new service record
+     * 
+     * Arguments -  stayID -            The ID of the stay the service is provided for.
+     *              staffID -           The ID of the staff member providing the service.
+     *              serviceName -       The name of the service provided.
+     *              reportSuccess -     True if we should print success message to console (should be false for mass population of service records)
+     * Return -     None
+     * 
+     * Modifications:   04/06/18 -  ATTD -  Created method.
+     */
+    public static void updateInsertServiceRecord(int stayID, int staffID, String serviceName, boolean reportSuccess) {
+        try {
+            
+            // Start transaction
+            jdbc_connection.setAutoCommit(false);
+            
+            try {
+                
+                // Declare variables
+                int oldServiceRecordID;
+                int newServiceRecordID;
+                String userGuidance;
+                
+                // Get the (OLD) newest service record ID
+                jdbc_result = jdbcPrep_getNewestServiceRecord.executeQuery();
+                if (jdbc_result.next()) {
+                    oldServiceRecordID = jdbc_result.getInt(1);
+                }
+                else {
+                    oldServiceRecordID = -1;
+                }
+                
+                /* Insert new service record for stay
+                 * Staff member must have correct job title
+                 * Staff member must be serving the hotel
+                 * Staff member must not be dedicated to a different room
+                 * Indices to use when calling this prepared statement:
+                 * 1 -  stay ID
+                 * 2 -  staff ID
+                 * 3 -  name of service
+                 */
+                jdbcPrep_insertNewServiceRecord.setInt(1, stayID);
+                jdbcPrep_insertNewServiceRecord.setInt(2, staffID);
+                jdbcPrep_insertNewServiceRecord.setString(3, serviceName);
+                jdbcPrep_insertNewServiceRecord.executeUpdate();
+
+                // If success, commit
+                jdbc_connection.commit();
+                
+                // Then, tell the user about the success or failure
+                jdbc_result = jdbcPrep_getNewestServiceRecord.executeQuery();
+                jdbc_result.next();
+                newServiceRecordID = jdbc_result.getInt(1);
+                if (oldServiceRecordID < newServiceRecordID) {
+                    if (reportSuccess) {
+                        System.out.println("\nService Record Entered!\n");
+                        jdbc_result.beforeFirst();
+                        printQueryResultSet(jdbc_result);
+                    }
+                }
+                else {
+                    userGuidance = 
+                       "Service Record NOT Entered " + 
+                       "(this can happen if the staff member is not eligible to provide the service for this stay)";
+                    System.out.println("\n" + userGuidance + "\n");
+                }
+                
+            }
+            catch (Throwable err) {
+                // Handle error
+                handleError(err);
+                // Roll back the entire transaction
+                jdbc_connection.rollback();
+            }
+            finally {
+                // Restore normal auto-commit mode
+                jdbc_connection.setAutoCommit(true);
+            }
+  
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
     
     /** 
      * DB Update: Release Room
@@ -5663,8 +5910,6 @@ public class WolfInns {
         
         try {
             
-            // TODO: Manjusha noted an issue that revealed - we do not yet know how to tell the user about primary key problem (non-unique insert attempted)
-            
             // Handle specific errors
             errorMessage = err.toString();
             
@@ -5854,6 +6099,7 @@ public class WolfInns {
      *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
      *                                          no longer makes sense with tables populated with demo data.
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
+     *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      */
     public static void main(String[] args) {
         
@@ -5935,13 +6181,16 @@ public class WolfInns {
                         // Check user's input (case insensitively)
                         switch (command.toUpperCase()) {
                             case CMD_FRONTDESK_CHECKOUT:
-                                checkCustomerOut();
+                                frontDeskCheckOut();
                                 break;
                             case CMD_FRONTDESK_AVAILABLE:
                                 frontDeskCheckAvailability();
                                 break;
                             case CMD_FRONTDESK_ASSIGN:
                                 frontDeskAssignRoom();
+                                break;
+                            case CMD_FRONTDESK_ENTER_SERVICE:
+                                frontDeskEnterService();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
@@ -6147,6 +6396,10 @@ public class WolfInns {
             jdbcPrep_getItemizedReceipt.close();
             jdbcPrep_updateAmountOwed.close();
             jdbcPrep_isValidStayId.close();
+            // Services
+            jdbcPrep_getEligibleStaffForService.close();
+            jdbcPrep_insertNewServiceRecord.close();
+            jdbcPrep_getNewestServiceRecord.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
