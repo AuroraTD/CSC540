@@ -59,6 +59,7 @@ public class WolfInns {
     private static final String CMD_REPORT_OCCUPANCY_BY_CITY = "OCCUPANCYBYCITY";
     private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
     private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED = "PERCENTAGEOFROOMSOCCUPIED";
+    private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE = "STAFFGROUPEDBYROLE";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -170,6 +171,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_reportOccupancyByCity;
     private static PreparedStatement jdbcPrep_reportTotalOccupancy;
     private static PreparedStatement jdbcPrep_reportPercentageOfRoomsOccupied;
+    private static PreparedStatement jdbcPrep_reportStaffGroupedByRole;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -260,7 +262,9 @@ public class WolfInns {
                     System.out.println("'" + CMD_REPORT_TOTAL_OCCUPANCY + "'");
                     System.out.println("\t- run report on total occupancy");  
                     System.out.println("'" + CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED + "'");
-                    System.out.println("\t- run report on percentage of rooms occupied");                      
+                    System.out.println("\t- run report on percentage of rooms occupied");                     
+                    System.out.println("'" + CMD_REPORT_STAFF_GROUPED_BY_ROLE + "'");
+                    System.out.println("\t- run report on staff grouped by role");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -1076,6 +1080,9 @@ public class WolfInns {
             				") AS Y); ";
             jdbcPrep_reportPercentageOfRoomsOccupied = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Report Staff grouped by role
+            reusedSQLVar = "SELECT * FROM Staff ORDER BY JobTitle; ";
+            jdbcPrep_reportStaffGroupedByRole = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
         }
         catch (Throwable err) {
@@ -2551,6 +2558,32 @@ public class WolfInns {
 			 
             // Print result
             System.out.println("\nReporting percentage of rooms occupied:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+    
+    /** 
+     * Report task: Report staff grouped by role
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportStaffGroupedByRole() {
+  
+    	try {
+            
+        	jdbc_result = jdbcPrep_reportStaffGroupedByRole.executeQuery();
+			 
+            // Print result
+            System.out.println("\nReporting staff grouped by their role:\n");
             printQueryResultSet(jdbc_result);
             
         }
@@ -5830,6 +5863,9 @@ public class WolfInns {
                             case CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED:
                             	reportPercentageOfRoomsOccupied();
                             	break;
+                            case CMD_REPORT_STAFF_GROUPED_BY_ROLE:
+                            	reportStaffGroupedByRole();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5982,6 +6018,7 @@ public class WolfInns {
             jdbcPrep_reportOccupancyByCity.close();
             jdbcPrep_reportTotalOccupancy.close();
             jdbcPrep_reportPercentageOfRoomsOccupied.close();
+            jdbcPrep_reportStaffGroupedByRole.close();
             // Connection
             jdbc_connection.close();
         
