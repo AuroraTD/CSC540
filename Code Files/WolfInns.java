@@ -14,10 +14,19 @@
  */
 
 // Imports
-import java.util.Scanner;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Scanner;
 
 // WolfInns class
 public class WolfInns {
@@ -49,6 +58,7 @@ public class WolfInns {
     private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL = "OCCUPANCYBYHOTEL";
     private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE = "OCCUPANCYBYROOMTYPE";
+    private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE = "OCCUPANCYBYDATERANGE";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -146,6 +156,7 @@ public class WolfInns {
     // Declare variables - prepared statements - Reports
     private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
     private static PreparedStatement jdbcPrep_reportOccupancyByRoomType;
+    private static PreparedStatement jdbcPrep_reportOccupancyByDateRange;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -236,7 +247,9 @@ public class WolfInns {
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_HOTEL + "'");
                     System.out.println("\t- run report on occupancy by hotel"); 
                     System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE + "'");
-                    System.out.println("\t- run report on occupancy by room type");                     
+                    System.out.println("\t- run report on occupancy by room type");  
+                    System.out.println("'" + CMD_REPORT_OCCUPANCY_BY_DATE_RANGE + "'");
+                    System.out.println("\t- run report on occupancy by date range");                     
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -893,6 +906,18 @@ public class WolfInns {
             				") AS X " +
             				"GROUP BY Category; ";
             jdbcPrep_reportOccupancyByRoomType = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Occupancy By Date Range
+            reusedSQLVar = "SELECT SUM(OccupiedFlag) AS RoomsOccupied " +
+            				"FROM ( " +
+            				"SELECT RoomNum, HotelID, IF (count(*) > 0, 1, 0) AS OccupiedFlag " + 
+            				"FROM Stays WHERE " +
+            				"StartDate <= ? AND " + 
+            				"CURDATE() >= ? AND " +
+            				"(EndDate >= ? OR EndDate IS NULL) " +
+            				" GROUP BY RoomNum, HotelID " +
+            				") AS X; ";
+            jdbcPrep_reportOccupancyByDateRange = jdbc_connection.prepareStatement(reusedSQLVar);
                                   
         }
         catch (Throwable err) {
@@ -2263,6 +2288,64 @@ public class WolfInns {
         }
                         
     }
+    
+    /** 
+     * Report task: Report occupancy by date range
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportOccupancyByDateRange() {
+  
+    	try { 
+    		  
+    		String startDate = getValidDataFromUser("REPORT_BY_DATE_RANGE", "StartDate", "Enter the start date (in format YYYY-MM-DD)");
+			if (!startDate.equalsIgnoreCase("<QUIT>")) {
+				
+				String endDate = getValidDataFromUser("REPORT_BY_DATE_RANGE", "EndDate", "Enter the end date (in format YYYY-MM-DD)", startDate);
+				if (!endDate.equalsIgnoreCase("<QUIT>")) { 
+					
+					// Get the report data and display the results
+					getOccupancyByDateRange(startDate, endDate);
+					
+				}                		                	
+			}                                	
+    	}		 
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
+        
+    /** 
+     * Report task: Report occupancy by date range
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void getOccupancyByDateRange(String startDate, String endDate) {
+  
+        try {
+                        
+            jdbcPrep_reportOccupancyByDateRange.setDate(1, java.sql.Date.valueOf(endDate));
+            jdbcPrep_reportOccupancyByDateRange.setDate(2, java.sql.Date.valueOf(startDate));
+            jdbcPrep_reportOccupancyByDateRange.setDate(3, java.sql.Date.valueOf(startDate));
+            jdbc_result = jdbcPrep_reportOccupancyByDateRange.executeQuery();
+                                     
+            // Print result
+            System.out.println("\nReporting occupancy from " + startDate + " to " + endDate);
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
 
     /** 
      * Report task: Report all results from a given table
@@ -3099,8 +3182,9 @@ public class WolfInns {
      *                  03/28/18 -  ATTD -  Use same field names as in tables themselves
      *                                      - for developer ease
      *                                      - because "isValueSane" method uses table attribute names
- *                      04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
- *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
+     *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/05/18 -  MTA -   Added validations for Start and End Date fields while generating report by date range
      */
     public static String getValidDataFromUser (String operation, String fieldName, String message, String...params ){
     	
@@ -3208,6 +3292,53 @@ public class WolfInns {
         		    isValid = isSane;
         		}
         		   
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("StartDate")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+        		 
+    			if (isSane) {  
+    				// Extra checks for Start Date when reporting occupancy by date range :
+        			// 1. Check if the Start Date is less than current date
+    				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd"); 
+            		Date currentDate,startDate;
+    				try {
+    					currentDate = new Date();
+    					startDate = df.parse(value);
+    					boolean isValidStartDate = startDate.before(currentDate);
+            			if (isValidStartDate) { 
+            				isValid = true;  
+            			} else {
+            				System.out.println("ERROR: Entered start date must be less than the current date");
+            			}  
+    				} catch (ParseException e) {
+    					System.out.println("Start Date must be entered in the format 'YYYY-MM-DD'");
+    					e.printStackTrace();
+    				}  
+    			}  
+        	} 
+        	
+        	else if (fieldName.equalsIgnoreCase("EndDate")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+        		 
+    			if (isSane) {  
+    				// Extra checks for End Date when reporting occupancy by date range :        			
+    				SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd"); 
+            		Date startDate, endDate;
+    				try { 
+    					endDate = df.parse(value);
+    					startDate = df.parse(params[0]);
+    					// 1. End Date is after Start Date
+            			if (endDate.after(startDate)) { 
+            				isValid = true;  
+            			} else {
+            				System.out.println("ERROR: Entered end date must be greater than the start date");
+            			}  
+    				} catch (ParseException e) {
+    					System.out.println("End Date must be entered in the format 'YYYY-MM-DD'");
+    					e.printStackTrace();
+    				}  
+    			}  
         	}  
         	
         	else {
@@ -5497,6 +5628,8 @@ public class WolfInns {
                             case CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE:
                             	reportOccupancyByRoomType();
                             	break;
+                            case CMD_REPORT_OCCUPANCY_BY_DATE_RANGE:
+                            	reportOccupancyByDateRange();
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -5636,6 +5769,7 @@ public class WolfInns {
             // Reports
             jdbcPrep_reportOccupancyByHotel.close();
             jdbcPrep_reportOccupancyByRoomType.close();
+            jdbcPrep_reportOccupancyByDateRange.close();
             // Connection
             jdbc_connection.close();
         
