@@ -38,15 +38,12 @@ public class WolfInns {
     private static final String CMD_MAIN =                  "MAIN";
     private static final String CMD_QUIT =                  "QUIT";
     private static final String CMD_FRONTDESK =             "FRONTDESK";
-    private static final String CMD_BILLING =               "BILLING";
     private static final String CMD_REPORTS =               "REPORTS";
     private static final String CMD_MANAGE =                "MANAGE";
     
     private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
     private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
-    private static final String CMD_FRONTDESK_RELEASE =     "RELEASEROOM";
-    
-    private static final String CMD_BILLING_GENERATE =      "BILLFORSTAY";
+    private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
     
     private static final String CMD_REPORT_REVENUE =        "REVENUE";
     private static final String CMD_REPORT_HOTELS =         "HOTELS";
@@ -116,7 +113,8 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_isValidRoomNumber; 
     private static PreparedStatement jdbcPrep_isRoomCurrentlyOccupied;
     private static PreparedStatement jdbcPrep_isValidHotelId;
-    private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum; 
+    private static PreparedStatement jdbcPrep_getRoomByHotelIDRoomNum;
+    private static PreparedStatement jdbcPrep_getOccupiedRoomsInHotel; 
     private static PreparedStatement jdbcPrep_getOneExampleRoom;
     private static PreparedStatement jdbcPrep_assignDedicatedStaff;
     private static PreparedStatement jdbcPrep_releaseDedicatedStaff;    
@@ -150,8 +148,17 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_assignRoom;
     private static PreparedStatement jdbcPrep_getNewestStay;
     private static PreparedStatement jdbcPrep_addStayNoSafetyChecks;
+    private static PreparedStatement jdbcPrep_getSummaryOfStay;
+    private static PreparedStatement jdbcPrep_getStayByRoomAndHotel;
+    private static PreparedStatement jdbcPrep_getItemizedReceipt;
+    private static PreparedStatement jdbcPrep_updateAmountOwed;
     private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
     private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
+    
+    // Declare variables - prepared statements - Table reporting
+    private static PreparedStatement jdbcPrep_reportTableRooms;
+    private static PreparedStatement jdbcPrep_reportTableStaff;
+    private static PreparedStatement jdbcPrep_reportTableStays;
     
     // Declare variables - prepared statements - Reports
     private static PreparedStatement jdbcPrep_reportOccupancyByHotel;
@@ -186,6 +193,7 @@ public class WolfInns {
      *                  03/27/18 -  MTA  -  Add ability to add, update and delete customer.
      *                  03/27/18 -  ATTD -  Add ability to check room availability.
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
+     *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      */
     public static void printAvailableCommands(String menu) {
         
@@ -199,8 +207,6 @@ public class WolfInns {
                 case CMD_MAIN:
                     System.out.println("'" + CMD_FRONTDESK + "'");
                     System.out.println("\t- perform front-desk tasks");
-                    System.out.println("'" + CMD_BILLING + "'");
-                    System.out.println("\t- bill customers");
                     System.out.println("'" + CMD_REPORTS + "'");
                     System.out.println("\t- run reports");
                     System.out.println("'" + CMD_MANAGE + "'");
@@ -210,19 +216,12 @@ public class WolfInns {
                     System.out.println("");
                     break;
                 case CMD_FRONTDESK:
+                    System.out.println("'" + CMD_FRONTDESK_CHECKOUT + "'");
+                    System.out.println("\t- check customer out (generate receipt & bill, release room)");
                     System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
                     System.out.println("\t- check room availability");
                     System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
                     System.out.println("\t- assign a room to a customer");
-                    System.out.println("'" + CMD_FRONTDESK_RELEASE + "'");
-                    System.out.println("\t- release a room");
-                    System.out.println("'" + CMD_MAIN + "'");
-                    System.out.println("\t- go back to the main menu");
-                    System.out.println("");
-                    break;
-                case CMD_BILLING:
-                    System.out.println("'" + CMD_BILLING_GENERATE + "'");
-                    System.out.println("\t- generate a bill and an itemized receipt for a customer stay");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -358,6 +357,8 @@ public class WolfInns {
      *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
      *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
      *                                          no longer makes sense with tables populated with demo data.
+     *                  04/05/18 -  ATTD -  Add prepared statements related to customer billing (itemized receipt, bill).
+     *                                      Add prepared statements for table reporting.
      */
     public static void createPreparedStatements() {
         
@@ -698,31 +699,31 @@ public class WolfInns {
         	jdbcPrep_insertNewRoom = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update room category
-            reusedSQLVar = "UPDATE Rooms SET Category = ? WHERE RoomNum = ? AND hotelID = ?;";
+            reusedSQLVar = "UPDATE Rooms SET Category = ? WHERE RoomNum = ? AND HotelID = ?;";
         	jdbcPrep_updateRoomCategory = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update room max occupancy
-            reusedSQLVar = "UPDATE Rooms SET MaxOcc = ? WHERE RoomNum = ? AND hotelID = ?;";
+            reusedSQLVar = "UPDATE Rooms SET MaxOcc = ? WHERE RoomNum = ? AND HotelID = ?;";
         	jdbcPrep_updateRoomMaxOccupancy = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update room nightly rate
-            reusedSQLVar = "UPDATE Rooms SET NightlyRate = ? WHERE RoomNum = ? AND hotelID = ?;";
+            reusedSQLVar = "UPDATE Rooms SET NightlyRate = ? WHERE RoomNum = ? AND HotelID = ?;";
         	jdbcPrep_updateRoomNightlyRate = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update room Dedicated Room Staff
-            reusedSQLVar = "UPDATE Rooms SET DRSStaff = ? WHERE RoomNum = ? AND hotelID = ?;";
+            reusedSQLVar = "UPDATE Rooms SET DRSStaff = ? WHERE RoomNum = ? AND HotelID = ?;";
         	jdbcPrep_updateRoomDRSStaff = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Update room Dedicated Catering Staff
-            reusedSQLVar = "UPDATE Rooms SET DCStaff = ? WHERE RoomNum = ? AND hotelID = ?;";
+            reusedSQLVar = "UPDATE Rooms SET DCStaff = ? WHERE RoomNum = ? AND HotelID = ?;";
         	jdbcPrep_updateRoomDCStaff = jdbc_connection.prepareStatement(reusedSQLVar);
         	 
         	// Delete room
-        	reusedSQLVar = "DELETE FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
+        	reusedSQLVar = "DELETE FROM Rooms WHERE RoomNum = ? AND HotelID = ?; ";
         	jdbcPrep_deleteRoom = jdbc_connection.prepareStatement(reusedSQLVar);
         	
         	// Check if room number belongs to hotel 
-        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Rooms WHERE hotelID = ? AND RoomNum = ? ;";			 
+        	reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Rooms WHERE HotelID = ? AND RoomNum = ? ;";			 
 			jdbcPrep_isValidRoomNumber = jdbc_connection.prepareStatement(reusedSQLVar); 
 			
 			/* Check if room is currently occupied
@@ -730,7 +731,7 @@ public class WolfInns {
              * 1 -  hotel ID
              * 2 -  room number
 			 */
-			reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE hotelID = ? AND RoomNum = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";			 
+			reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE HotelID = ? AND RoomNum = ? AND (CheckOutTime IS NULL OR EndDate IS NULL);";			 
 			jdbcPrep_isRoomCurrentlyOccupied = jdbc_connection.prepareStatement(reusedSQLVar); 
 
 			// Check if hotel exists in the database
@@ -738,8 +739,17 @@ public class WolfInns {
 			jdbcPrep_isValidHotelId = jdbc_connection.prepareStatement(reusedSQLVar); 
 			
 			// Report room details by room number and hotel id
-			reusedSQLVar = "SELECT * FROM Rooms WHERE RoomNum = ? AND hotelID = ?; ";
+			reusedSQLVar = "SELECT * FROM Rooms WHERE RoomNum = ? AND HotelID = ?; ";
         	jdbcPrep_getRoomByHotelIDRoomNum = jdbc_connection.prepareStatement(reusedSQLVar);
+        	
+        	/* Report occupied rooms in one specific hotel
+             * Indices to use when calling this prepared statement:
+             * 1 -  hotel ID
+        	 */
+            reusedSQLVar = 
+                "SELECT * FROM Rooms WHERE HotelID = ? AND " + 
+                "EXISTS (SELECT * FROM Stays WHERE Stays.HotelID = Rooms.HotelID AND Stays.RoomNum = Rooms.RoomNum AND EndDate IS NULL);";
+            jdbcPrep_getOccupiedRoomsInHotel = jdbc_connection.prepareStatement(reusedSQLVar);
 			 
             // Add customer
             reusedSQLVar = "INSERT INTO Customers (SSN, Name, DOB, PhoneNum, Email) VALUES (? , ?, ?, ?, ?); ";
@@ -865,6 +875,104 @@ public class WolfInns {
             // Get the Stay ID for given room
             reusedSQLVar = "SELECT ID FROM Stays WHERE HotelID = ? AND RoomNum = ?;";
             jdbcPrep_getStayIdForOccupiedRoom = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get a brief, user-friendly summary of a single customer stay
+             * Indices to use when calling this prepared statement:
+             * 1 -  stay ID
+             */
+            reusedSQLVar = 
+                "SELECT " + 
+                "(SELECT Name FROM Customers WHERE Customers.ID = Stays.CustomerID) AS Customer, StartDate, EndDate, " + 
+                "(SELECT Name FROM Hotels WHERE Hotels.ID = Stays.HotelID) AS Hotel, RoomNum, PaymentMethod, CardType " + 
+                "FROM Stays WHERE ID = ?";
+            jdbcPrep_getSummaryOfStay = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get stay ID by room number and hotel ID
+             * Indices to use when calling this prepared statement:
+             * 1 -  room number
+             * 2 -  hotel ID
+             */
+            reusedSQLVar = "SELECT ID FROM Stays WHERE Stays.RoomNum = ? AND Stays.HotelID = ? AND EndDate IS NULL;";
+            jdbcPrep_getStayByRoomAndHotel = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Generate an itemized receipt for a stay
+             * This produces the union of two relations
+             * First, a relation showing costs incurred based on nights stayed in a particular room
+             * Second, a relation showing costs incurred by getting extra services (catering, etc)
+             * Indices to use when calling this prepared statement:
+             * 1 -  stay ID
+             * 2 -  stay ID (again)
+             */
+            reusedSQLVar = 
+                "(" + 
+                    "SELECT 'NIGHT' AS Item, Nights AS Qty, NightlyRate AS ItemCost, Nights * NightlyRate AS TotalCost " + 
+                    "FROM (" + 
+                        "SELECT DATEDIFF(EndDate, StartDate) AS Nights, NightlyRate " + 
+                        "FROM (" + 
+                            "SELECT StartDate, EndDate, NightlyRate " + 
+                            "FROM Rooms NATURAL JOIN (" + 
+                                "SELECT StartDate, EndDate, RoomNum, HotelID " + 
+                                "FROM Stays " + 
+                                "WHERE ID = ?" + 
+                            ") AS A " + 
+                        ") AS B " + 
+                    ") AS C " + 
+                ") " + 
+                "UNION " + 
+                "(" + 
+                    "SELECT Name AS Item, Cost AS ItemCost, COUNT(*) AS Qty, COUNT(*) * Cost AS TotalCost " + 
+                    "FROM (" + 
+                        "ServiceTypes NATURAL JOIN (" + 
+                            "SELECT StayID, ServiceName AS Name " + 
+                            "FROM Provided " + 
+                            "WHERE StayID = ?" + 
+                        ") AS ServicesProvided " + 
+                    ") GROUP BY Item" + 
+                ")";
+            jdbcPrep_getItemizedReceipt = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Update the amount owed for a stay
+             * Indices to use when calling this prepared statement: 
+             * 1 -  amount owed
+             * 2 -  stay ID
+             */
+            reusedSQLVar = 
+                "UPDATE Stays SET AmountOwed = ? WHERE ID = ?;";
+            jdbcPrep_updateAmountOwed = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Special printing for Rooms table
+             * Also print out whether the room is available.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = 
+                "SELECT HotelID, RoomNum, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff, " + 
+                "IF(EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL), 'No', 'Yes') AS Available " + 
+                "FROM Rooms ORDER BY HotelID, RoomNum";
+            jdbcPrep_reportTableRooms = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Special printing for Staff table
+             * Also print out staff member's age.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */ 
+            reusedSQLVar = 
+                "SELECT HotelID, ID, Name, DOB, FLOOR(DATEDIFF(CURDATE(), DOB) / 365) AS Age, JobTitle, Dep, PhoneNum, Address " + 
+                "FROM Staff ORDER BY HotelID;";
+            jdbcPrep_reportTableStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Special printing for Stays table
+             * Also print out customer's SSN.
+             * This is to more easily demonstrate that the demo data was populated correctly.
+             * While you're at it, print ordered by hotel ID because the output makes more sense that way.
+             */
+            reusedSQLVar = 
+                "SELECT ID, StartDate, CheckInTime, EndDate, CheckOutTime, RoomNum, HotelID, CustomerID, " + 
+                "(SELECT SSN FROM Customers WHERE Customers.ID = Stays.CustomerID) AS CustomerSSN, " + 
+                "NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress " + 
+                "FROM Stays;";
+            jdbcPrep_reportTableStays = jdbc_connection.prepareStatement(reusedSQLVar);
             
             // Update the CheckOutTime and EndDate while releasing the room
             reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
@@ -1596,6 +1704,8 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
      *                                      Changing room categories to match those given in demo data.
      *                                      Populate Rooms table with demo data.
+     *                  04/05/18 -  ATTD -  Remove code to give presidential suite dedicated staff.
+     *                                      The room in question is not occupied at the time of application start-up!
      */
     public static void populateRoomsTable() {
         
@@ -1621,17 +1731,6 @@ public class WolfInns {
         		addRoom(2, 3, "Executive",    3, 1000,    false);
         		addRoom(1, 4, "Presidential", 4, 5000,    false);
         		addRoom(5, 1, "Deluxe",       2, 200,     false);
-        		
-        		/* Presidential suites require dedicated staff
-        		 * Signature for method called here:
-        		 * int roomNumber, 
-        		 * int hotelId, 
-        		 * String columnName, 
-        		 * String columnValue, 
-        		 * boolean reportSuccess
-                 */
-        		updateRoom(1, 4, "DRSStaff",  "107", false);
-        		updateRoom(1, 4, "DCStaff",   "108", false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -2130,58 +2229,73 @@ public class WolfInns {
         }
         
     }
-    
+
     /** 
-     * Front Desk task: Release a room
-     * 
-     * Arguments -  None
-     * Return -     None
-     * 
-     * Modifications:   04/04/18 -  MTA -  Added method. 
-     */
-    public static void frontDeskReleaseRoom() {
-        
-        try { 
-        	
-        	// Get the hotel id and room number to be released from the user
-        	String hotelId = getValidDataFromUser("RELEASE_ROOM", "HotelId", "Enter the hotel id for which you wish to release room "); 
-        	if (!hotelId.equalsIgnoreCase("<QUIT>")) {
-        		String roomNumber = getValidDataFromUser("RELEASE_ROOM", "RoomNum", "Enter the room number you wish to release ", hotelId);  
-        		if (!roomNumber.equalsIgnoreCase("<QUIT>")) {
-	        		// Release the room
-	        		releaseRoom(hotelId, roomNumber, true); 
-        		}
-        	}                         
-        }
-        catch (Throwable err) {
-            handleError(err);
-        } 
-    }
-    
-    // BILLING
-    
-    /** 
-     * Billing task: Generate bill and itemized receipt for a customer's stay
+     * Front desk task: Check a customer out (generate itemized receipt & bill, release room)
      * 
      * Arguments -  None
      * Return -     None
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/05/18 -  ATTD -  Improve user friendliness (help user find a stay ID to bill for).
+     *                                      Roll in release of room (written by Manjusha) for streamlined check-out process.
      */
-    public static void generateBillAndReceipt() {
+    public static void checkCustomerOut() {
         
         try {
 
             // Declare variables
+            String hotelID;
+            String roomNum;
             int stayID;
             
-            // Get stay ID
-            System.out.print("\nEnter the stay ID\n> ");
-            stayID = Integer.parseInt(scanner.nextLine());
+            // Print hotels to console so user has some context
+            reportEntireTable("Hotels");
             
-            // Call method to actually interact with the DB
-            queryItemizedReceipt(stayID, true);
+            // Get hotel ID
+            System.out.print("\nEnter the hotel ID for the hotel you wish to check a customer out of\n> ");
+            hotelID = scanner.nextLine();
+            if (isValueSane("ID", hotelID)) {
+                
+                // Are there any occupied rooms in this hotel?
+                jdbcPrep_getOccupiedRoomsInHotel.setInt(1, Integer.parseInt(hotelID));
+                jdbc_result = jdbcPrep_getOccupiedRoomsInHotel.executeQuery();
+                if (jdbc_result.next()) {
+                    
+                    // Print all occupied rooms in that hotel so user has some context
+                    System.out.println("\nOccupied rooms in this hotel:\n");
+                    jdbc_result.beforeFirst();
+                    printQueryResultSet(jdbc_result);
+                    
+                    // Get room number
+                    System.out.print("\nEnter the room number you wish to check a customer out of\n> ");
+                    roomNum = scanner.nextLine();
+                    if (isValueSane("RoomNum", roomNum)) {
+
+                        /* Get stay ID based on room number and hotel BEFORE releasing room
+                         * (could be several stays with same room / hotel, we want unreleased stay)
+                         */
+                        jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
+                        jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
+                        jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
+                        jdbc_result.next();
+                        stayID = jdbc_result.getInt(1);
+                        
+                        // AFTER getting the stay ID (needs room to be UNreleased), release the room so another customer can use it
+                        releaseRoom(hotelID, roomNum);
+                        
+                        // Create itemized receipt & bill, print all info to console
+                        queryItemizedReceipt(stayID, true);
+                        
+                    }
+                    
+                }
+                else {
+                    System.out.println("\nThere are no occupied rooms in this hotel!\n");
+                }
+                
+            }
             
         }
         catch (Throwable err) {
@@ -2363,21 +2477,17 @@ public class WolfInns {
     public static void reportEntireTable(String tableName) {
 
         try {
-            
+
             // Report entire table (no transaction needed for a query)
             System.out.println("\nEntries in the " + tableName + " table:\n");
-            // TODO: use prepared statements instead
+            
             /* Special printing for Rooms table
              * Also print out whether the room is available.
              * This is to more easily demonstrate that the demo data was populated correctly.
              * While you're at it, print ordered by hotel ID because the output makes more sense that way.
              */  
             if (tableName.equalsIgnoreCase("Rooms")) {
-                jdbc_result = jdbc_statement.executeQuery(
-                    "SELECT HotelID, RoomNum, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff, " + 
-                    "IF(EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL), 'No', 'Yes') AS Available " + 
-                    "FROM " + tableName + " ORDER BY HotelID, RoomNum"
-                );
+                jdbc_result = jdbcPrep_reportTableRooms.executeQuery();
             }
             /* Special printing for Staff table
              * Also print out staff member's age.
@@ -2385,10 +2495,7 @@ public class WolfInns {
              * While you're at it, print ordered by hotel ID because the output makes more sense that way.
              */  
             else if (tableName.equalsIgnoreCase("Staff")) {
-                jdbc_result = jdbc_statement.executeQuery(
-                    "SELECT HotelID, ID, Name, DOB, FLOOR(DATEDIFF(CURDATE(), DOB) / 365) AS Age, JobTitle, Dep, PhoneNum, Address " + 
-                    "FROM " + tableName + " ORDER BY HotelID"
-                );
+                jdbc_result = jdbcPrep_reportTableStaff.executeQuery();
             }
             /* Special printing for Stays table
              * Also print out customer's SSN.
@@ -2396,15 +2503,11 @@ public class WolfInns {
              * While you're at it, print ordered by hotel ID because the output makes more sense that way.
              */  
             else if (tableName.equalsIgnoreCase("Stays")) {
-                jdbc_result = jdbc_statement.executeQuery(
-                    "SELECT ID, StartDate, CheckInTime, EndDate, CheckOutTime, RoomNum, HotelID, CustomerID, " + 
-                    "(SELECT SSN FROM Customers WHERE Customers.ID = Stays.CustomerID) AS CustomerSSN, " + 
-                    "NumGuests, AmountOwed, PaymentMethod, CardType, CardNumber, BillingAddress " + 
-                    "FROM " + tableName
-                );
+                jdbc_result = jdbcPrep_reportTableStays.executeQuery();
             }
             // Other tables have no special printing needs
             else {
+                // TODO: use prepared statements instead?
                 jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
             }
             printQueryResultSet(jdbc_result);
@@ -3617,11 +3720,11 @@ public class WolfInns {
             if (okaySoFar && attributeName.equalsIgnoreCase("ManagerID")) {
                 // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
-                        "SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
-                        "FROM Staff, Rooms " + 
-                        "WHERE Staff.ID = " + 
-                        Integer.parseInt(proposedValue) + 
-                        " AND (Rooms.DRSStaff = " + Integer.parseInt(proposedValue) + " OR Rooms.DCStaff = " + Integer.parseInt(proposedValue) + ")");
+                    "SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
+                    "FROM Staff, Rooms " + 
+                    "WHERE Staff.ID = " + 
+                    Integer.parseInt(proposedValue) + 
+                    " AND (Rooms.DRSStaff = " + Integer.parseInt(proposedValue) + " OR Rooms.DCStaff = " + Integer.parseInt(proposedValue) + ")");
                 
                 if (jdbc_result.next()) {
                     System.out.println("\nThis manager cannot be used, because they are already dedicated to serving a presidential suite\n");
@@ -3726,6 +3829,9 @@ public class WolfInns {
      * 
      * Modifications:   03/11/18 -  ATTD -  Created method.
      *                  03/23/18 -  ATTD -  Use new general error handler.
+     *                  04/05/18 -  ATTD -  Make print-out more user-friendly.
+     *                                      Allow for generating a receipt for a stay that is active (assume stay ends on current date).
+     *                                      This adds flexibility in that this can be called before or after the room is released.
      */
     public static void queryItemizedReceipt (int stayID, boolean reportResults) {
 
@@ -3733,7 +3839,8 @@ public class WolfInns {
             
             // Declare variables
             NumberFormat currency;
-            String itemizedReceiptSQL;
+            boolean discountApplies = false;
+            double lineItemCost = 0d;
             double amountOwedBeforeDiscount = 0d;
             double amountOwedAfterDiscount = 0d;
             
@@ -3742,65 +3849,52 @@ public class WolfInns {
             
             try {
                 
-                // Generate an itemized receipt for the stay
-                // TODO: use prepared statement instead
-                itemizedReceiptSQL = 
-                        "(" + 
-                            "SELECT 'NIGHT' AS Item, Nights AS Qty, NightlyRate AS ItemCost, Nights * NightlyRate AS TotalCost " + 
-                            "FROM (" + 
-                                "SELECT DATEDIFF(EndDate, StartDate) AS Nights, NightlyRate " + 
-                                "FROM (" + 
-                                    "SELECT StartDate, EndDate, NightlyRate " + 
-                                    "FROM Rooms NATURAL JOIN (" + 
-                                        "SELECT StartDate, EndDate, RoomNum, HotelID " + 
-                                        "FROM Stays " + 
-                                        "WHERE ID = " + 
-                                        stayID +
-                                    ") AS A " + 
-                                ") AS B " + 
-                            ") AS C " + 
-                        ") " + 
-                        "UNION " + 
-                        "(" + 
-                            "SELECT Name AS Item, COUNT(*) AS Qty, Cost AS ItemCost, COUNT(*) * Cost AS TotalCost " + 
-                            "FROM (" + 
-                                "ServiceTypes NATURAL JOIN (" + 
-                                    "SELECT StayID, ServiceName AS Name " + 
-                                    "FROM Provided " + 
-                                    "WHERE StayID = " + 
-                                    stayID + 
-                                ") AS ServicesProvided " + 
-                            ") GROUP BY Item" + 
-                        ")";
-                jdbc_result = jdbc_statement.executeQuery(itemizedReceiptSQL + ";");
+                /* Pull out info that tells us whether the customer will get a discount
+                 * Columns in result:
+                 * 1 -  customer
+                 * 2 -  start date
+                 * 3 -  end date
+                 * 4 -  hotel
+                 * 5 -  room
+                 * 6 -  payment method
+                 * 7 -  card type
+                 */
+                jdbcPrep_getSummaryOfStay.setInt(1,stayID);
+                jdbc_result = jdbcPrep_getSummaryOfStay.executeQuery();
+                jdbc_result.next();
+                discountApplies = jdbc_result.getString(6).equalsIgnoreCase("CARD") && jdbc_result.getString(7).equalsIgnoreCase("HOTEL");
                 
-                // Print the itemized receipt and the total amount owed
+                // If reporting to screen, print a summary of the stay for context
                 if (reportResults) {
-                    System.out.println("\nItemized Receipt for Stay ID: " + stayID + "\n");
+                    System.out.println("\nYour Stay:\n");
+                    jdbc_result.beforeFirst();
+                    printQueryResultSet(jdbc_result);
+                }
+
+                // Generate an itemized receipt for the stay
+                jdbcPrep_getItemizedReceipt.setInt(1, stayID);
+                jdbcPrep_getItemizedReceipt.setInt(2, stayID);
+                jdbc_result = jdbcPrep_getItemizedReceipt.executeQuery();
+                
+                // Print the itemized receipt
+                if (reportResults) {
+                    System.out.println("\nItemized Receipt:\n");
                     printQueryResultSet(jdbc_result);
                 }
                 
                 // Calculate the total amount owed, both before and after the possible hotel credit card discount
-                // TODO: use prepared statement instead
-                jdbc_result = jdbc_statement.executeQuery(
-                    "SELECT SUM(TotalCost) FROM (" + 
-                    itemizedReceiptSQL + 
-                    ") AS ItemizedReceipt;");
-                jdbc_result.next();
-                amountOwedBeforeDiscount = jdbc_result.getDouble(1);
-                // TODO: use prepared statement instead
-                jdbc_result = jdbc_statement.executeQuery(
-                    "SELECT IF((SELECT CardType FROM Stays WHERE ID = " + 
-                    stayID + 
-                    ") = 'HOTEL', SUM(TotalCost) * 0.95, SUM(TotalCost)) FROM (" + 
-                    itemizedReceiptSQL + 
-                    ") AS ItemizedReceipt;");
-                jdbc_result.next();
-                amountOwedAfterDiscount = jdbc_result.getDouble(1);
+                jdbc_result.beforeFirst();
+                while (jdbc_result.next()) {
+                    // Total cost of a line item is in column 4
+                    lineItemCost = Double.parseDouble(jdbc_result.getString(4));
+                    amountOwedBeforeDiscount += lineItemCost;
+                }
+                amountOwedAfterDiscount = discountApplies ? amountOwedBeforeDiscount * 0.95 : amountOwedBeforeDiscount;
                 
                 // Update the stay with the total amount owed
-                // TODO: use prepared statement instead
-                jdbc_statement.executeUpdate("UPDATE Stays SET AmountOwed = " + amountOwedAfterDiscount + " WHERE ID = " + stayID);
+                jdbcPrep_updateAmountOwed.setDouble(1, amountOwedAfterDiscount);
+                jdbcPrep_updateAmountOwed.setInt(2, stayID);
+                jdbcPrep_updateAmountOwed.executeUpdate();
                 
                 // If success, commit
                 jdbc_connection.commit();
@@ -3808,9 +3902,9 @@ public class WolfInns {
                 // Print the total amount owed
                 if (reportResults) {
                     currency = NumberFormat.getCurrencyInstance();
-                    System.out.println("\nTotal Amount Owed Before Discount: " + currency.format(amountOwedBeforeDiscount));
-                    System.out.println("\nWolfInns Credit Card Discount Applied: " + (amountOwedBeforeDiscount == amountOwedAfterDiscount ? "0%" : "5%"));
-                    System.out.println("\nTotal Amount Owed After Discount: " + currency.format(amountOwedAfterDiscount) + "\n");
+                    System.out.println("\nTotal Amount Owed Before Discount: " +        currency.format(amountOwedBeforeDiscount));
+                    System.out.println("\nWolfInns Credit Card Discount Applied: " +    (amountOwedBeforeDiscount == amountOwedAfterDiscount ? "0%" : "5%"));
+                    System.out.println("\nTotal Amount Owed After Discount: " +         currency.format(amountOwedAfterDiscount) + "\n");
                 }
                 
             }
@@ -3858,8 +3952,8 @@ public class WolfInns {
              */
             // TODO: use prepared statement instead
             jdbc_result = jdbc_statement.executeQuery("SELECT SUM(AmountOwed) " + 
-                    "FROM Stays " +
-                    "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
+                "FROM Stays " +
+                "WHERE HotelID = " + hotelID + " AND Stays.EndDate >= '" + queryStartDate + "' AND Stays.EndDate <= '" + queryEndDate + "'");
             
             jdbc_result.next();
             revenue = jdbc_result.getDouble(1);
@@ -4917,16 +5011,12 @@ public class WolfInns {
      * 
      * Arguments -  hotelID -           The hotel for the room to be released
      * 				roomNum -           The room number of the room to be released
-     *              reportSuccess -     True if we should print success message to console (should be false for mass population of hotels)
      * Return -     None
      * 
-     * Modifications:   04/04/18 -  MTA -  Added method
+     * Modifications:   04/04/18 -  MTA -   Added method.
+     *                  04/05/18 -  ATTD -  Remove unused reportSuccess argument.
      */
-    public static void releaseRoom ( 
-        String hotelID, 
-        String roomNum, 
-        boolean reportSuccess
-    ) {
+    public static void releaseRoom (String hotelID, String roomNum) {
           
         try {
                
@@ -4954,10 +5044,10 @@ public class WolfInns {
 				jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
 				jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
 
-                // Once both actions(Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
                 jdbc_connection.commit();
                 
-                System.out.println("The room has been successfully released!");
+                System.out.println("\nThe room has been successfully released!");
                 
             }
             catch (Throwable err) {
@@ -5190,31 +5280,27 @@ public class WolfInns {
       * 
      * Modifications:   03/28/18 -  MTA -   Added method.
      *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/05/18 -  ATTD -  Remove extraneous try-catch.
      */
     public static boolean isValidCustomer(String ID){  
     	
-    	try {      		
-	        try {				
-	        	jdbcPrep_isValidCustomer.setInt(1, Integer.parseInt(ID)); 
-				 
-				 ResultSet rs = jdbcPrep_isValidCustomer.executeQuery();
-				 int cnt = 0;
-				 
-				 while (rs.next()) {
-					cnt = rs.getInt("CNT");  	
-				 }
-				 
-				 if (cnt == 1) { 
-					 return true;
-				 }   
-				 
-	        }
-	        catch (Throwable err) {
-	            handleError(err);
-	        }  
-    	} 
-    	catch (Throwable err) { 
-    		handleError(err); 
+        try {               
+            jdbcPrep_isValidCustomer.setInt(1, Integer.parseInt(ID)); 
+             
+             ResultSet rs = jdbcPrep_isValidCustomer.executeQuery();
+             int cnt = 0;
+             
+             while (rs.next()) {
+                cnt = rs.getInt("CNT");     
+             }
+             
+             if (cnt == 1) { 
+                 return true;
+             }   
+             
+        }
+        catch (Throwable err) {
+            handleError(err);
         }
         
         return false; 
@@ -5468,6 +5554,7 @@ public class WolfInns {
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
      *                                      Remove prepared statement to update hotel ID over a range of staff IDs,
      *                                          no longer makes sense with tables populated with demo data.
+     *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      */
     public static void main(String[] args) {
         
@@ -5523,12 +5610,6 @@ public class WolfInns {
                                 // Remember what menu we're in
                                 currentMenu = CMD_FRONTDESK;
                             break;
-                            case CMD_BILLING:
-                                // Tell the user their options in this new menu
-                                printAvailableCommands(CMD_BILLING);
-                                // Remember what menu we're in
-                                currentMenu = CMD_BILLING;
-                            break;
                             case CMD_REPORTS:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_REPORTS);
@@ -5554,14 +5635,14 @@ public class WolfInns {
                     case CMD_FRONTDESK:
                         // Check user's input (case insensitively)
                         switch (command.toUpperCase()) {
+                            case CMD_FRONTDESK_CHECKOUT:
+                                checkCustomerOut();
+                                break;
                             case CMD_FRONTDESK_AVAILABLE:
                                 frontDeskCheckAvailability();
                                 break;
                             case CMD_FRONTDESK_ASSIGN:
                                 frontDeskAssignRoom();
-                                break;
-                            case CMD_FRONTDESK_RELEASE:
-                                frontDeskReleaseRoom();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
@@ -5573,25 +5654,6 @@ public class WolfInns {
                                 // Remind the user about what commands are available
                                 System.out.println("\nCommand not recognized");
                                 printAvailableCommands(CMD_FRONTDESK);
-                                break;
-                        }
-                        break;
-                    case CMD_BILLING:
-                        // Check user's input (case insensitively)
-                        switch (command.toUpperCase()) {
-                            case CMD_BILLING_GENERATE:
-                                generateBillAndReceipt();
-                                break;
-                            case CMD_MAIN:
-                                // Tell the user their options in this new menu
-                                printAvailableCommands(CMD_MAIN);
-                                // Remember what menu we're in
-                                currentMenu = CMD_MAIN;
-                                break;
-                            default:
-                                // Remind the user about what commands are available
-                                System.out.println("\nCommand not recognized");
-                                printAvailableCommands(CMD_BILLING);
                                 break;
                         }
                         break;
@@ -5746,6 +5808,7 @@ public class WolfInns {
             jdbcPrep_isRoomCurrentlyOccupied.close();
             jdbcPrep_isValidHotelId.close();
             jdbcPrep_getRoomByHotelIDRoomNum.close();
+            jdbcPrep_getOccupiedRoomsInHotel.close();
             jdbcPrep_getOneExampleRoom.close();
             jdbcPrep_assignDedicatedStaff.close();
             jdbcPrep_releaseDedicatedStaff.close();
@@ -5764,6 +5827,14 @@ public class WolfInns {
             jdbcPrep_assignRoom.close();
             jdbcPrep_getNewestStay.close();
             jdbcPrep_addStayNoSafetyChecks.close();
+            jdbcPrep_getSummaryOfStay.close();
+            jdbcPrep_getStayByRoomAndHotel.close();
+            jdbcPrep_getItemizedReceipt.close();
+            jdbcPrep_updateAmountOwed.close();
+            // Table reporting
+            jdbcPrep_reportTableRooms.close();
+            jdbcPrep_reportTableStaff.close();
+            jdbcPrep_reportTableStays.close();
             jdbcPrep_getStayIdForOccupiedRoom.close();
             jdbcPrep_updateCheckOutTimeAndEndDate.close();
             // Reports
