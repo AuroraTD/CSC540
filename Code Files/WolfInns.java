@@ -60,6 +60,7 @@ public class WolfInns {
     private static final String CMD_REPORT_TOTAL_OCCUPANCY = "TOTALOCCUPANCY";
     private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED = "PERCENTAGEOFROOMSOCCUPIED";
     private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE = "STAFFGROUPEDBYROLE";
+    private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY = "STAFFSERVINGDURINGSTAY";
     
     private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
     private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
@@ -158,6 +159,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateAmountOwed;
     private static PreparedStatement jdbcPrep_getStayIdForOccupiedRoom;
     private static PreparedStatement jdbcPrep_updateCheckOutTimeAndEndDate; 
+    private static PreparedStatement jdbcPrep_isValidStayId;
     
     // Declare variables - prepared statements - Table reporting
     private static PreparedStatement jdbcPrep_reportTableRooms;
@@ -172,6 +174,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_reportTotalOccupancy;
     private static PreparedStatement jdbcPrep_reportPercentageOfRoomsOccupied;
     private static PreparedStatement jdbcPrep_reportStaffGroupedByRole;
+    private static PreparedStatement jdbcPrep_reportStaffServingDuringStay;
     
     /* Why is the scanner outside of any method?
      * See https://stackoverflow.com/questions/13042008/java-util-nosuchelementexception-scanner-reading-user-input
@@ -265,6 +268,8 @@ public class WolfInns {
                     System.out.println("\t- run report on percentage of rooms occupied");                     
                     System.out.println("'" + CMD_REPORT_STAFF_GROUPED_BY_ROLE + "'");
                     System.out.println("\t- run report on staff grouped by role");
+                    System.out.println("'" + CMD_REPORT_STAFF_SERVING_DURING_STAY + "'");
+                    System.out.println("\t- run report on staff serving the customer during the stay");                    
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -994,6 +999,10 @@ public class WolfInns {
             reusedSQLVar = "UPDATE Stays SET CheckOutTime = CURTIME(), EndDate = CURDATE() WHERE ID = ?;";
             jdbcPrep_updateCheckOutTimeAndEndDate = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            // Check if Stay id exists in the Stays table
+            reusedSQLVar = "SELECT COUNT(*) AS CNT FROM Stays WHERE ID = ?;";
+            jdbcPrep_isValidStayId = jdbc_connection.prepareStatement(reusedSQLVar);
+                        
             // Report Occupancy By Hotel
             reusedSQLVar = "SELECT " +
             				"HotelID, " +
@@ -1083,6 +1092,12 @@ public class WolfInns {
             // Report Staff grouped by role
             reusedSQLVar = "SELECT * FROM Staff ORDER BY JobTitle; ";
             jdbcPrep_reportStaffGroupedByRole = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            // Report Staff serving the customer during stay
+            reusedSQLVar = "SELECT ServiceName, StaffID, Name, JobTitle, Dep " + 
+            				"FROM Provided, Staff " +
+            				"WHERE Provided.StaffID = Staff.ID AND StayID = ?;" ;
+            jdbcPrep_reportStaffServingDuringStay = jdbc_connection.prepareStatement(reusedSQLVar);            
                                   
         }
         catch (Throwable err) {
@@ -2593,6 +2608,58 @@ public class WolfInns {
        
     }
     
+    /** 
+     * Report task: Report staff serving the customer during stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void reportStaffServingDuringStay() {
+  
+    	try { 
+  		  
+    		String stayId = getValidDataFromUser("REPORT_STAFF_BY_STAY", "StayID", "Enter the stay id");
+			if (!stayId.equalsIgnoreCase("<QUIT>")) {
+				
+				// Get the report data and display the results
+				getStaffServingDuringStay(stayId);
+				               		                	
+			}                                	
+    	}		 
+        catch (Throwable err) {
+            handleError(err);
+        }
+       
+    }
+    
+    /** 
+     * Report task: Report staff serving customer during stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method.
+     */
+    public static void getStaffServingDuringStay(String stayId) {
+  
+        try {
+                        
+            jdbcPrep_reportStaffServingDuringStay.setInt(1, Integer.parseInt(stayId)); 
+            jdbc_result = jdbcPrep_reportStaffServingDuringStay.executeQuery();
+                                     
+            // Print result
+            System.out.println("\nReporting staff serving customer during their stay:\n");
+            printQueryResultSet(jdbc_result);
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+         
+    }
+    
         
     /** 
      * Report task: Report occupancy by date range
@@ -3604,6 +3671,20 @@ public class WolfInns {
     				}  
     			}  
         	}  
+        	
+        	else if (fieldName.equalsIgnoreCase("StayID")) {
+        		boolean isSane = isValueSane(fieldName, value); 
+    			if (isSane) {  
+    				// Extra checks for Stay id when reporting Staff serving customer during stay:
+        			// 1. Check if the Stay id is valid
+        			boolean isValidStayId = isValidStayId(Integer.parseInt(value));
+        			if (isValidStayId) { 
+        				isValid = true;  
+        			} else {
+        				System.out.println("ERROR: The entered stay id does not exist in database");
+        			}  
+    			}  
+        	}
         	
         	else {
         		isValid = isValueSane(fieldName, value);
@@ -5506,6 +5587,43 @@ public class WolfInns {
     }
     
     /** 
+     * DB Check: Check if given stay id exists in the database
+     * 
+     * Arguments -  stayId       - Stay Id  
+     * Return -     boolean       - True if the stay id exists
+     * 
+     * Modifications:   04/05/18 -  MTA -  Added method. 
+     */
+    public static boolean isValidStayId(int stayId) {
+    	try {   	        
+    		try {  				 
+    			jdbcPrep_isValidStayId.setInt(1, stayId); 
+				 
+				 ResultSet rs = jdbcPrep_isValidStayId.executeQuery();
+				 int cnt = 0;
+				 
+				 while (rs.next()) {
+					cnt = rs.getInt("CNT"); 	
+				 }
+				 
+				 if (cnt > 0) { 
+					 return true;
+				 }   
+				 
+	        }
+	        catch (Throwable err) {
+	            handleError(err);
+	        }  
+    	} 
+    	catch (Throwable err) { 
+    		handleError(err); 
+        }
+        
+        return false; 
+    }
+    
+    
+    /** 
      * General error handler
      * Turn obscure error stack into human-understandable feedback
      * 
@@ -5866,6 +5984,9 @@ public class WolfInns {
                             case CMD_REPORT_STAFF_GROUPED_BY_ROLE:
                             	reportStaffGroupedByRole();
                             	break;
+                            case CMD_REPORT_STAFF_SERVING_DURING_STAY:
+                            	reportStaffServingDuringStay();
+                            	break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
                                 printAvailableCommands(CMD_MAIN);
@@ -6005,6 +6126,7 @@ public class WolfInns {
             jdbcPrep_getStayByRoomAndHotel.close();
             jdbcPrep_getItemizedReceipt.close();
             jdbcPrep_updateAmountOwed.close();
+            jdbcPrep_isValidStayId.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
@@ -6019,6 +6141,7 @@ public class WolfInns {
             jdbcPrep_reportTotalOccupancy.close();
             jdbcPrep_reportPercentageOfRoomsOccupied.close();
             jdbcPrep_reportStaffGroupedByRole.close();
+            jdbcPrep_reportStaffServingDuringStay.close();
             // Connection
             jdbc_connection.close();
         
