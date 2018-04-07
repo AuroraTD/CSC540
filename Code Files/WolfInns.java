@@ -172,6 +172,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getNewestServiceRecord;
     private static PreparedStatement jdbcPrep_getServiceNameAndStaffByID;
     private static PreparedStatement jdbcPrep_getValidServiceNames;
+    private static PreparedStatement jdbcPrep_getServiceRecordByID;
     
     // Declare variables - prepared statements - TABLES
     private static PreparedStatement jdbcPrep_reportTableRooms;
@@ -404,6 +405,7 @@ public class WolfInns {
      *                                      Add prepared statements for table reporting.
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
+     *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      */
     public static void createPreparedStatements() {
         
@@ -1181,7 +1183,7 @@ public class WolfInns {
              * Indices to use when calling this prepared statement:
              * 1 -  staff ID
              * 2 -  name of service
-             * 3 -  stay ID
+             * 3 -  service record ID
              */
             reusedSQLVar = 
                 "UPDATE Provided SET StaffID = ?, ServiceName = ? WHERE ID = ?;";
@@ -1205,7 +1207,14 @@ public class WolfInns {
              */
             reusedSQLVar = "Select Name FROM ServiceTypes";
             jdbcPrep_getValidServiceNames = jdbc_connection.prepareStatement(reusedSQLVar);
-                                  
+            
+            /* Get service record, by ID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  service record ID
+             */
+            reusedSQLVar = "Select * FROM Provided WHERE ID = ?";
+            jdbcPrep_getServiceRecordByID = jdbc_connection.prepareStatement(reusedSQLVar);
+                   
         }
         catch (Throwable err) {
             handleError(err);
@@ -2519,6 +2528,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   04/06/18 -  ATTD -  Created method.
+     *                  04/07/18 -  ATTD -  Debug method.
      */
     public static void frontDeskUpdateService() {
         
@@ -2586,6 +2596,7 @@ public class WolfInns {
                                     // Remember OLD service name and staff ID
                                     jdbcPrep_getServiceNameAndStaffByID.setInt(1, Integer.parseInt(serviceRecordID));
                                     jdbc_result = jdbcPrep_getServiceNameAndStaffByID.executeQuery();
+                                    jdbc_result.next();
                                     oldServiceName = jdbc_result.getString(1);
                                     oldStaffID = jdbc_result.getString(2);
                                     
@@ -2609,7 +2620,7 @@ public class WolfInns {
                                             }
                                             if (validServiceNames.contains(newServiceName)) {
                                                 // Call method that interacts with the DB
-                                                updateChangeServiceRecord(stayID, Integer.parseInt(oldStaffID), newServiceName);
+                                                updateChangeServiceRecord(Integer.parseInt(serviceRecordID), Integer.parseInt(oldStaffID), newServiceName);
                                             }
                                             else {
                                                 System.out.print("\nThis is not a valid service name (cannot proceed)\n");
@@ -2650,7 +2661,7 @@ public class WolfInns {
                                             }
                                             if (eligibleStaffIDs.contains(newStaffID)) {
                                                 // Call method that interacts with the DB
-                                                updateChangeServiceRecord(stayID, Integer.parseInt(newStaffID), oldServiceName);
+                                                updateChangeServiceRecord(Integer.parseInt(serviceRecordID), Integer.parseInt(newStaffID), oldServiceName);
                                             }
                                             else {
                                                 System.out.print("\nThis is not an eligible staff member (cannot proceed)\n");
@@ -5742,14 +5753,15 @@ public class WolfInns {
     /** 
      * DB Update: Update a service record
      * 
-     * Arguments -  stayID -            The ID of the stay the service is provided for.
+     * Arguments -  serviceRecordID -   The ID of the service record.
      *              staffID -           The ID of the staff member providing the service.
      *              serviceName -       The name of the service provided.
      * Return -     None
      * 
      * Modifications:   04/06/18 -  ATTD -  Created method.
+     *                  04/07/18 -  ATTD -  Debug method.
      */
-    public static void updateChangeServiceRecord(int stayID, int staffID, String serviceName) {
+    public static void updateChangeServiceRecord(int serviceRecordID, int staffID, String serviceName) {
         try {
             
             /* Update a service record for stay
@@ -5759,14 +5771,16 @@ public class WolfInns {
              * Indices to use when calling this prepared statement:
              * 1 -  staff ID
              * 2 -  name of service
-             * 3 -  stay ID
+             * 3 -  service record ID
              */
             jdbcPrep_udpateServiceRecord.setInt(1, staffID);
-            jdbcPrep_udpateServiceRecord.setInt(3, stayID);
+            jdbcPrep_udpateServiceRecord.setString(2, serviceName);
+            jdbcPrep_udpateServiceRecord.setInt(3, serviceRecordID);
             jdbcPrep_udpateServiceRecord.executeUpdate();
 
             System.out.println("\nService Record Updated!\n");
-            jdbc_result.beforeFirst();
+            jdbcPrep_getServiceRecordByID.setInt(1, serviceRecordID);
+            jdbc_result = jdbcPrep_getServiceRecordByID.executeQuery();
             printQueryResultSet(jdbc_result);
   
         }
@@ -6361,6 +6375,7 @@ public class WolfInns {
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
+     *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      */
     public static void main(String[] args) {
         
@@ -6667,6 +6682,7 @@ public class WolfInns {
             jdbcPrep_getNewestServiceRecord.close();
             jdbcPrep_getServiceNameAndStaffByID.close();
             jdbcPrep_getValidServiceNames.close();
+            jdbcPrep_getServiceRecordByID.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
