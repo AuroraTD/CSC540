@@ -35,50 +35,51 @@ public class WolfInns {
     
     // Declare constants - commands
     
-    // TODO: might be good to change capitalization to make these easier to read on the console
+    private static final String CMD_MAIN =                                  "MAIN";
+    private static final String CMD_QUIT =                                  "QUIT";
+    private static final String CMD_FRONTDESK =                             "FRONTDESK";
+    private static final String CMD_REPORTS =                               "REPORTS";
+    private static final String CMD_MANAGE =                                "MANAGE";
     
-    private static final String CMD_MAIN =                  "MAIN";
-    private static final String CMD_QUIT =                  "QUIT";
-    private static final String CMD_FRONTDESK =             "FRONTDESK";
-    private static final String CMD_REPORTS =               "REPORTS";
-    private static final String CMD_MANAGE =                "MANAGE";
+    private static final String CMD_FRONTDESK_AVAILABLE =                   "AVAILABILITY";
+    private static final String CMD_FRONTDESK_ASSIGN =                      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_CHECKOUT =                    "CHECKOUT";
+    private static final String CMD_FRONTDESK_ENTER_SERVICE =               "ENTERSERVICERECORD";
+    private static final String CMD_FRONTDESK_UPDATE_SERVICE =              "UPDATESERVICERECORD";
     
-    private static final String CMD_FRONTDESK_AVAILABLE =   "AVAILABILITY";
-    private static final String CMD_FRONTDESK_ASSIGN =      "ASSIGNROOM";
-    private static final String CMD_FRONTDESK_CHECKOUT =    "CHECKOUT";
-    private static final String CMD_FRONTDESK_ENTER_SERVICE =    "ENTERSERVICERECORD";
+    private static final String CMD_REPORT_REVENUE =                        "REVENUE";
+    private static final String CMD_REPORT_HOTELS =                         "HOTELS";
+    private static final String CMD_REPORT_ROOMS =                          "ROOMS";
+    private static final String CMD_REPORT_STAFF =                          "STAFF";
+    private static final String CMD_REPORT_CUSTOMERS =                      "CUSTOMERS";
+    private static final String CMD_REPORT_STAYS =                          "STAYS";
+    private static final String CMD_REPORT_SERVICES =                       "SERVICES";
+    private static final String CMD_REPORT_PROVIDED =                       "PROVIDED";
     
-    private static final String CMD_REPORT_REVENUE =        "REVENUE";
-    private static final String CMD_REPORT_HOTELS =         "HOTELS";
-    private static final String CMD_REPORT_ROOMS =          "ROOMS";
-    private static final String CMD_REPORT_STAFF =          "STAFF";
-    private static final String CMD_REPORT_CUSTOMERS =      "CUSTOMERS";
-    private static final String CMD_REPORT_STAYS =          "STAYS";
-    private static final String CMD_REPORT_SERVICES =       "SERVICES";
-    private static final String CMD_REPORT_PROVIDED =       "PROVIDED";
     private static final String CMD_REPORT_OCCUPANCY_BY_HOTEL =             "OCCUPANCYBYHOTEL";
     private static final String CMD_REPORT_OCCUPANCY_BY_ROOM_TYPE =         "OCCUPANCYBYROOMTYPE";
     private static final String CMD_REPORT_OCCUPANCY_BY_DATE_RANGE =        "OCCUPANCYBYDATERANGE";
     private static final String CMD_REPORT_OCCUPANCY_BY_CITY =              "OCCUPANCYBYCITY";
     private static final String CMD_REPORT_TOTAL_OCCUPANCY =                "TOTALOCCUPANCY";
     private static final String CMD_REPORT_PERCENTAGE_OF_ROOMS_OCCUPIED =   "PERCENTAGEOFROOMSOCCUPIED";
+    
     private static final String CMD_REPORT_STAFF_GROUPED_BY_ROLE =          "STAFFGROUPEDBYROLE";
     private static final String CMD_REPORT_STAFF_SERVING_DURING_STAY =      "STAFFSERVINGDURINGSTAY";
     
-    private static final String CMD_MANAGE_HOTEL_ADD =      "ADDHOTEL";
-    private static final String CMD_MANAGE_HOTEL_UPDATE =   "UPDATEHOTEL";
-    private static final String CMD_MANAGE_HOTEL_DELETE =   "DELETEHOTEL";
-    private static final String CMD_MANAGE_STAFF_ADD =      "ADDSTAFF";
-    private static final String CMD_MANAGE_STAFF_UPDATE =   "UPDATESTAFF";
-    private static final String CMD_MANAGE_STAFF_DELETE =   "DELETESTAFF";
+    private static final String CMD_MANAGE_HOTEL_ADD =                      "ADDHOTEL";
+    private static final String CMD_MANAGE_HOTEL_UPDATE =                   "UPDATEHOTEL";
+    private static final String CMD_MANAGE_HOTEL_DELETE =                   "DELETEHOTEL";
+    private static final String CMD_MANAGE_STAFF_ADD =                      "ADDSTAFF";
+    private static final String CMD_MANAGE_STAFF_UPDATE =                   "UPDATESTAFF";
+    private static final String CMD_MANAGE_STAFF_DELETE =                   "DELETESTAFF";
     
-    private static final String CMD_MANAGE_ROOM_ADD =       "ADDROOM";
-    private static final String CMD_MANAGE_ROOM_UPDATE =    "UPDATEROOM";
-    private static final String CMD_MANAGE_ROOM_DELETE =    "DELETEROOM"; 
+    private static final String CMD_MANAGE_ROOM_ADD =                       "ADDROOM";
+    private static final String CMD_MANAGE_ROOM_UPDATE =                    "UPDATEROOM";
+    private static final String CMD_MANAGE_ROOM_DELETE =                    "DELETEROOM"; 
     
-    private static final String CMD_MANAGE_CUSTOMER_ADD =     "ADDCUSTOMER";
-    private static final String CMD_MANAGE_CUSTOMER_UPDATE =  "UPDATECUSTOMER";
-    private static final String CMD_MANAGE_CUSTOMER_DELETE =  "DELETECUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_ADD =                   "ADDCUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_UPDATE =                "UPDATECUSTOMER";
+    private static final String CMD_MANAGE_CUSTOMER_DELETE =                "DELETECUSTOMER";
     
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
@@ -167,7 +168,11 @@ public class WolfInns {
     // Declare variables - prepared statements - SERVICES
     private static PreparedStatement jdbcPrep_getEligibleStaffForService;
     private static PreparedStatement jdbcPrep_insertNewServiceRecord;
+    private static PreparedStatement jdbcPrep_udpateServiceRecord;
     private static PreparedStatement jdbcPrep_getNewestServiceRecord;
+    private static PreparedStatement jdbcPrep_getServiceNameAndStaffByID;
+    private static PreparedStatement jdbcPrep_getValidServiceNames;
+    private static PreparedStatement jdbcPrep_getServiceRecordByID;
     
     // Declare variables - prepared statements - TABLES
     private static PreparedStatement jdbcPrep_reportTableRooms;
@@ -217,6 +222,7 @@ public class WolfInns {
      *                  04/01/18 -  ATTD -  Add ability to assign a room to a customer.
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
+     *                  04/06/18 -  ATTD -  Add ability to update a service record.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -248,6 +254,8 @@ public class WolfInns {
                     System.out.println("\t- assign a room to a customer");
                     System.out.println("'" + CMD_FRONTDESK_ENTER_SERVICE + "'");
                     System.out.println("\t- enter a service record");
+                    System.out.println("'" + CMD_FRONTDESK_UPDATE_SERVICE + "'");
+                    System.out.println("\t- update a service record");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -396,6 +404,8 @@ public class WolfInns {
      *                  04/05/18 -  ATTD -  Add prepared statements related to customer billing (itemized receipt, bill).
      *                                      Add prepared statements for table reporting.
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
+     *                  04/06/18 -  ATTD -  Add ability to update a service record.
+     *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      */
     public static void createPreparedStatements() {
         
@@ -1110,7 +1120,7 @@ public class WolfInns {
             jdbcPrep_reportStaffGroupedByRole = jdbc_connection.prepareStatement(reusedSQLVar);
             
             // Report Staff serving the customer during stay
-            reusedSQLVar = "SELECT ServiceName, StaffID, Name, JobTitle, Dep " + 
+            reusedSQLVar = "SELECT Provided.ID, ServiceName, StaffID, Name, JobTitle " + 
             				"FROM Provided, Staff " +
             				"WHERE Provided.StaffID = Staff.ID AND StayID = ?;" ;
             jdbcPrep_reportStaffServingDuringStay = jdbc_connection.prepareStatement(reusedSQLVar); 
@@ -1168,12 +1178,43 @@ public class WolfInns {
                 ");";
             jdbcPrep_insertNewServiceRecord = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Update a service record for stay
+             * This update assumes that the application level checks that the name of service and staff ID are appropriate!
+             * Indices to use when calling this prepared statement:
+             * 1 -  staff ID
+             * 2 -  name of service
+             * 3 -  service record ID
+             */
+            reusedSQLVar = 
+                "UPDATE Provided SET StaffID = ?, ServiceName = ? WHERE ID = ?;";
+            jdbcPrep_udpateServiceRecord = jdbc_connection.prepareStatement(reusedSQLVar);
+            
             /* Get the newest service record in the DB
              * Indices to use when calling this prepared statement: n/a
              */
             reusedSQLVar = "SELECT * FROM Provided WHERE ID >= ALL (SELECT ID FROM Provided);";
             jdbcPrep_getNewestServiceRecord = jdbc_connection.prepareStatement(reusedSQLVar);
-                                  
+            
+            /* Get the basic info (service & staff) for a service record, by ID
+             * Indices to use when calling this prepared statement:
+             * 1 -  service record ID
+             */
+            reusedSQLVar = "Select ServiceName, StaffID FROM Provided WHERE ID = ?";
+            jdbcPrep_getServiceNameAndStaffByID = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get valid service names
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "Select Name FROM ServiceTypes";
+            jdbcPrep_getValidServiceNames = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get service record, by ID
+             * Indices to use when calling this prepared statement: 
+             * 1 -  service record ID
+             */
+            reusedSQLVar = "Select * FROM Provided WHERE ID = ?";
+            jdbcPrep_getServiceRecordByID = jdbc_connection.prepareStatement(reusedSQLVar);
+                   
         }
         catch (Throwable err) {
             handleError(err);
@@ -2413,48 +2454,238 @@ public class WolfInns {
                         jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
                         jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
                         jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
-                        jdbc_result.next();
-                        stayID = jdbc_result.getInt(1);
                         
-                        // Print all available services so user has some context
-                        System.out.println("\nAvailable Services:\n");
-                        reportEntireTable("ServiceTypes");
-                        
-                        // Get service type
-                        System.out.print("\nEnter the name of the service provided to the guest\n> ");
-                        serviceName = scanner.nextLine();
-                        if (isValueSane("ServiceName", serviceName)) {
+                        if (jdbc_result.next()) {
                             
-                            /* Print  a bit of info about all staff eligible to provide a given service for a given room in a given hotel
-                             * Must have correct job title
-                             * Must be serving the hotel
-                             * Must not be dedicated to a different room
-                             * Indices to use when calling this prepared statement:
-                             * 1 -  service name
-                             * 2 -  service name (again)
-                             * 3 -  service name (again)
-                             * 4 -  hotel ID
-                             * 5 -  room number
-                             */
-                            System.out.print("\nStaff eligible to provide this service:\n\n");
-                            jdbcPrep_getEligibleStaffForService.setString(1, serviceName);
-                            jdbcPrep_getEligibleStaffForService.setString(2, serviceName);
-                            jdbcPrep_getEligibleStaffForService.setString(3, serviceName);
-                            jdbcPrep_getEligibleStaffForService.setInt(4, Integer.parseInt(hotelID));
-                            jdbcPrep_getEligibleStaffForService.setInt(5, Integer.parseInt(roomNum));
-                            jdbc_result = jdbcPrep_getEligibleStaffForService.executeQuery();
-                            printQueryResultSet(jdbc_result);
+                            stayID = jdbc_result.getInt(1);
                             
-                            // Get staff ID
-                            System.out.print("\nEnter the staff ID for the staff member providing the service to the guest\n> ");
-                            staffID = scanner.nextLine();
-                            if (isValueSane("StaffID", staffID)) {
+                            // Print all available services so user has some context
+                            System.out.println("\nAvailable Services:\n");
+                            reportEntireTable("ServiceTypes");
+                            
+                            // Get service type
+                            System.out.print("\nEnter the name of the service provided to the guest\n> ");
+                            serviceName = scanner.nextLine();
+                            if (isValueSane("ServiceName", serviceName)) {
                                 
-                                // Call method that interacts with the DB
-                                updateInsertServiceRecord(stayID, Integer.parseInt(staffID), serviceName, true);
+                                /* Print  a bit of info about all staff eligible to provide a given service for a given room in a given hotel
+                                 * Must have correct job title
+                                 * Must be serving the hotel
+                                 * Must not be dedicated to a different room
+                                 * Indices to use when calling this prepared statement:
+                                 * 1 -  service name
+                                 * 2 -  service name (again)
+                                 * 3 -  service name (again)
+                                 * 4 -  hotel ID
+                                 * 5 -  room number
+                                 */
+                                System.out.print("\nStaff eligible to provide this service:\n\n");
+                                jdbcPrep_getEligibleStaffForService.setString(1, serviceName);
+                                jdbcPrep_getEligibleStaffForService.setString(2, serviceName);
+                                jdbcPrep_getEligibleStaffForService.setString(3, serviceName);
+                                jdbcPrep_getEligibleStaffForService.setInt(4, Integer.parseInt(hotelID));
+                                jdbcPrep_getEligibleStaffForService.setInt(5, Integer.parseInt(roomNum));
+                                jdbc_result = jdbcPrep_getEligibleStaffForService.executeQuery();
+                                printQueryResultSet(jdbc_result);
+                                
+                                // Get staff ID
+                                System.out.print("\nEnter the staff ID for the staff member providing the service to the guest\n> ");
+                                staffID = scanner.nextLine();
+                                if (isValueSane("StaffID", staffID)) {
+                                    
+                                    // Call method that interacts with the DB
+                                    updateInsertServiceRecord(stayID, Integer.parseInt(staffID), serviceName, true);
+                                    
+                                }
+
+                            }
+                            
+                        }
+                        else {
+                            System.out.println("\nThis is not a valid hotel-room combination (cannot proceed)\n");
+                        }
+
+                    }
+                    
+                }
+                else {
+                    System.out.println("\nThere are no occupied rooms in this hotel!\n");
+                }
+                
+            }
+            
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+        
+    }
+    
+    /** 
+     * Front desk task: Update a service record for a customer stay
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/06/18 -  ATTD -  Created method.
+     *                  04/07/18 -  ATTD -  Debug method.
+     */
+    public static void frontDeskUpdateService() {
+        
+        try {
+
+            // Declare variables
+            ArrayList<String> validServiceNames = new ArrayList<>();
+            ArrayList<String> eligibleStaffIDs = new ArrayList<>();
+            String hotelID;
+            String roomNum;
+            String oldServiceName;
+            String oldStaffID;
+            String newServiceName;
+            String newStaffID;
+            String attributeToChange;
+            String serviceRecordID;
+            int stayID;
+            
+            // Print hotels to console so user has some context
+            reportEntireTable("Hotels");
+            
+            // Get hotel ID
+            System.out.print("\nEnter the hotel ID for the stay you wish to update a service record for\n> ");
+            hotelID = scanner.nextLine();
+            if (isValueSane("ID", hotelID)) {
+                
+                // Are there any occupied rooms in this hotel?
+                jdbcPrep_getOccupiedRoomsInHotel.setInt(1, Integer.parseInt(hotelID));
+                jdbc_result = jdbcPrep_getOccupiedRoomsInHotel.executeQuery();
+                if (jdbc_result.next()) {
+                    
+                    // Print all occupied rooms in that hotel so user has some context
+                    System.out.println("\nOccupied rooms in this hotel:\n");
+                    jdbc_result.beforeFirst();
+                    printQueryResultSet(jdbc_result);
+                    
+                    // Get room number
+                    System.out.print("\nEnter the room number for the stay you wish to update a service record for\n> ");
+                    roomNum = scanner.nextLine();
+                    if (isValueSane("RoomNum", roomNum)) {
+
+                        // Get stay ID based on room number and hotel
+                        jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
+                        jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
+                        jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
+                        if (jdbc_result.next()) {
+                            
+                            stayID = jdbc_result.getInt(1);
+
+                            // Make sure there is actually a service record to update
+                            jdbcPrep_reportStaffServingDuringStay.setInt(1, stayID); 
+                            jdbc_result = jdbcPrep_reportStaffServingDuringStay.executeQuery();
+                            if (jdbc_result.next()) {
+
+                             // Print all service records for this stay so user has some context
+                                System.out.println("\nServices provided during this stay:\n");
+                                jdbc_result.beforeFirst();
+                                printQueryResultSet(jdbc_result);
+                                
+                                // Get service record ID to update
+                                System.out.println("\nEnter the ID of the service record you wish to update:\n> ");
+                                serviceRecordID = scanner.nextLine();
+                                if (isValueSane("ID", serviceRecordID)) {
+                                    
+                                    // Remember OLD service name and staff ID
+                                    jdbcPrep_getServiceNameAndStaffByID.setInt(1, Integer.parseInt(serviceRecordID));
+                                    jdbc_result = jdbcPrep_getServiceNameAndStaffByID.executeQuery();
+                                    jdbc_result.next();
+                                    oldServiceName = jdbc_result.getString(1);
+                                    oldStaffID = jdbc_result.getString(2);
+                                    
+                                    // Find out what they want to update (only choices are service name and staff member)
+                                    System.out.println("\nEnter 'Service' to change the service provided, or enter 'Staff' to change the staff member who provided the service:\n> ");
+                                    attributeToChange = scanner.nextLine();
+                                    if (attributeToChange.equalsIgnoreCase("Service")) {
+                                        
+                                        // Print all available services so user has some context
+                                        System.out.println("\nAvailable Services:\n");
+                                        reportEntireTable("ServiceTypes");
+                                        
+                                        // Get service type
+                                        System.out.print("\nEnter the name of the service provided to the guest\n> ");
+                                        newServiceName = scanner.nextLine();
+                                        if (isValueSane("ServiceName", newServiceName)) {
+                                            // To radically simplify update SQL, check here to make sure the user put in a good service name
+                                            jdbc_result = jdbcPrep_getValidServiceNames.executeQuery();
+                                            while (jdbc_result.next()) {
+                                                validServiceNames.add(jdbc_result.getString(1));
+                                            }
+                                            if (validServiceNames.contains(newServiceName)) {
+                                                // Call method that interacts with the DB
+                                                updateChangeServiceRecord(Integer.parseInt(serviceRecordID), Integer.parseInt(oldStaffID), newServiceName);
+                                            }
+                                            else {
+                                                System.out.print("\nThis is not a valid service name (cannot proceed)\n");
+                                            }
+                                        }
+                                        
+                                    }
+                                    else  if(attributeToChange.equalsIgnoreCase("Staff")) {
+                                        
+                                        /* Print  a bit of info about all staff eligible to provide a given service for a given room in a given hotel
+                                         * Must have correct job title
+                                         * Must be serving the hotel
+                                         * Must not be dedicated to a different room
+                                         * Indices to use when calling this prepared statement:
+                                         * 1 -  service name
+                                         * 2 -  service name (again)
+                                         * 3 -  service name (again)
+                                         * 4 -  hotel ID
+                                         * 5 -  room number
+                                         */
+                                        System.out.print("\nStaff eligible to provide this service:\n\n");
+                                        jdbcPrep_getEligibleStaffForService.setString(1, oldServiceName);
+                                        jdbcPrep_getEligibleStaffForService.setString(2, oldServiceName);
+                                        jdbcPrep_getEligibleStaffForService.setString(3, oldServiceName);
+                                        jdbcPrep_getEligibleStaffForService.setInt(4, Integer.parseInt(hotelID));
+                                        jdbcPrep_getEligibleStaffForService.setInt(5, Integer.parseInt(roomNum));
+                                        jdbc_result = jdbcPrep_getEligibleStaffForService.executeQuery();
+                                        printQueryResultSet(jdbc_result);
+                                        
+                                        // Get staff ID
+                                        System.out.print("\nEnter the staff ID for the staff member providing the service to the guest\n> ");
+                                        newStaffID = scanner.nextLine();
+                                        if (isValueSane("StaffID", newStaffID)) {
+                                            // To radically simplify update SQL, check here to make sure the user put in a good staff ID
+                                            jdbc_result.beforeFirst();
+                                            while (jdbc_result.next()) {
+                                                eligibleStaffIDs.add(jdbc_result.getString(1));
+                                            }
+                                            if (eligibleStaffIDs.contains(newStaffID)) {
+                                                // Call method that interacts with the DB
+                                                updateChangeServiceRecord(Integer.parseInt(serviceRecordID), Integer.parseInt(newStaffID), oldServiceName);
+                                            }
+                                            else {
+                                                System.out.print("\nThis is not an eligible staff member (cannot proceed)\n");
+                                            }
+                                        }
+                                        
+                                    }
+                                    else {
+                                        System.out.print("\nThis is not a valid option (cannot proceed)\n");
+                                    }
+                                    
+                                }
                                 
                             }
+                            else {
+                                System.out.println("\nFor this stay, there are no service records to update!\n");
+                            }
+                            
+                            
 
+                            
+                        }
+                        else {
+                            System.out.println("\nThis is not a valid hotel-room combination (cannot proceed)\n");
                         }
 
                     }
@@ -2522,15 +2753,21 @@ public class WolfInns {
                         jdbcPrep_getStayByRoomAndHotel.setInt(1, Integer.parseInt(roomNum));
                         jdbcPrep_getStayByRoomAndHotel.setInt(2, Integer.parseInt(hotelID));
                         jdbc_result = jdbcPrep_getStayByRoomAndHotel.executeQuery();
-                        jdbc_result.next();
-                        stayID = jdbc_result.getInt(1);
-                        
-                        // AFTER getting the stay ID (needs room to be UNreleased), release the room so another customer can use it
-                        releaseRoom(hotelID, roomNum);
-                        
-                        // Create itemized receipt & bill, print all info to console
-                        queryItemizedReceipt(stayID, true);
-                        
+                        if (jdbc_result.next()) {
+                            
+                            stayID = jdbc_result.getInt(1);
+                            
+                            // AFTER getting the stay ID (needs room to be UNreleased), release the room so another customer can use it
+                            releaseRoom(hotelID, roomNum);
+                            
+                            // Create itemized receipt & bill, print all info to console
+                            queryItemizedReceipt(stayID, true);
+                            
+                        }
+                        else {
+                            System.out.println("\nThis is not a valid hotel-room combination (cannot proceed)\n");
+                        }
+
                     }
                     
                 }
@@ -2830,7 +3067,6 @@ public class WolfInns {
         }
          
     }
-    
         
     /** 
      * Report task: Report occupancy by date range
@@ -5428,7 +5664,6 @@ public class WolfInns {
         
     }
     
-    
     /** 
      * DB Update: Insert new service record
      * 
@@ -5508,6 +5743,45 @@ public class WolfInns {
                 // Restore normal auto-commit mode
                 jdbc_connection.setAutoCommit(true);
             }
+  
+        }
+        catch (Throwable err) {
+            handleError(err);
+        }
+    }
+    
+    /** 
+     * DB Update: Update a service record
+     * 
+     * Arguments -  serviceRecordID -   The ID of the service record.
+     *              staffID -           The ID of the staff member providing the service.
+     *              serviceName -       The name of the service provided.
+     * Return -     None
+     * 
+     * Modifications:   04/06/18 -  ATTD -  Created method.
+     *                  04/07/18 -  ATTD -  Debug method.
+     */
+    public static void updateChangeServiceRecord(int serviceRecordID, int staffID, String serviceName) {
+        try {
+            
+            /* Update a service record for stay
+             * Staff member must have correct job title
+             * Staff member must be serving the hotel
+             * Staff member must not be dedicated to a different room
+             * Indices to use when calling this prepared statement:
+             * 1 -  staff ID
+             * 2 -  name of service
+             * 3 -  service record ID
+             */
+            jdbcPrep_udpateServiceRecord.setInt(1, staffID);
+            jdbcPrep_udpateServiceRecord.setString(2, serviceName);
+            jdbcPrep_udpateServiceRecord.setInt(3, serviceRecordID);
+            jdbcPrep_udpateServiceRecord.executeUpdate();
+
+            System.out.println("\nService Record Updated!\n");
+            jdbcPrep_getServiceRecordByID.setInt(1, serviceRecordID);
+            jdbc_result = jdbcPrep_getServiceRecordByID.executeQuery();
+            printQueryResultSet(jdbc_result);
   
         }
         catch (Throwable err) {
@@ -6100,6 +6374,8 @@ public class WolfInns {
      *                                          no longer makes sense with tables populated with demo data.
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
+     *                  04/06/18 -  ATTD -  Add ability to update a service record.
+     *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      */
     public static void main(String[] args) {
         
@@ -6191,6 +6467,9 @@ public class WolfInns {
                                 break;
                             case CMD_FRONTDESK_ENTER_SERVICE:
                                 frontDeskEnterService();
+                                break;
+                            case CMD_FRONTDESK_UPDATE_SERVICE:
+                                frontDeskUpdateService();
                                 break;
                             case CMD_MAIN:
                                 // Tell the user their options in this new menu
@@ -6399,7 +6678,11 @@ public class WolfInns {
             // Services
             jdbcPrep_getEligibleStaffForService.close();
             jdbcPrep_insertNewServiceRecord.close();
+            jdbcPrep_udpateServiceRecord.close();
             jdbcPrep_getNewestServiceRecord.close();
+            jdbcPrep_getServiceNameAndStaffByID.close();
+            jdbcPrep_getValidServiceNames.close();
+            jdbcPrep_getServiceRecordByID.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
