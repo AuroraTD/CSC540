@@ -4304,7 +4304,6 @@ public class WolfInns {
             while(flag == 0)
             {
                 System.out.println("\n Types of Services: \"Gym\", \"Phone\", \"Room Service\", \"Dry Cleaning\", \"Special Request\", \"Catering\" ");
-                // System.out.println("While entering the input, make sure you include \" \" ");
                 String enteredServiceName = "";
                 System.out.println("\n Enter the name of the service for which you wish to update cost>");
                 enteredServiceName = scanner.nextLine();
