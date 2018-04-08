@@ -80,6 +80,8 @@ public class WolfInns {
     private static final String CMD_MANAGE_CUSTOMER_ADD =                   "ADDCUSTOMER";
     private static final String CMD_MANAGE_CUSTOMER_UPDATE =                "UPDATECUSTOMER";
     private static final String CMD_MANAGE_CUSTOMER_DELETE =                "DELETECUSTOMER";
+
+    private static final String CMD_MANAGE_SERVICE_COST_UPDATE =            "UPDATESERVICECOST";
     
     // Declare constants - connection parameters
     private static final String JDBC_URL = "jdbc:mariadb://classdb2.csc.ncsu.edu:3306/smscoggi";
@@ -173,7 +175,8 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getServiceNameAndStaffByID;
     private static PreparedStatement jdbcPrep_getValidServiceNames;
     private static PreparedStatement jdbcPrep_getServiceRecordByID;
-    
+    private static PreparedStatement jdbcPrep_updateServiceCost;
+
     // Declare variables - prepared statements - TABLES
     private static PreparedStatement jdbcPrep_reportTableRooms;
     private static PreparedStatement jdbcPrep_reportTableStaff;
@@ -223,6 +226,7 @@ public class WolfInns {
      *                  04/05/18 -  ATTD -  Create streamlined checkout (generate receipt & bill, release room).
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
+     *                  04/07/18 -  AS   -  Add ability to update cost of service.
      */
     public static void printAvailableCommands(String menu) {
         
@@ -325,6 +329,8 @@ public class WolfInns {
                     System.out.println("'" + CMD_MANAGE_CUSTOMER_DELETE + "'");
                     System.out.println("\t- delete a customer");
                     
+                    System.out.println("'" + CMD_MANAGE_SERVICE_COST_UPDATE + "'");
+                    System.out.println("\t- update cost of a service");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -406,6 +412,7 @@ public class WolfInns {
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
      *                  04/07/18 -  ATTD -  Debug ability to update a service record.
+     *                  04/07/18 -  AS   -  Add ability to update cost of a service
      */
     public static void createPreparedStatements() {
         
@@ -1214,6 +1221,14 @@ public class WolfInns {
              */
             reusedSQLVar = "Select * FROM Provided WHERE ID = ?";
             jdbcPrep_getServiceRecordByID = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /* Get valid service names
+               Indices to use when calling this prepared statement:
+               1 -  service name
+               2 -  Cost of service
+            */
+            reusedSQLVar = "Update ServiceTypes SET Cost = ? WHERE Name = ?";
+            jdbcPrep_updateServiceCost = jdbc_connection.prepareStatement(reusedSQLVar);
                    
         }
         catch (Throwable err) {
@@ -4275,6 +4290,101 @@ public class WolfInns {
         
     }
     
+    public static void updateServiceCost() {
+        try {
+            int newCost = 0;
+            //To prevent from getting a wrong input from user
+
+            /*
+            Query: "Update ServiceTypes SET Cost = ? WHERE Name = ?";
+            1: Cost
+            2: ServiceName
+            */
+            int flag = 0;
+            while(flag == 0)
+            {
+                System.out.println("\n Types of Services: \"Gym\", \"Phone\", \"Room Service\", \"Dry Cleaning\", \"Special Request\", \"Catering\" ");
+                // System.out.println("While entering the input, make sure you include \" \" ");
+                String enteredServiceName = "";
+                System.out.println("\n Enter the name of the service for which you wish to update cost>");
+                enteredServiceName = scanner.nextLine();
+                if(enteredServiceName.equalsIgnoreCase("Gym"))
+                {
+                    System.out.println("Please enter the new cost for Gym service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else if(enteredServiceName.equalsIgnoreCase("Phone"))
+                {
+                    System.out.println("Please enter the new cost for Phone service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else if(enteredServiceName.equalsIgnoreCase("Room Service"))
+                {
+                    System.out.println("Please enter the new cost for Room Service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else if(enteredServiceName.equalsIgnoreCase("Dry Cleaning"))
+                {
+                    System.out.println("Please enter the new cost for Dry Cleaning service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else if(enteredServiceName.equalsIgnoreCase("Special Request"))
+                {
+                    System.out.println("Please enter the new cost for Special Request service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else if(enteredServiceName.equalsIgnoreCase("Catering"))
+                {
+                    System.out.println("Please enter the new cost for Catering service>");
+                    String temp = scanner.nextLine();
+                    newCost = Integer.parseInt(temp);
+                    jdbcPrep_updateServiceCost.setInt(1, newCost);
+                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
+                    jdbcPrep_updateServiceCost.executeUpdate();
+                    jdbcPrep_updateServiceCost.executeQuery();
+                    flag = 1;
+                }
+                else
+                {
+                    System.out.println("\n Please enter the correct input \n");
+                }
+            }
+            
+        }
+        catch(Throwable err) {
+            handleError(err);
+        }
+    }
     // SANITY CHECK VALUES
     
     /** 
@@ -6586,7 +6696,10 @@ public class WolfInns {
                         	break;
                         case CMD_MANAGE_CUSTOMER_DELETE:
                         	manageCustomerDelete();
-                        	break;
+                            break;
+                        case CMD_MANAGE_SERVICE_COST_UPDATE:
+                            updateServiceCost();
+                            break;
                         case CMD_MAIN:
                             // Tell the user their options in this new menu
                             printAvailableCommands(CMD_MAIN);
@@ -6683,6 +6796,7 @@ public class WolfInns {
             jdbcPrep_getServiceNameAndStaffByID.close();
             jdbcPrep_getValidServiceNames.close();
             jdbcPrep_getServiceRecordByID.close();
+            jdbcPrep_updateServiceCost.close();
             // Table reporting
             jdbcPrep_reportTableRooms.close();
             jdbcPrep_reportTableStaff.close();
