@@ -331,6 +331,7 @@ public class WolfInns {
                     
                     System.out.println("'" + CMD_MANAGE_SERVICE_COST_UPDATE + "'");
                     System.out.println("\t- update cost of a service");
+                    
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
                     System.out.println("");
@@ -1222,7 +1223,7 @@ public class WolfInns {
             reusedSQLVar = "Select * FROM Provided WHERE ID = ?";
             jdbcPrep_getServiceRecordByID = jdbc_connection.prepareStatement(reusedSQLVar);
 
-            /* Get valid service names
+            /* Update the cost of a service
                Indices to use when calling this prepared statement:
                1 -  service name
                2 -  Cost of service
@@ -4289,12 +4290,19 @@ public class WolfInns {
         }
         
     }
-    
+
+    /** 
+     * Management task: Update the cost of a service
+     * 
+     * Arguments -  None
+     * Return -     None
+     * 
+     * Modifications:   04/07/18 -  AS -    Created method.
+     *                  04/07/18 -  ATTD -  Slight tweak (print service costs table before and after).
+     */
     public static void updateServiceCost() {
         try {
             int newCost = 0;
-            //To prevent from getting a wrong input from user
-
             /*
             Query: "Update ServiceTypes SET Cost = ? WHERE Name = ?";
             1: Cost
@@ -4303,83 +4311,33 @@ public class WolfInns {
             int flag = 0;
             while(flag == 0)
             {
-                System.out.println("\n Types of Services: \"Gym\", \"Phone\", \"Room Service\", \"Dry Cleaning\", \"Special Request\", \"Catering\" ");
-                // System.out.println("While entering the input, make sure you include \" \" ");
+                reportEntireTable("ServiceTypes");
                 String enteredServiceName = "";
-                System.out.println("\n Enter the name of the service for which you wish to update cost>");
+                System.out.println("\nEnter the name of the service for which you wish to update cost\n> ");
                 enteredServiceName = scanner.nextLine();
-                if(enteredServiceName.equalsIgnoreCase("Gym"))
+                if (
+                    enteredServiceName.equalsIgnoreCase("Gym") ||
+                    enteredServiceName.equalsIgnoreCase("Phone") ||
+                    enteredServiceName.equalsIgnoreCase("Room Service") ||
+                    enteredServiceName.equalsIgnoreCase("Dry Cleaning") ||
+                    enteredServiceName.equalsIgnoreCase("Special Request") ||
+                    enteredServiceName.equalsIgnoreCase("Catering")
+                )
                 {
-                    System.out.println("Please enter the new cost for Gym service>");
+                    System.out.println("\nPlease enter the new cost for " + enteredServiceName + " service\n> ");
                     String temp = scanner.nextLine();
                     newCost = Integer.parseInt(temp);
                     jdbcPrep_updateServiceCost.setInt(1, newCost);
                     jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
                     jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
-                    flag = 1;
-                }
-                else if(enteredServiceName.equalsIgnoreCase("Phone"))
-                {
-                    System.out.println("Please enter the new cost for Phone service>");
-                    String temp = scanner.nextLine();
-                    newCost = Integer.parseInt(temp);
-                    jdbcPrep_updateServiceCost.setInt(1, newCost);
-                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
-                    jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
-                    flag = 1;
-                }
-                else if(enteredServiceName.equalsIgnoreCase("Room Service"))
-                {
-                    System.out.println("Please enter the new cost for Room Service>");
-                    String temp = scanner.nextLine();
-                    newCost = Integer.parseInt(temp);
-                    jdbcPrep_updateServiceCost.setInt(1, newCost);
-                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
-                    jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
-                    flag = 1;
-                }
-                else if(enteredServiceName.equalsIgnoreCase("Dry Cleaning"))
-                {
-                    System.out.println("Please enter the new cost for Dry Cleaning service>");
-                    String temp = scanner.nextLine();
-                    newCost = Integer.parseInt(temp);
-                    jdbcPrep_updateServiceCost.setInt(1, newCost);
-                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
-                    jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
-                    flag = 1;
-                }
-                else if(enteredServiceName.equalsIgnoreCase("Special Request"))
-                {
-                    System.out.println("Please enter the new cost for Special Request service>");
-                    String temp = scanner.nextLine();
-                    newCost = Integer.parseInt(temp);
-                    jdbcPrep_updateServiceCost.setInt(1, newCost);
-                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
-                    jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
-                    flag = 1;
-                }
-                else if(enteredServiceName.equalsIgnoreCase("Catering"))
-                {
-                    System.out.println("Please enter the new cost for Catering service>");
-                    String temp = scanner.nextLine();
-                    newCost = Integer.parseInt(temp);
-                    jdbcPrep_updateServiceCost.setInt(1, newCost);
-                    jdbcPrep_updateServiceCost.setString(2, enteredServiceName);
-                    jdbcPrep_updateServiceCost.executeUpdate();
-                    jdbcPrep_updateServiceCost.executeQuery();
                     flag = 1;
                 }
                 else
                 {
-                    System.out.println("\n Please enter the correct input \n");
+                    System.out.println("\nPlease enter the correct input\n");
                 }
             }
-            
+            reportEntireTable("ServiceTypes");
         }
         catch(Throwable err) {
             handleError(err);
