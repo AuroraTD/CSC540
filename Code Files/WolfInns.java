@@ -141,7 +141,9 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_updateStaffAddress;
     private static PreparedStatement jdbcPrep_updateStaffHotelID;
     private static PreparedStatement jdbcPrep_getStaffByID;
-    private static PreparedStatement jdbcPrep_deleteStaff;  
+    private static PreparedStatement jdbcPrep_deleteStaff;
+    private static PreparedStatement jdbcPrep_getFirstAvailableCateringStaff;
+    private static PreparedStatement jdbcPrep_getFirstAvailableRoomServiceStaff;
     
     // Declare variables - prepared statements - CUSTOMERS
     private static PreparedStatement jdbcPrep_insertNewCustomer;
@@ -411,7 +413,8 @@ public class WolfInns {
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
      *                  04/07/18 -  ATTD -  Debug ability to update a service record.
-     *                  04/07/18 -  AS   -  Add ability to update cost of a service
+     *                  04/07/18 -  AS   -  Add ability to update cost of a service.
+     *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
      */
     public static void startup_createPreparedStatements() {
         
@@ -874,23 +877,40 @@ public class WolfInns {
                 "MaxOcc >= ?;";
             jdbcPrep_assignRoom = jdbc_connection.prepareStatement(reusedSQLVar);
 
+            /* Get first available catering staff in a hotel
+             * Indices to use when calling this prepared statement:
+             * 1 -  Hotel ID
+             */
+            reusedSQLVar = 
+                "SELECT MIN(ID) FROM (SELECT ID FROM Staff WHERE JobTitle = 'Catering' AND HotelID = ? AND " + 
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AS X;";
+            jdbcPrep_getFirstAvailableCateringStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+            
+            /* Get first available room service staff in a hotel
+             * Indices to use when calling this prepared statement:
+             * 1 -  Hotel ID
+             */
+            reusedSQLVar = 
+                "SELECT MIN(ID) FROM (SELECT ID FROM Staff WHERE JobTitle = 'Room Service' AND HotelID = ? AND " + 
+                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AS X;";
+            jdbcPrep_getFirstAvailableRoomServiceStaff = jdbc_connection.prepareStatement(reusedSQLVar);
+            
             /* Assign dedicated staff to a presidential suite
              * Get first available room service staff in the hotel
              * Get first available catering staff in the hotel
              * Make sure there is actually a customer stay assigned for this room
              * Indices to use when calling this prepared statement:
-             * 1 -  Hotel ID
-             * 2 -  Room number
-             * 3 -  Hotel ID (again)
-             * 4 -  Room number (again)
-             * 5 -  Hotel ID (again)
+             * 1 -  room service staff
+             * 2 -  catering staff
+             * 3 -  Room number
+             * 4 -  Hotel ID
+             * 5 -  Room number (again)
+             * 6 -  Hotel ID (again)
              */
             reusedSQLVar = 
                 "UPDATE Rooms SET " + 
-                "DRSStaff = (SELECT MIN(ID) FROM (SELECT ID, HotelID FROM STAFF WHERE JobTitle = 'Room Service' AND HotelID = ? AND " + 
-                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))), " + 
-                "DCStaff = (SELECT MIN(ID) FROM (SELECT ID, HotelID FROM STAFF WHERE JobTitle = 'Catering' AND HotelID = ? AND " + 
-                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL))) " +
+                "DRSStaff = ?, " + 
+                "DCStaff = ? " +
                 "WHERE RoomNum = ? AND HotelID = ? AND EXISTS(SELECT * FROM Stays WHERE RoomNum = ? AND HotelID = ? AND EndDate IS NULL);";
             jdbcPrep_assignDedicatedStaff = jdbc_connection.prepareStatement(reusedSQLVar);
             
@@ -3922,6 +3942,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Debug assigning a room to a customer.
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
      */
     public static void db_frontDeskAssignRoom (
         int roomNum, 
@@ -3938,6 +3959,8 @@ public class WolfInns {
         // Declare variables
         int oldStayID = 0;
         int newStayID = 0;
+        int roomServiceStaffID = 0;
+        int cateringStaffID = 0;
         String roomType = "";
         String userGuidance = "";
         
@@ -4006,15 +4029,49 @@ public class WolfInns {
                 jdbcPrep_getRoomByHotelIDRoomNum.setInt(1, roomNum);
                 jdbcPrep_getRoomByHotelIDRoomNum.setInt(2, hotelID);
                 jdbc_result = jdbcPrep_getRoomByHotelIDRoomNum.executeQuery();
-                while (jdbc_result.next()) {
+                if (jdbc_result.next()) {
                     roomType = jdbc_result.getString("Category");     
                 }
-                if (roomType == "Presidential") {
-                    jdbcPrep_assignDedicatedStaff.setInt(1, hotelID);
-                    jdbcPrep_assignDedicatedStaff.setInt(2, roomNum);
-                    jdbcPrep_assignDedicatedStaff.setInt(3, hotelID);
-                    jdbcPrep_assignDedicatedStaff.setInt(4, roomNum);
-                    jdbcPrep_assignDedicatedStaff.setInt(5, hotelID);
+                if (roomType.equals("Presidential")) {
+                    
+                    /* Get first available room service staff in a hotel
+                     * Indices to use when calling this prepared statement:
+                     * 1 -  Hotel ID
+                     */
+                    jdbcPrep_getFirstAvailableRoomServiceStaff.setInt(1, hotelID);
+                    jdbc_result = jdbcPrep_getFirstAvailableRoomServiceStaff.executeQuery();
+                    if (jdbc_result.next()) {
+                        roomServiceStaffID = jdbc_result.getInt(1);     
+                    }
+                    
+                    /* Get first available room service staff in a hotel
+                     * Indices to use when calling this prepared statement:
+                     * 1 -  Hotel ID
+                     */
+                    jdbcPrep_getFirstAvailableCateringStaff.setInt(1, hotelID);
+                    jdbc_result = jdbcPrep_getFirstAvailableCateringStaff.executeQuery();
+                    if (jdbc_result.next()) {
+                        cateringStaffID = jdbc_result.getInt(1);     
+                    }
+
+                    /* Assign dedicated staff to a presidential suite
+                     * Get first available room service staff in the hotel
+                     * Get first available catering staff in the hotel
+                     * Make sure there is actually a customer stay assigned for this room
+                     * Indices to use when calling this prepared statement:
+                     * 1 -  room service staff
+                     * 2 -  catering staff
+                     * 3 -  Room number
+                     * 4 -  Hotel ID
+                     * 5 -  Room number (again)
+                     * 6 -  Hotel ID (again)
+                     */
+                    jdbcPrep_assignDedicatedStaff.setInt(1, roomServiceStaffID);
+                    jdbcPrep_assignDedicatedStaff.setInt(2, cateringStaffID);
+                    jdbcPrep_assignDedicatedStaff.setInt(3, roomNum);
+                    jdbcPrep_assignDedicatedStaff.setInt(4, hotelID);
+                    jdbcPrep_assignDedicatedStaff.setInt(5, roomNum);
+                    jdbcPrep_assignDedicatedStaff.setInt(6, hotelID);
                     jdbcPrep_assignDedicatedStaff.executeUpdate();
                 }
 
@@ -6426,6 +6483,7 @@ public class WolfInns {
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
      *                  04/07/18 -  ATTD -  Debug ability to update a service record.
+     *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
      */
     public static void main(String[] args) {
         
@@ -6692,6 +6750,8 @@ public class WolfInns {
             jdbcPrep_updateStaffHotelID.close();
             jdbcPrep_getStaffByID.close();
             jdbcPrep_deleteStaff.close();
+            jdbcPrep_getFirstAvailableCateringStaff.close();
+            jdbcPrep_getFirstAvailableRoomServiceStaff.close();
             // Rooms
             jdbcPrep_insertNewRoom.close(); 
             jdbcPrep_roomUpdateCategory.close();
