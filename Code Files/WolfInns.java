@@ -6268,9 +6268,23 @@ public class WolfInns {
                      proposedValue.equalsIgnoreCase("Cash") 
                  )
              ) {
-                    System.out.println("\nERROR: Allowed values for room category are 'Economy', 'Deluxe', 'Executive', 'Presidential' ");
+                    System.out.println("\nERROR: Allowed values for room category are 'Card' or 'Cash' ");
                     okaySoFar = false; 
             } 
+
+            ///check for assigning room if cardtype values are valid
+            if (
+                attributeName.equalsIgnoreCase("CardType") && 
+                 !(
+                     proposedValue.equalsIgnoreCase("Visa") || 
+                     proposedValue.equalsIgnoreCase("Hotel") ||
+                     proposedValue.equalsIgnoreCase("Mastercard")
+                 )
+             ) {
+                    System.out.println("\nERROR: Allowed values for room category are 'Visa', 'Mastercard', or 'Hotel' ");
+                    okaySoFar = false; 
+            } 
+            
              
         }
         catch (Throwable err) {
