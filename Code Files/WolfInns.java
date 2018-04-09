@@ -6259,7 +6259,7 @@ public class WolfInns {
                 System.out.println("\nERROR: Room Nightly rate should be a number");
                 okaySoFar = false;
             } 
-            
+           // ---------Validation for assigning room-------------
             ///check for assigning room if paymentmethod values are valid
             if (
                 attributeName.equalsIgnoreCase("PaymentMethod") && 
@@ -6284,6 +6284,16 @@ public class WolfInns {
                     System.out.println("\nERROR: Allowed values for room category are 'Visa', 'Mastercard', or 'Hotel' ");
                     okaySoFar = false; 
             } 
+            ////check that the cardnumber is a integer
+            try{
+                if (attributeName.equalsIgnoreCase("CardNumber") && Long.parseLong(proposedValue) <= 0) {
+                    System.out.println("\nERROR: Room Nightly rate should be a positive number");
+                    okaySoFar = false;
+                }
+           } catch(NumberFormatException nfe) {
+               System.out.println("\nERROR: Room Nightly rate should be a number");
+               okaySoFar = false;
+           } 
             
              
         }
