@@ -2204,12 +2204,17 @@ public class WolfInns {
     /** 
      * Front Desk task: Check availability of rooms based on a wide range of characteristics
      * 
+     * Normally a "user_" method would just get info from the user, then call a "db_" method to interact with the DB, using prepared statement(s).
+     * However, this filter query is so variable that it seemed nuts to try to create all the needed prepared statements.
+     * 
      * Arguments -  None
      * Return -     None
      * 
      * Modifications:   03/27/18 -  ATTD -  Created method.
      *                  04/08/18 -  ATTD -  Major oversight in initial creation of this method.
      *                                      Was filtering by chosen attributes but NOT by availability!
+     *                  04/09/18 -  ATTD -  Another major oversight.
+     *                                      Did not consider presidential suite as unavailable if no staff to dedicate to it!
      */
     public static void user_frontDeskCheckAvailability() {
  
@@ -2245,8 +2250,17 @@ public class WolfInns {
                     // Each element of filters is of the form attr:value
                     filterAttrToApply = filters.get(i).split(":")[0];
                     filterValToApply = filters.get(i).split(":")[1];
+                    // Deal with special case Presidential Suite
+                    if (filterAttrToApply.equals("Category") && filterValToApply.equals("Presidential")) {
+                        sqlToExecute += 
+                                "Category = 'Presidential' AND " + 
+                                "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
+                                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
+                                "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
+                                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))";
+                    }
                     // Deal with special case Maximum Occupancy
-                    if (filterAttrToApply.equals("MaxOcc")) {
+                    else if (filterAttrToApply.equals("MaxOcc")) {
                         sqlToExecute += filterAttrToApply + " >= " + filterValToApply;
                     }
                     // Deal with special case Nightly Rate
@@ -2271,7 +2285,6 @@ public class WolfInns {
                     }
                 }
                 sqlToExecute += ";";
-                
                 jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
                 if (jdbc_result.next()) {
                     numRoomsAvailable = jdbc_result.getInt(1);
