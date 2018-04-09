@@ -3943,6 +3943,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
+     *                  04/09/18 -  ATTD -  Fixed Defect preventing room to be assigned when PaymentMethod=card 
      */
     public static void db_frontDeskAssignRoom (
         int roomNum, 
@@ -3998,7 +3999,7 @@ public class WolfInns {
                 jdbcPrep_assignRoom.setInt(13, numGuests);
                 jdbcPrep_assignRoom.setString(3, paymentMethod);
                 jdbcPrep_assignRoom.setString(9, paymentMethod);
-                if (paymentMethod.equals("CARD")) {
+                if (paymentMethod.equalsIgnoreCase("CARD")) {
                     jdbcPrep_assignRoom.setString(4, cardType);
                     jdbcPrep_assignRoom.setString(10, cardType);
                     jdbcPrep_assignRoom.setLong(5, cardNumber);
@@ -4098,7 +4099,7 @@ public class WolfInns {
                 
             }
             catch (Throwable err) {
-                
+                System.out.print("rolledback!!!");
                 // Handle error
                 error_handler(err);
                 
