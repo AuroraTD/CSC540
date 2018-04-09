@@ -6110,7 +6110,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Allow 3-digit phone numbers per demo data.
      *                                      Allow 4-digit SSNs per demo data.
      *                                      Changing room categories to match those given in demo data.
-     *                  04/08/18 -  MTA -  Added validations for assigning rooms to fix defect
+     *                  04/08/18 -  MTA -  Added validations for assigning rooms to fix defects
      */
     public static boolean support_isValueSane(String attributeName, String proposedValue) {
         
@@ -6295,6 +6295,20 @@ public class WolfInns {
                System.out.println("\nERROR: Room Nightly rate should be a number");
                okaySoFar = false;
            } 
+           ////////check for custumerID 
+           if (okaySoFar && attributeName.equalsIgnoreCase("CustomerID")) {
+            // TODO: use prepared statement instead
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT ID " + 
+                    "FROM Customers " + 
+                    "WHERE ID = " + 
+                    Integer.parseInt(proposedValue) + ";");
+            
+                if (!jdbc_result.next()) {
+                    System.out.println("\nThis is not a valid CustomerID\n");
+                    okaySoFar = false;
+                }
+            }
             
              
         }
