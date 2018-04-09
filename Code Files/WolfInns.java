@@ -3943,6 +3943,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
      *                                      Make customer ID the primary key, and SSN just another attribute, per demo data.
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
+     *                  04/09/18 -  ATTD -  Fixed Defect preventing room to be assigned when PaymentMethod=card 
      */
     public static void db_frontDeskAssignRoom (
         int roomNum, 
@@ -3998,7 +3999,7 @@ public class WolfInns {
                 jdbcPrep_assignRoom.setInt(13, numGuests);
                 jdbcPrep_assignRoom.setString(3, paymentMethod);
                 jdbcPrep_assignRoom.setString(9, paymentMethod);
-                if (paymentMethod.equals("CARD")) {
+                if (paymentMethod.equalsIgnoreCase("CARD")) {
                     jdbcPrep_assignRoom.setString(4, cardType);
                     jdbcPrep_assignRoom.setString(10, cardType);
                     jdbcPrep_assignRoom.setLong(5, cardNumber);
@@ -4098,7 +4099,7 @@ public class WolfInns {
                 
             }
             catch (Throwable err) {
-                
+                System.out.print("rolledback!!!");
                 // Handle error
                 error_handler(err);
                 
@@ -6109,6 +6110,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Allow 3-digit phone numbers per demo data.
      *                                      Allow 4-digit SSNs per demo data.
      *                                      Changing room categories to match those given in demo data.
+     *                  04/08/18 -  MTA -  Added validations for assigning rooms to fix defects
      */
     public static boolean support_isValueSane(String attributeName, String proposedValue) {
         
@@ -6223,8 +6225,7 @@ public class WolfInns {
                  !(
                      proposedValue.equalsIgnoreCase("Economy") || 
                      proposedValue.equalsIgnoreCase("Deluxe") || 
-                     proposedValue.equalsIgnoreCase("Executive"
-                 ) || 
+                     proposedValue.equalsIgnoreCase("Executive") || 
                      proposedValue.equalsIgnoreCase("Presidential")
                  )
              ) {
@@ -6258,7 +6259,57 @@ public class WolfInns {
             } catch(NumberFormatException nfe) {
                 System.out.println("\nERROR: Room Nightly rate should be a number");
                 okaySoFar = false;
-            }      
+            } 
+           // ---------Validation for assigning room-------------
+            ///check for assigning room if paymentmethod values are valid
+            if (
+                attributeName.equalsIgnoreCase("PaymentMethod") && 
+                 !(
+                     proposedValue.equalsIgnoreCase("Card") || 
+                     proposedValue.equalsIgnoreCase("Cash") 
+                 )
+             ) {
+                    System.out.println("\nERROR: Allowed values for room category are 'Card' or 'Cash' ");
+                    okaySoFar = false; 
+            } 
+
+            ///check for assigning room if cardtype values are valid
+            if (
+                attributeName.equalsIgnoreCase("CardType") && 
+                 !(
+                     proposedValue.equalsIgnoreCase("Visa") || 
+                     proposedValue.equalsIgnoreCase("Hotel") ||
+                     proposedValue.equalsIgnoreCase("Mastercard")
+                 )
+             ) {
+                    System.out.println("\nERROR: Allowed values for room category are 'Visa', 'Mastercard', or 'Hotel' ");
+                    okaySoFar = false; 
+            } 
+            ////check that the cardnumber is a integer
+            try{
+                if (attributeName.equalsIgnoreCase("CardNumber") && Long.parseLong(proposedValue) <= 0) {
+                    System.out.println("\nERROR: Room Nightly rate should be a positive number");
+                    okaySoFar = false;
+                }
+           } catch(NumberFormatException nfe) {
+               System.out.println("\nERROR: Room Nightly rate should be a number");
+               okaySoFar = false;
+           } 
+           ////////check for custumerID 
+           if (okaySoFar && attributeName.equalsIgnoreCase("CustomerID")) {
+            // TODO: use prepared statement instead
+                jdbc_result = jdbc_statement.executeQuery(
+                    "SELECT ID " + 
+                    "FROM Customers " + 
+                    "WHERE ID = " + 
+                    Integer.parseInt(proposedValue) + ";");
+            
+                if (!jdbc_result.next()) {
+                    System.out.println("\nThis is not a valid CustomerID\n");
+                    okaySoFar = false;
+                }
+            }
+            
              
         }
         catch (Throwable err) {
