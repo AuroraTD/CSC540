@@ -2188,12 +2188,12 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/27/18 -  ATTD -  Created method.
+     *                  04/08/18 -  ATTD -  Major oversight in initial creation of this method.
+     *                                      Was filtering by chosen attributes but NOT by availability!
      */
     public static void user_frontDeskCheckAvailability() {
  
         try {
-            
-            // TODO: something is broken here.  if you search for all presidential suites, it includes room 4 in hotel 8 (which is occupied)!
             
             // Declare local variables
             ArrayList<String> filters = new ArrayList<>();
@@ -2216,12 +2216,12 @@ public class WolfInns {
             while (userWantsToStop == false) {
                 
                 // Print # available rooms in the Wolf Inns chain given existing filtering (need count but later will need all results)
-                sqlToExecute = "SELECT count(*) FROM Rooms";
+                sqlToExecute = 
+                        "SELECT count(*) FROM Rooms WHERE NOT EXISTS " + 
+                        "(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL)";
                 for (i = 0; i < filters.size(); i++) {
-                    // If we're here at all, we have at least one filter, so need a WHERE clause
-                    if (i == 0) {
-                        sqlToExecute += " WHERE ";
-                    }
+                    // Prepare to append the filter part of the query
+                    sqlToExecute += " AND ";
                     // Each element of filters is of the form attr:value
                     filterAttrToApply = filters.get(i).split(":")[0];
                     filterValToApply = filters.get(i).split(":")[1];
@@ -2249,12 +2249,9 @@ public class WolfInns {
                             sqlToExecute += filterAttrToApply + " = '" + filterValToApply + "'";
                         }
                     }
-                    // If this wasn't the end, add an AND for the next one
-                    if (i < filters.size() - 1) {
-                        sqlToExecute += " AND ";
-                    }
                 }
                 sqlToExecute += ";";
+                
                 jdbc_result = jdbc_statement.executeQuery(sqlToExecute);
                 if (jdbc_result.next()) {
                     numRoomsAvailable = jdbc_result.getInt(1);
