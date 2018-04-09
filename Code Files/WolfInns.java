@@ -6109,6 +6109,7 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Allow 3-digit phone numbers per demo data.
      *                                      Allow 4-digit SSNs per demo data.
      *                                      Changing room categories to match those given in demo data.
+     *                  04/08/18 -  MTA -  Added validations for assigning rooms to fix defect
      */
     public static boolean support_isValueSane(String attributeName, String proposedValue) {
         
@@ -6223,8 +6224,7 @@ public class WolfInns {
                  !(
                      proposedValue.equalsIgnoreCase("Economy") || 
                      proposedValue.equalsIgnoreCase("Deluxe") || 
-                     proposedValue.equalsIgnoreCase("Executive"
-                 ) || 
+                     proposedValue.equalsIgnoreCase("Executive") || 
                      proposedValue.equalsIgnoreCase("Presidential")
                  )
              ) {
@@ -6258,7 +6258,19 @@ public class WolfInns {
             } catch(NumberFormatException nfe) {
                 System.out.println("\nERROR: Room Nightly rate should be a number");
                 okaySoFar = false;
-            }      
+            } 
+            
+            ///check for assigning room if paymentmethod values are valid
+            if (
+                attributeName.equalsIgnoreCase("PaymentMethod") && 
+                 !(
+                     proposedValue.equalsIgnoreCase("Card") || 
+                     proposedValue.equalsIgnoreCase("Cash") 
+                 )
+             ) {
+                    System.out.println("\nERROR: Allowed values for room category are 'Economy', 'Deluxe', 'Executive', 'Presidential' ");
+                    okaySoFar = false; 
+            } 
              
         }
         catch (Throwable err) {
