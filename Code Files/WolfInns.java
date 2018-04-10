@@ -2238,6 +2238,11 @@ public class WolfInns {
             int i;
             boolean userWantsToStop = false;
             boolean valueIsNumeric = false;
+            String sqlPresCheck="(Category <> 'Presidential' OR ( " + 
+            "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
+            "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
+            "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
+            "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL)))) AND ";
             
             // Print example room so user has some context
             System.out.println("\nExample Room (showing filter options):\n");
@@ -2258,7 +2263,7 @@ public class WolfInns {
                     filterAttrToApply = filters.get(i).split(":")[0];
                     filterValToApply = filters.get(i).split(":")[1];
                     // Deal with special case Presidential Suite
-                    if (filterAttrToApply.equals("Category") && filterValToApply.equals("Presidential")) {
+                    if (filterAttrToApply.equalsIgnoreCase("Category") && filterValToApply.equalsIgnoreCase("Presidential")) {
                         sqlToExecute += 
                                 "Category = 'Presidential' AND " + 
                                 "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
@@ -2267,15 +2272,16 @@ public class WolfInns {
                                 "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))";
                     }
                     // Deal with special case Maximum Occupancy
-                    else if (filterAttrToApply.equals("MaxOcc")) {
-                        sqlToExecute += filterAttrToApply + " >= " + filterValToApply;
+                    else if (filterAttrToApply.equalsIgnoreCase("MaxOcc")) {
+                        sqlToExecute += sqlPresCheck + filterAttrToApply + " >= " + filterValToApply;
                     }
                     // Deal with special case Nightly Rate
-                    else if (filterAttrToApply.equals("NightlyRate")) {
-                        sqlToExecute += filterAttrToApply + " <= " + filterValToApply;
+                    else if (filterAttrToApply.equalsIgnoreCase("NightlyRate")) {
+                        sqlToExecute += sqlPresCheck + filterAttrToApply + " <= " + filterValToApply;
                     }
                     // Deal with non-special cases (if string, must include quotes!)
                     else {
+                        sqlToExecute += sqlPresCheck;
                         valueIsNumeric = true;
                         try {
                             Double.parseDouble(filterValToApply);
