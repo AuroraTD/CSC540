@@ -227,6 +227,7 @@ public class WolfInns {
      *                  04/06/18 -  ATTD -  Add ability to enter a new service record.
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
      *                  04/07/18 -  AS   -  Add ability to update cost of service.
+     *                  04/09/18 -  ATTD -  Added 'Quit'functionality to all submenus
      */
     public static void startup_printAvailableCommands(String menu) {
         
@@ -6354,6 +6355,8 @@ public class WolfInns {
      *                  03/24/18 -  MTA -   Handle primary key violation.
      *                  03/28/18 -  ATTD -  Handle unknown column in WHERE clause.
      *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
+     *                  04/09/18 -  ATTD -  Changed the FK_ROOMDCID and FK_ROOMDRSID messages to reflect better message inclusive to when 
+     *                                          assigning presidential suite fails due to these errors (could not find staffID=0)
      */
     public static void error_handler(Throwable err, String... pkViolation) {
         
@@ -6555,6 +6558,7 @@ public class WolfInns {
      *                  04/06/18 -  ATTD -  Add ability to update a service record.
      *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
+     *                  04/09/18 -  ATTD -  Added 'Quit'functionality to all submenus
      */
     public static void main(String[] args) {
         
