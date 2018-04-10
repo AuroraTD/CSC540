@@ -4095,8 +4095,10 @@ public class WolfInns {
                     jdbcPrep_assignDedicatedStaff.executeUpdate();
                 }
 
+              
                 // If success, commit
                 jdbc_connection.commit();
+
                 
                 // Then, tell the user about the success or failure
                 jdbc_result = jdbcPrep_getNewestStay.executeQuery();
@@ -4112,7 +4114,7 @@ public class WolfInns {
                 else {
                     userGuidance = 
                        "Room NOT Assigned " + 
-                       "(this can happen if the number of guests is too high)";
+                       "(this can happen if the number of guests is too high, or if it's a Presidential Suite there may be a lack of available staff)";
                     System.out.println("\n" + userGuidance + "\n");
                 }
                 
@@ -6410,12 +6412,12 @@ public class WolfInns {
             }
             else if (errorMessage.contains("FK_ROOMDRSID")) {
                 System.out.println(
-                    "\nCannot assign this staff member as dedicated room service staff, because they are not registered as a Wolf Inns staff member\n"
+                    "\nCould not assign dedicated catering Staff, this prevents successful assignment of the Presidential Suite.\n"
                 );
             }
             else if (errorMessage.contains("FK_ROOMDCID")) {
                 System.out.println(
-                    "\nCannot assign this staff member as dedicated catering staff, because they are not registered as a Wolf Inns staff member\n"
+                    "\nCould not assign dedicated catering Staff, this prevents successful assignment of the Presidential Suite.\n"
                 );
             }
             else if (errorMessage.contains("PK_ROOMS") || (pkViolation.length > 0 && pkViolation[0].contains("PK_ROOMS"))) {
