@@ -422,6 +422,8 @@ public class WolfInns {
      *                  04/07/18 -  ATTD -  Debug ability to update a service record.
      *                  04/07/18 -  AS   -  Add ability to update cost of a service.
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
+     *                  04/10/18 -  ATTD -  When reporting room availability, take into account for the presidential suite
+     *                                      the need to have staff available to dedicate to the suite.
      */
     public static void startup_createPreparedStatements() {
         
@@ -1028,7 +1030,14 @@ public class WolfInns {
              */
             reusedSQLVar = 
                 "SELECT HotelID, RoomNum, Category, MaxOcc, NightlyRate, DRSStaff, DCStaff, " + 
-                "IF(EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL), 'No', 'Yes') AS Available " + 
+                "IF" + 
+                    "(NOT EXISTS(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL) AND " + 
+                    "(Rooms.Category <> 'Presidential' OR ( " + 
+                    "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
+                    "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
+                    "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
+                    "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))))" +
+                ", 'Yes', 'No') AS Available " + 
                 "FROM Rooms ORDER BY HotelID, RoomNum";
             jdbcPrep_reportTableRooms = jdbc_connection.prepareStatement(reusedSQLVar);
 
@@ -2222,6 +2231,7 @@ public class WolfInns {
      *                                      Was filtering by chosen attributes but NOT by availability!
      *                  04/09/18 -  ATTD -  Another major oversight.
      *                                      Did not consider presidential suite as unavailable if no staff to dedicate to it!
+     *                  04/10/18 -  ATTD -  Removed some redundant code.
      */
     public static void user_frontDeskCheckAvailability() {
  
@@ -2238,11 +2248,6 @@ public class WolfInns {
             int i;
             boolean userWantsToStop = false;
             boolean valueIsNumeric = false;
-            String sqlPresCheck="(Category <> 'Presidential' OR ( " + 
-            "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
-            "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
-            "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
-            "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL)))) AND ";
             
             // Print example room so user has some context
             System.out.println("\nExample Room (showing filter options):\n");
@@ -2255,33 +2260,28 @@ public class WolfInns {
                 // Print # available rooms in the Wolf Inns chain given existing filtering (need count but later will need all results)
                 sqlToExecute = 
                         "SELECT count(*) FROM Rooms WHERE NOT EXISTS " + 
-                        "(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL)";
+                        "(SELECT * FROM Stays WHERE Stays.RoomNum = Rooms.RoomNum AND Stays.HotelID = Rooms.HotelID AND EndDate IS NULL) AND " +
+                        "(Rooms.Category <> 'Presidential' OR ( " + 
+                        "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
+                        "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
+                        "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
+                        "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))))";
                 for (i = 0; i < filters.size(); i++) {
                     // Prepare to append the filter part of the query
                     sqlToExecute += " AND ";
                     // Each element of filters is of the form attr:value
                     filterAttrToApply = filters.get(i).split(":")[0];
                     filterValToApply = filters.get(i).split(":")[1];
-                    // Deal with special case Presidential Suite
-                    if (filterAttrToApply.equalsIgnoreCase("Category") && filterValToApply.equalsIgnoreCase("Presidential")) {
-                        sqlToExecute += 
-                                "Category = 'Presidential' AND " + 
-                                "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Catering' AND Staff.HotelID = Rooms.HotelID AND " + 
-                                "ID NOT IN (SELECT DCStaff FROM Rooms WHERE DCStaff IS NOT NULL)) AND " +
-                                "EXISTS (SELECT ID FROM Staff WHERE Staff.JobTitle = 'Room Service' AND Staff.HotelID = Rooms.HotelID AND " + 
-                                "ID NOT IN (SELECT DRSStaff FROM Rooms WHERE DRSStaff IS NOT NULL))";
-                    }
                     // Deal with special case Maximum Occupancy
-                    else if (filterAttrToApply.equalsIgnoreCase("MaxOcc")) {
-                        sqlToExecute += sqlPresCheck + filterAttrToApply + " >= " + filterValToApply;
+                    if (filterAttrToApply.equalsIgnoreCase("MaxOcc")) {
+                        sqlToExecute += filterAttrToApply + " >= " + filterValToApply;
                     }
                     // Deal with special case Nightly Rate
                     else if (filterAttrToApply.equalsIgnoreCase("NightlyRate")) {
-                        sqlToExecute += sqlPresCheck + filterAttrToApply + " <= " + filterValToApply;
+                        sqlToExecute += filterAttrToApply + " <= " + filterValToApply;
                     }
                     // Deal with non-special cases (if string, must include quotes!)
                     else {
-                        sqlToExecute += sqlPresCheck;
                         valueIsNumeric = true;
                         try {
                             Double.parseDouble(filterValToApply);
