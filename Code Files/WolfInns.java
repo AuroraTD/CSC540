@@ -4112,7 +4112,6 @@ public class WolfInns {
                 
             }
             catch (Throwable err) {
-                System.out.print("rolledback!!!");
                 // Handle error
                 error_handler(err);
                 
