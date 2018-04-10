@@ -262,6 +262,8 @@ public class WolfInns {
                     System.out.println("\t- update a service record");
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
+                    System.out.println("'" + CMD_QUIT + "'");
+                    System.out.println("\t- exit the program");
                     System.out.println("");
                     break;
                 case CMD_REPORTS:
@@ -299,6 +301,8 @@ public class WolfInns {
                     System.out.println("\t- run report on staff serving the customer during the stay");                    
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
+                    System.out.println("'" + CMD_QUIT + "'");
+                    System.out.println("\t- exit the program");
                     System.out.println("");
                     break;
                 case CMD_MANAGE:
@@ -334,6 +338,8 @@ public class WolfInns {
                     
                     System.out.println("'" + CMD_MAIN + "'");
                     System.out.println("\t- go back to the main menu");
+                    System.out.println("'" + CMD_QUIT + "'");
+                    System.out.println("\t- exit the program");
                     System.out.println("");
                     break;
                 default:
@@ -6648,6 +6654,9 @@ public class WolfInns {
                                 // Remember what menu we're in
                                 currentMenu = CMD_MAIN;
                                 break;
+                            case CMD_QUIT:
+                                quit = true;
+                                break;
                             default:
                                 // Remind the user about what commands are available
                                 System.out.println("\nCommand not recognized");
@@ -6712,6 +6721,9 @@ public class WolfInns {
                                 // Remember what menu we're in
                                 currentMenu = CMD_MAIN;
                                 break;
+                            case CMD_QUIT:
+                                quit = true;
+                                break;
                             default:
                                 // Remind the user about what commands are available
                                 System.out.println("\nCommand not recognized");
@@ -6766,6 +6778,9 @@ public class WolfInns {
                             startup_printAvailableCommands(CMD_MAIN);
                             // Remember what menu we're in
                             currentMenu = CMD_MAIN;
+                            break;
+                        case CMD_QUIT:
+                            quit = true;
                             break;
                         default:
                             // Remind the user about what commands are available
