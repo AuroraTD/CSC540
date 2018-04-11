@@ -164,7 +164,7 @@ public class WolfInns {
     private static final String CMD_MANAGE =                                "MANAGE";
     
     private static final String CMD_FRONTDESK_AVAILABLE =                   "AVAILABILITY";
-    private static final String CMD_FRONTDESK_ASSIGN =                      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_CHECKIN =                     "CHECKIN";
     private static final String CMD_FRONTDESK_CHECKOUT =                    "CHECKOUT";
     private static final String CMD_FRONTDESK_ENTER_SERVICE =               "ENTERSERVICERECORD";
     private static final String CMD_FRONTDESK_UPDATE_SERVICE =              "UPDATESERVICERECORD";
@@ -293,6 +293,7 @@ public class WolfInns {
     
     // Declare variables - prepared statements - SERVICES
     private static PreparedStatement jdbcPrep_getEligibleStaffForService;
+    private static PreparedStatement jdbcPrep_insertNewServiceType;
     private static PreparedStatement jdbcPrep_insertNewServiceRecord;
     private static PreparedStatement jdbcPrep_udpateServiceRecord;
     private static PreparedStatement jdbcPrep_getNewestServiceRecord;
@@ -376,9 +377,8 @@ public class WolfInns {
                     System.out.println("\t- check customer out (generate receipt & bill, release room)");
                     System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
                     System.out.println("\t- check room availability");
-                    // TODO: might want to rename this one to CHECKIN (to match CHECKOUT)?
-                    System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
-                    System.out.println("\t- assign a room to a customer");
+                    System.out.println("'" + CMD_FRONTDESK_CHECKIN + "'");
+                    System.out.println("\t- check a customer into a room");
                     System.out.println("'" + CMD_FRONTDESK_ENTER_SERVICE + "'");
                     System.out.println("\t- enter a service record");
                     System.out.println("'" + CMD_FRONTDESK_UPDATE_SERVICE + "'");
@@ -546,6 +546,7 @@ public class WolfInns {
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
      *                  04/10/18 -  ATTD -  When reporting room availability, take into account for the presidential suite
      *                                      the need to have staff available to dedicate to the suite.
+     *                  04/11/18 -  ATTD -  Use prepared statement to populate service types table.
      */
     public static void startup_createPreparedStatements() {
         
@@ -1316,6 +1317,16 @@ public class WolfInns {
                 "NOT EXISTS (SELECT * FROM Rooms WHERE Rooms.RoomNum <> ? AND (DRSStaff = Staff.ID OR DCStaff = Staff.ID));";
             jdbcPrep_getEligibleStaffForService = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Insert new service type
+             * Indices to use when calling this prepared statement:
+             * 1 -  name of service
+             * 2 -  cost of service
+             */
+            reusedSQLVar = 
+                "INSERT INTO ServiceTypes (Name, Cost) " + 
+                "VALUES (?, ?);";
+            jdbcPrep_insertNewServiceType = jdbc_connection.prepareStatement(reusedSQLVar);
+            
             /* Insert new service record for stay
              * Staff member must have correct job title
              * Staff member must be serving the hotel
@@ -1733,6 +1744,7 @@ public class WolfInns {
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Populate ServiceTypes table with demo data.
+     *                  04/11/18 -  ATTD -  Use prepared statement to populate service types table.
      */
     public static void populate_ServiceTypes() {
         
@@ -1743,29 +1755,37 @@ public class WolfInns {
             
             try {
             
-                // Populating data for ServiceTypes
-                // TODO: use prepared statement instead
-                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Phone', 5);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Dry Cleaning', 16);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Gym', 15);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Room Service', 10);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Special Request', 20);");
-    			
+                /* Populating data for ServiceTypes
+                 * Indices to use when calling this prepared statement:
+                 * 1 -  name of service
+                 * 2 -  cost of service
+                 */
+
+                jdbcPrep_insertNewServiceType.setString(1, "Phone");
+                jdbcPrep_insertNewServiceType.setInt(2, 5);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
+                jdbcPrep_insertNewServiceType.setString(1, "Dry Cleaning");
+                jdbcPrep_insertNewServiceType.setInt(2, 16);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+
+                jdbcPrep_insertNewServiceType.setString(1, "Gym");
+                jdbcPrep_insertNewServiceType.setInt(2, 15);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
+                jdbcPrep_insertNewServiceType.setString(1, "Room Service");
+                jdbcPrep_insertNewServiceType.setInt(2, 10);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+  
+                jdbcPrep_insertNewServiceType.setString(1, "Special Request");
+                jdbcPrep_insertNewServiceType.setInt(2, 20);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+
     			// Populate one extra service type that is not in demo data but is in project narrative
-                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-                        "(Name, Cost) VALUES "+
-                        "('Catering', 50);");
-    			
+                jdbcPrep_insertNewServiceType.setString(1, "Catering");
+                jdbcPrep_insertNewServiceType.setInt(2, 50);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
                 // If success, commit
                 jdbc_connection.commit();
     			
@@ -2487,7 +2507,7 @@ public class WolfInns {
      *                  04/03/18 -  ATTD -  Debug assigning a room to a customer.
      *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static void user_frontDeskAssignRoom() {
+    public static void user_frontDeskCheckIn() {
         
         try {
             
@@ -6788,8 +6808,8 @@ public class WolfInns {
                             case CMD_FRONTDESK_AVAILABLE:
                                 user_frontDeskCheckAvailability();
                                 break;
-                            case CMD_FRONTDESK_ASSIGN:
-                                user_frontDeskAssignRoom();
+                            case CMD_FRONTDESK_CHECKIN:
+                                user_frontDeskCheckIn();
                                 break;
                             case CMD_FRONTDESK_ENTER_SERVICE:
                                 user_frontDeskEnterService();
@@ -7017,6 +7037,7 @@ public class WolfInns {
             jdbcPrep_isValidStayID.close();
             // Services
             jdbcPrep_getEligibleStaffForService.close();
+            jdbcPrep_insertNewServiceType.close();
             jdbcPrep_insertNewServiceRecord.close();
             jdbcPrep_udpateServiceRecord.close();
             jdbcPrep_getNewestServiceRecord.close();
