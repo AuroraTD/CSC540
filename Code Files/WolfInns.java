@@ -1670,7 +1670,11 @@ public class WolfInns {
         
         try {
             
-            // Start transaction
+            /* Start transaction
+             * In this function, we add several customer tuples to the Customers table
+             * If there is a problem with any tuple, 
+             * we feel it is safest to tell the user there is a problem, and leave the table empty
+             */
             jdbc_connection.setAutoCommit(false);
             
             try {
@@ -1692,6 +1696,7 @@ public class WolfInns {
                 // If success, commit
                 jdbc_connection.commit();
                 
+                // Tell the user that the table is loaded
                 System.out.println("Customers table loaded!");
     		
             }
@@ -4407,7 +4412,12 @@ public class WolfInns {
           
         try {
                
-            // Start transaction
+            /* Start transaction
+             * In this function, we first update the check out time and end date in the Stays table
+             * Then we release the dedicated staff assigned to the room in the Rooms table
+             * Either operation by itself does not make sense
+             * We want both operations to succeed together, or fail together
+             */
             jdbc_connection.setAutoCommit(false);
             
             try {
@@ -4431,9 +4441,11 @@ public class WolfInns {
                 jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
                 jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
 
-                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff)
+                // are successful, commit the transaction
                 jdbc_connection.commit();
                 
+                // Tell the user the room was released
                 System.out.println("\nThe room has been successfully released!");
                 
             }
