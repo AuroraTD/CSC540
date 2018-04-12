@@ -10,7 +10,129 @@
  * Aurora Tiffany-Davis         (attiffan)
  * Manjusha Trilochan Awasthi   (mawasth)
  * Samantha Scoggins            (smscoggi)
- *
+ * 
+ * Compilation:
+ * -    add mysql
+ * -    javac WolfInns.java
+ * 
+ * Running:
+ * -    java WolfInns
+ * 
+ * Operation:
+ * -    When the application starts, it will populate the DB with the demo data.
+ * -    Thereafter, interaction is enabled by means of menus
+ *      -   FRONTDESK Menu
+ *          -   Perform hotel staff operations such as checking guests in / out, entering service records, etc.
+ *      -   REPORTS Menu
+ *          -   Perform reporting operations such as revenue, occupancy, and staff reports.
+ *          -   Perform extra reporting operations such as reporting on all hotels, all rooms, etc.
+ *      -   MANAGE Menu
+ *          -   Perform management operations such as adding / updating / deleting hotels, staff, etc.
+ * -    Each menu shows each available command, along with a brief description of what the command accomplishes.
+ * -    If you wish to close the application, each menu includes a QUIT option.
+ * 
+ * Organization:
+ * 
+ * -    "main" function
+ *      -    Welcomes the user
+ *      -    States available commands
+ *      -    Listens to and acts on user commands
+ *      -    Closes resources upon "QUIT"
+ * 
+ * -    "startup_..." functions
+ *      -    Perform startup work such as connecting to the DBMS, creating tables
+ * 
+ * -    "populate_..." functions
+ *      -    Populate tables with demo data
+ * 
+ * -    "user_..." functions
+ *      -    Interact with the user to get details about their query / update needs
+ * 
+ * -    "db_..." functions
+ *      -   Interact with the database to run queries and updates
+ *      
+ * -    "support_..." functions
+ *      -   Perform calculations and checks that may be needed by any other functions
+ * 
+ * -    "error_handler" function
+ *      -   Generalized error handler intended to give human-understandable feedback if something goes wrong
+ *      
+ * -    Large source code file
+ *      -   The discerning reader will notice that our application is written in one single file which is > 7k lines long.
+ *      -   Our priority during development was on functionality and reliability, such that designing a file hierarchy fell by the wayside.
+ *      -   We took to heart the guidance from course instructors that assessment would be based on functionality, 
+ *          and that "extra" work would yield no extra points.
+ *      -   Certainly if this code were to be supported long-term we would have made a different choice here.
+ * 
+ * Design:
+ * 
+ * -    Prepared Statements
+ *      -    We used prepared statements for most SQL interactions with the database.
+ *      -    Although efficiency is not a requirement of the project, we wanted to explore this topic as a best practice.
+ *      -    Our initial intention was to used prepared statements for all such interactions, but time did not allow for that.
+ * 
+ * -    Constraints
+ *      -    We implemented uniqueness, primary key, and foreign key constraints 
+ *           as noted in project report 2 and as implied by project assumptions.
+ *      -    We did not implement CHECK constraints as these are not fully supported by the version of MariaDB suggested for use in the project.
+ *      -    We did not implement ASSERTIONS as these are not fully supported by the version of MariaDB suggested for use in the project.
+ *      -    We implemented constraints needed for logical operation on the data, 
+ *           which otherwise might have been implemented via CHECK or ASSERTION, through two means:
+ *          -   In SQL where practical
+ *          -   In application code where SQL was not practical
+ *           In some cases we are covered by checks at both the SQL and application levels
+ *           This is a result of the development evolution and we are comfortable with extra protection
+ * 
+ * -    Transactions
+ *      -    For safety, our intention was to implement transactions wherever there are multiple DB modification steps within one function.
+ *      -    Functions are scoped in a logical way, such that they should represent actions on the database that should be handled atomically.
+ * 
+ * -    User Friendliness
+ *      -    We have made some effort to have a user-friendly interface.
+ *      -    There are cases where the application gives the user hints.
+ *      -    One example is showing a list of all service types before asking which service type the user wants to change the cost of.
+ *      -    Although the team members will be the users during the demo, these hints / helps are intended to help us:
+ *          -   Move through code development and debug smoothly
+ *          -   Move through the demo smoothly
+ *      -    We are certainly not claiming that this application is user-friendly enough for mass market adoption,
+ *           it just has a few of the rough edges sanded down.
+ * 
+ * -    Room Availability
+ *      -    As indicated by our design as documented in project report 2, 
+ *           we calculate room availability by examining check-in / check-out records.
+ *      -    During phase 3 of the project we became aware via 
+ *           https://classic.wolfware.ncsu.edu/wrap-bin/mesgboard/csc:540::001:1:2018?task=ST&Forum=13&Topic=7
+ *           that "A room can be unavailable for a variety of reasons - for instance, for being renovated".
+ *      -    We have not re-designed our system to accommodate a room which is unoccupied nonetheless being considered unavailable.
+ * 
+ * -    Beyond-demo-data table population
+ *      -   Service Types
+ *          -   "Catering" is included as a service type although it is not found in the demo data.
+ *          -   Catering is a service mentioned in the project narrative.
+ *          -   Presidential suites must have dedicated catering staff again as noted in the project narrative.
+ *          -   We designed our system with catering in mind as an offered service.
+ *      -   Staff
+ *          -   Two staff members are included beyond what is found in the demo data in order to 
+ *              have dedicated staff available to serve the presidential suite which is found in the demo data.
+ *              -   As noted in the project narrative, "At time of check-in, the presidential suite is assigned dedicated ... staff."
+ *              -   For this reason, a presidential suite is considered unavailable if there are no staff that we can dedicate to it.
+ *              -   Yet, the suite is noted as available in the demo data.
+ *              -   The added staff were necessary, given our project design & assumptions, to resolve this conflict.
+ *          -   Three staff members are included beyond what is found in the demo data in order to
+ *              have staff of the correct job titles to provide demo data services
+ *                  // TODO: REVISIT THIS - in the interest of cutting back as much as possible on changes to the demo data, we should have the manager noted as having provided these services
+ *              -   The demo data includes stays with dry cleaning, gym, and room services, 
+ *                  however the demo data does not include staff members that are "qualified" to provide these services.
+ *      -   Stays
+ *          -   One stay is included beyond what is found in the demo data in order to 
+ *              have one room considered unavailable, as is noted in the demo data.
+ *      -   Because our changes to the demo data are purely additions, and there are no alterations or deletions,
+ *          we are comfortable that we will be best able to explain and defend the behavior of our application
+ *          with these changes in place.
+ * 
+ *  -    Other
+ *      -    Other design decisions are best understood by reviewing our team's project report 2, and project assumptions.
+ * 
  */
 
 // Imports
@@ -43,7 +165,7 @@ public class WolfInns {
     private static final String CMD_MANAGE =                                "MANAGE";
     
     private static final String CMD_FRONTDESK_AVAILABLE =                   "AVAILABILITY";
-    private static final String CMD_FRONTDESK_ASSIGN =                      "ASSIGNROOM";
+    private static final String CMD_FRONTDESK_CHECKIN =                     "CHECKIN";
     private static final String CMD_FRONTDESK_CHECKOUT =                    "CHECKOUT";
     private static final String CMD_FRONTDESK_ENTER_SERVICE =               "ENTERSERVICERECORD";
     private static final String CMD_FRONTDESK_UPDATE_SERVICE =              "UPDATESERVICERECORD";
@@ -173,6 +295,7 @@ public class WolfInns {
     
     // Declare variables - prepared statements - SERVICES
     private static PreparedStatement jdbcPrep_getEligibleStaffForService;
+    private static PreparedStatement jdbcPrep_insertNewServiceType;
     private static PreparedStatement jdbcPrep_insertNewServiceRecord;
     private static PreparedStatement jdbcPrep_udpateServiceRecord;
     private static PreparedStatement jdbcPrep_getNewestServiceRecord;
@@ -256,9 +379,8 @@ public class WolfInns {
                     System.out.println("\t- check customer out (generate receipt & bill, release room)");
                     System.out.println("'" + CMD_FRONTDESK_AVAILABLE + "'");
                     System.out.println("\t- check room availability");
-                    // TODO: might want to rename this one to CHECKIN (to match CHECKOUT)?
-                    System.out.println("'" + CMD_FRONTDESK_ASSIGN + "'");
-                    System.out.println("\t- assign a room to a customer");
+                    System.out.println("'" + CMD_FRONTDESK_CHECKIN + "'");
+                    System.out.println("\t- check a customer into a room");
                     System.out.println("'" + CMD_FRONTDESK_ENTER_SERVICE + "'");
                     System.out.println("\t- enter a service record");
                     System.out.println("'" + CMD_FRONTDESK_UPDATE_SERVICE + "'");
@@ -426,6 +548,7 @@ public class WolfInns {
      *                  04/08/18 -  ATTD -  Fix bug keeping dedicated staff from being assigned to presidential suite.
      *                  04/10/18 -  ATTD -  When reporting room availability, take into account for the presidential suite
      *                                      the need to have staff available to dedicate to the suite.
+     *                  04/11/18 -  ATTD -  Use prepared statement to populate service types table.
      */
     public static void startup_createPreparedStatements() {
         
@@ -1196,6 +1319,16 @@ public class WolfInns {
                 "NOT EXISTS (SELECT * FROM Rooms WHERE Rooms.RoomNum <> ? AND (DRSStaff = Staff.ID OR DCStaff = Staff.ID));";
             jdbcPrep_getEligibleStaffForService = jdbc_connection.prepareStatement(reusedSQLVar);
             
+            /* Insert new service type
+             * Indices to use when calling this prepared statement:
+             * 1 -  name of service
+             * 2 -  cost of service
+             */
+            reusedSQLVar = 
+                "INSERT INTO ServiceTypes (Name, Cost) " + 
+                "VALUES (?, ?);";
+            jdbcPrep_insertNewServiceType = jdbc_connection.prepareStatement(reusedSQLVar);
+            
             /* Insert new service record for stay
              * Staff member must have correct job title
              * Staff member must be serving the hotel
@@ -1561,7 +1694,11 @@ public class WolfInns {
         
         try {
             
-            // Start transaction
+            /* Start transaction
+             * In this function, we add several customer tuples to the Customers table
+             * If there is a problem with any tuple, 
+             * we feel it is safest to tell the user there is a problem, and leave the table empty
+             */
             jdbc_connection.setAutoCommit(false);
             
             try {
@@ -1583,6 +1720,7 @@ public class WolfInns {
                 // If success, commit
                 jdbc_connection.commit();
                 
+                // Tell the user that the table is loaded
                 System.out.println("Customers table loaded!");
     		
             }
@@ -1619,6 +1757,7 @@ public class WolfInns {
      *                  03/14/18 -  ATTD -  Changed service type names to match job titles, to make queries easier.
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  04/04/18 -  ATTD -  Populate ServiceTypes table with demo data.
+     *                  04/11/18 -  ATTD -  Use prepared statement to populate service types table.
      */
     public static void populate_ServiceTypes() {
         
@@ -1629,29 +1768,37 @@ public class WolfInns {
             
             try {
             
-                // Populating data for ServiceTypes
-                // TODO: use prepared statement instead
-                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Phone', 5);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Dry Cleaning', 16);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Gym', 15);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Room Service', 10);");
-    			jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-    				"(Name, Cost) VALUES "+
-    				"('Special Request', 20);");
-    			
+                /* Populating data for ServiceTypes
+                 * Indices to use when calling this prepared statement:
+                 * 1 -  name of service
+                 * 2 -  cost of service
+                 */
+
+                jdbcPrep_insertNewServiceType.setString(1, "Phone");
+                jdbcPrep_insertNewServiceType.setInt(2, 5);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
+                jdbcPrep_insertNewServiceType.setString(1, "Dry Cleaning");
+                jdbcPrep_insertNewServiceType.setInt(2, 16);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+
+                jdbcPrep_insertNewServiceType.setString(1, "Gym");
+                jdbcPrep_insertNewServiceType.setInt(2, 15);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
+                jdbcPrep_insertNewServiceType.setString(1, "Room Service");
+                jdbcPrep_insertNewServiceType.setInt(2, 10);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+  
+                jdbcPrep_insertNewServiceType.setString(1, "Special Request");
+                jdbcPrep_insertNewServiceType.setInt(2, 20);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+
     			// Populate one extra service type that is not in demo data but is in project narrative
-                jdbc_statement.executeUpdate("INSERT INTO ServiceTypes "+ 
-                        "(Name, Cost) VALUES "+
-                        "('Catering', 50);");
-    			
+                jdbcPrep_insertNewServiceType.setString(1, "Catering");
+                jdbcPrep_insertNewServiceType.setInt(2, 50);
+                jdbcPrep_insertNewServiceType.executeUpdate();
+                
                 // If success, commit
                 jdbc_connection.commit();
     			
@@ -2373,7 +2520,7 @@ public class WolfInns {
      *                  04/03/18 -  ATTD -  Debug assigning a room to a customer.
      *                  04/04/18 -  ATTD -  Make customer ID the primary key, and SSN just another attribute, per demo data.
      */
-    public static void user_frontDeskAssignRoom() {
+    public static void user_frontDeskCheckIn() {
         
         try {
             
@@ -4312,7 +4459,12 @@ public class WolfInns {
           
         try {
                
-            // Start transaction
+            /* Start transaction
+             * In this function, we first update the check out time and end date in the Stays table
+             * Then we release the dedicated staff assigned to the room in the Rooms table
+             * Either operation by itself does not make sense
+             * We want both operations to succeed together, or fail together
+             */
             jdbc_connection.setAutoCommit(false);
             
             try {
@@ -4336,9 +4488,11 @@ public class WolfInns {
                 jdbcPrep_releaseDedicatedStaff.setLong(2, Long.parseLong(roomNum));
                 jdbcPrep_releaseDedicatedStaff.executeUpdate(); 
 
-                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff) are successful, commit the transaction
+                // Once both actions (Updating Checkout and EndDate for Stay & Releasing the dedicated staff)
+                // are successful, commit the transaction
                 jdbc_connection.commit();
                 
+                // Tell the user the room was released
                 System.out.println("\nThe room has been successfully released!");
                 
             }
@@ -6556,7 +6710,10 @@ public class WolfInns {
     
     /* MAIN function
      * 
-     * Welcomes the user, states available commands, listens to and acts on user commands
+     * Welcomes the user
+     * States available commands
+     * Listens to and acts on user commands
+     * Closes resources upon "QUIT"
      * 
      * Arguments -  None
      * Return -     None
@@ -6676,8 +6833,8 @@ public class WolfInns {
                             case CMD_FRONTDESK_AVAILABLE:
                                 user_frontDeskCheckAvailability();
                                 break;
-                            case CMD_FRONTDESK_ASSIGN:
-                                user_frontDeskAssignRoom();
+                            case CMD_FRONTDESK_CHECKIN:
+                                user_frontDeskCheckIn();
                                 break;
                             case CMD_FRONTDESK_ENTER_SERVICE:
                                 user_frontDeskEnterService();
@@ -6906,6 +7063,7 @@ public class WolfInns {
             jdbcPrep_isValidStayID.close();
             // Services
             jdbcPrep_getEligibleStaffForService.close();
+            jdbcPrep_insertNewServiceType.close();
             jdbcPrep_insertNewServiceRecord.close();
             jdbcPrep_udpateServiceRecord.close();
             jdbcPrep_getNewestServiceRecord.close();
