@@ -1,3 +1,4 @@
+
 /**
  * 
  * CSC 540
@@ -118,11 +119,6 @@
  *              -   For this reason, a presidential suite is considered unavailable if there are no staff that we can dedicate to it.
  *              -   Yet, the suite is noted as available in the demo data.
  *              -   The added staff were necessary, given our project design & assumptions, to resolve this conflict.
- *          -   Three staff members are included beyond what is found in the demo data in order to
- *              have staff of the correct job titles to provide demo data services
- *                  // TODO: REVISIT THIS - in the interest of cutting back as much as possible on changes to the demo data, we should have the manager noted as having provided these services
- *              -   The demo data includes stays with dry cleaning, gym, and room services, 
- *                  however the demo data does not include staff members that are "qualified" to provide these services.
  *      -   Stays
  *          -   One stay is included beyond what is found in the demo data in order to 
  *              have one room considered unavailable, as is noted in the demo data.
@@ -1841,6 +1837,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Use new general error handler.
      *                  03/24/18 -  ATTD -  Call insert new staff member method, rather than having SQL directly in this method.
      *                  04/04/18 -  ATTD -  Populate Staff table with demo data.
+     *                  04/12/18 -  ATTD -  Removed 3 "extra" staff members that were not in demo data and were not necessary after all.
      */
     public static void populate_Staff() { 
         
@@ -1876,15 +1873,6 @@ public class WolfInns {
                  */
                 db_manageStaffAdd ("Suzy",      "1960-01-01", "Room Service",       "Room Service", 9198675309L, "123 Super St, Raleigh NC 27612",  0, false);
                 db_manageStaffAdd ("Edward",    "1961-01-01", "Catering",           "Catering",     9195551234L, "123 Rad Rd, Raleigh NC 27612",    0, false);
-                
-                /* Populate with additional staff beyond what is in the demo data, in order to have staff of the correct job titles to provide demo data services
-                 * Hotel 1 dry cleaning
-                 * Hotel 1 gym
-                 * Hotel 2 room service
-                 */
-                db_manageStaffAdd ("Clara",     "1962-01-01", "Dry Cleaning",       "Dry Cleaning", 9195552345L, "123 Crazy Ct, Raleigh NC 27612",  0, false);
-                db_manageStaffAdd ("Edward",    "1963-01-01", "Gym",                "Gym",          9195553456L, "123 Dope Dr, Raleigh NC 27612",   0, false);
-                db_manageStaffAdd ("Suzy",      "1964-01-01", "Room Service",       "Room Service", 9195554567L, "123 Boss Blvd, Raleigh NC 27612", 0, false);
         		
                 // If success, commit
                 jdbc_connection.commit();
@@ -1992,6 +1980,7 @@ public class WolfInns {
      *                  03/27/18 -  ATTD -  Use prepared statement.
      *                  04/04/18 -  ATTD -  Updated staff IDs to start at 100, per demo data.
      *                                      Populate Staff table with demo data.
+     *                  04/12/18 -  ATTD -  Removed 3 "extra" staff members that were not in demo data and were not necessary after all.
      */
     public static void populate_updateHotelIdForStaff() {
     	
@@ -2042,18 +2031,6 @@ public class WolfInns {
                  
                  jdbcPrep_updateStaffHotelID.setInt(1, 4);
                  jdbcPrep_updateStaffHotelID.setInt(2, 108);
-                 jdbcPrep_updateStaffHotelID.executeUpdate();
-                 
-                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
-                 jdbcPrep_updateStaffHotelID.setInt(2, 109);
-                 jdbcPrep_updateStaffHotelID.executeUpdate();
-                 
-                 jdbcPrep_updateStaffHotelID.setInt(1, 1);
-                 jdbcPrep_updateStaffHotelID.setInt(2, 110);
-                 jdbcPrep_updateStaffHotelID.executeUpdate();
-                 
-                 jdbcPrep_updateStaffHotelID.setInt(1, 2);
-                 jdbcPrep_updateStaffHotelID.setInt(2, 111);
                  jdbcPrep_updateStaffHotelID.executeUpdate();
 
                  // If success, commit
@@ -2298,6 +2275,8 @@ public class WolfInns {
      *                  04/04/18 -  ATTD -  Update staff IDs to start at 100, per demo data.
      *                                      Populate Provided table with demo data.
      *                  04/06/18 -  ATTD -  Use new method which in turn uses prepared statement.
+     *                  04/12/18 -  ATTD -  Removed 3 "extra" staff members that were not in demo data and were not necessary after all.
+     *                                      As a result, moved their provided services to the applicable demo data hotel manager.
      */
     public static void populate_Provided() {
         
@@ -2308,12 +2287,18 @@ public class WolfInns {
             
             try {
             
-                // Populating data for Provided
-                db_frontDeskEnterService(1, 109, "Dry Cleaning", false);
-                db_frontDeskEnterService(1, 110, "Gym", false);
-                db_frontDeskEnterService(2, 110, "Gym", false);
-                db_frontDeskEnterService(3, 111, "Room Service", false);
-                db_frontDeskEnterService(4, 102, "Phone", false);
+                /* Populating data for Provided
+                 * Signature for this method:
+                 * int stayID, 
+                 * int staffID, 
+                 * String serviceName, 
+                 * boolean reportSuccess
+                 */
+                db_frontDeskEnterService(1, 100, "Dry Cleaning",    false);
+                db_frontDeskEnterService(1, 100, "Gym",             false);
+                db_frontDeskEnterService(2, 100, "Gym",             false);
+                db_frontDeskEnterService(3, 101, "Room Service",    false);
+                db_frontDeskEnterService(4, 102, "Phone",           false);
 
                 // If success, commit
                 jdbc_connection.commit();
@@ -3906,16 +3891,12 @@ public class WolfInns {
                         // Get name of attribute they want to change
                         System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
                         attributeToChange = scanner.nextLine();
-                        if(hash.contains(staffID)&& (attributeToChange.equalsIgnoreCase("JobTitle")||attributeToChange.equalsIgnoreCase("HotelID")))
+                        if(hash.contains(staffID) && (attributeToChange.equalsIgnoreCase("JobTitle") || attributeToChange.equalsIgnoreCase("HotelID")))
                         {
                             System.out.println("You cannot change HotelID and Job Title of staff currently dedicated to a presidential suite");
                         }
                         else if (support_isValueSane("AnyAttr", attributeToChange)) {
-
-                            
-
                             // Get value they want to change the attribute to
-                            
                             System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                             valueToChangeTo = scanner.nextLine();
                             if (support_isValueSane(attributeToChange, valueToChangeTo)) {
@@ -4738,6 +4719,8 @@ public class WolfInns {
         
     }
    
+    // DATABASE INTERACTION METHODS: MANAGE MENU
+    
     /** 
      * Report task: Report all values of a single tuple of the Hotels table, by ID
      * 
@@ -4902,6 +4885,13 @@ public class WolfInns {
         
         try {
 
+            /* TODO:
+             * I noticed when looking through our code for the 2 easiest-to-explain transactions, that we are arguably over-using transactions. 
+             * There are some places where we use a transaction wrapped around a single DB interaction. 
+             * This is possibly an inefficiency, probably a point of confusion for the graders (if they read our code that closely).
+             * This is one of the places where I think we are using a transaction, but don't need to be.
+             */
+            
             // Start transaction
             jdbc_connection.setAutoCommit(false);
             
