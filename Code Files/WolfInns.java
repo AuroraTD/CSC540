@@ -26,6 +26,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Scanner;
 
 // WolfInns class
@@ -144,7 +145,8 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_deleteStaff;
     private static PreparedStatement jdbcPrep_getFirstAvailableCateringStaff;
     private static PreparedStatement jdbcPrep_getFirstAvailableRoomServiceStaff;
-    
+    private static PreparedStatement jdbcPrep_getDedicatedStaffMembers;
+
     // Declare variables - prepared statements - CUSTOMERS
     private static PreparedStatement jdbcPrep_insertNewCustomer;
     private static PreparedStatement jdbcPrep_customerUpdateSSN;
@@ -1264,6 +1266,17 @@ public class WolfInns {
             */
             reusedSQLVar = "Update ServiceTypes SET Cost = ? WHERE Name = ?";
             jdbcPrep_updateServiceCost = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /**
+             * Get currently dedicated staff members (Room Service and Catering Staff)
+             * Indices to use when calling this prepared statement: n/a
+             */
+            reusedSQLVar = "SELECT DRSStaff as StaffID FROM Rooms "+
+                "WHERE DRSStaff IS NOT NULL "+
+                "UNION "+
+                "SELECT DCStaff as StaffID FROM Rooms "+
+                "WHERE DCStaff IS NOT NULL";
+            jdbcPrep_getDedicatedStaffMembers = jdbc_connection.prepareStatement(reusedSQLVar);
                    
         }
         catch (Throwable err) {
@@ -1682,7 +1695,7 @@ public class WolfInns {
      *                  03/24/18 -  ATTD -  Call insert new staff member method, rather than having SQL directly in this method.
      *                  04/04/18 -  ATTD -  Populate Staff table with demo data.
      */
-    public static void populate_Staff() {
+    public static void populate_Staff() { 
         
         try {
             
@@ -3722,7 +3735,13 @@ public class WolfInns {
             int staffID = 0;
             boolean userWantsToStop = false;
             boolean staffFound = false;
-            
+
+            ResultSet rs = jdbcPrep_getDedicatedStaffMembers.executeQuery();
+            HashSet<Integer> hash = new HashSet<Integer>();
+            while(rs.next())
+            {
+                hash.add(rs.getInt("StaffID"));
+            }
             // Print staff to console so user has some context
             user_reportEntireTable("Staff");
             
@@ -3740,8 +3759,16 @@ public class WolfInns {
                         // Get name of attribute they want to change
                         System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
                         attributeToChange = scanner.nextLine();
-                        if (support_isValueSane("AnyAttr", attributeToChange)) {
+                        if(hash.contains(staffID)&& (attributeToChange.equalsIgnoreCase("JobTitle")||attributeToChange.equalsIgnoreCase("HotelID")))
+                        {
+                            System.out.println("You cannot change HotelID and Job Title of staff currently dedicated to a presidential suite");
+                        }
+                        else if (support_isValueSane("AnyAttr", attributeToChange)) {
+
+                            
+
                             // Get value they want to change the attribute to
+                            
                             System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                             valueToChangeTo = scanner.nextLine();
                             if (support_isValueSane(attributeToChange, valueToChangeTo)) {
@@ -4557,8 +4584,6 @@ public class WolfInns {
         
     }
    
-    // DATABASE INTERACTION METHODS: MANAGE MENU
-    
     /** 
      * Report task: Report all values of a single tuple of the Hotels table, by ID
      * 
@@ -6842,6 +6867,7 @@ public class WolfInns {
             jdbcPrep_deleteStaff.close();
             jdbcPrep_getFirstAvailableCateringStaff.close();
             jdbcPrep_getFirstAvailableRoomServiceStaff.close();
+            jdbcPrep_getDedicatedStaffMembers.close();
             // Rooms
             jdbcPrep_insertNewRoom.close(); 
             jdbcPrep_roomUpdateCategory.close();
