@@ -264,7 +264,7 @@ public class WolfInns {
     private static PreparedStatement jdbcPrep_getFirstAvailableCateringStaff;
     private static PreparedStatement jdbcPrep_getFirstAvailableRoomServiceStaff;
     private static PreparedStatement jdbcPrep_getDedicatedStaffMembers;
-
+    private static PreparedStatement jdbcPrep_getJobTitlebyID;
     // Declare variables - prepared statements - CUSTOMERS
     private static PreparedStatement jdbcPrep_insertNewCustomer;
     private static PreparedStatement jdbcPrep_customerUpdateSSN;
@@ -1406,6 +1406,13 @@ public class WolfInns {
                 "SELECT DCStaff as StaffID FROM Rooms "+
                 "WHERE DCStaff IS NOT NULL";
             jdbcPrep_getDedicatedStaffMembers = jdbc_connection.prepareStatement(reusedSQLVar);
+
+            /**
+             * Support Query to get job title of staff by ID
+             * Indices: StaffID
+             */
+            reusedSQLVar = "SELECT JobTitle from Staff WHERE ID = ?";
+            jdbcPrep_getJobTitlebyID = jdbc_connection.prepareStatement(reusedSQLVar);
                    
         }
         catch (Throwable err) {
@@ -3814,28 +3821,35 @@ public class WolfInns {
                     System.out.print("\nEnter the new staff member's job title\n> ");
                     jobTitle = scanner.nextLine();
                     if (support_isValueSane("JobTitle", jobTitle)) {
-                        // Get department
-                        System.out.print("\nEnter the new staff member's department\n> ");
-                        department = scanner.nextLine();
-                        if (support_isValueSane("Dep", department)) {
-                            // Get phone number
-                            System.out.print("\nEnter the new staff member's phone number\n> ");
-                            phoneNumAsString = scanner.nextLine();
-                            if (support_isValueSane("PhoneNum", phoneNumAsString)) {
-                                phoneNum = Long.parseLong(phoneNumAsString);
-                                // Get address
-                                System.out.print("\nEnter the new staff member's full address\n> ");
-                                address = scanner.nextLine();
-                                if (support_isValueSane("Address", address)) {
-                                    // Get hotel ID
-                                    System.out.print("\nEnter the new staff member's hotel ID (or press <Enter> if they are not assigned to any particular hotel)\n> ");
-                                    hotelIdAsString = scanner.nextLine();
-                                    hotelID = hotelIdAsString.length() == 0 ? 0 : Integer.parseInt(hotelIdAsString);
-                                    // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                                    db_manageStaffAdd(name, dob, jobTitle, department, phoneNum, address, hotelID, true);
+                        if(jobTitle.equalsIgnoreCase("Manager")) {
+                            System.out.println("You cannot enter a new manager who will not initally be associated with any hotel");
+                        }
+                        else
+                        {
+                            // Get department
+                            System.out.print("\nEnter the new staff member's department\n> ");
+                            department = scanner.nextLine();
+                            if (support_isValueSane("Dep", department)) {
+                                // Get phone number
+                                System.out.print("\nEnter the new staff member's phone number\n> ");
+                                phoneNumAsString = scanner.nextLine();
+                                if (support_isValueSane("PhoneNum", phoneNumAsString)) {
+                                    phoneNum = Long.parseLong(phoneNumAsString);
+                                    // Get address
+                                    System.out.print("\nEnter the new staff member's full address\n> ");
+                                    address = scanner.nextLine();
+                                    if (support_isValueSane("Address", address)) {
+                                        // Get hotel ID
+                                        System.out.print("\nEnter the new staff member's hotel ID (or press <Enter> if they are not assigned to any particular hotel)\n> ");
+                                        hotelIdAsString = scanner.nextLine();
+                                        hotelID = hotelIdAsString.length() == 0 ? 0 : Integer.parseInt(hotelIdAsString);
+                                        // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                        db_manageStaffAdd(name, dob, jobTitle, department, phoneNum, address, hotelID, true);
+                                    }
                                 }
                             }
                         }
+                        
                     }
                 }
             }
@@ -3867,6 +3881,7 @@ public class WolfInns {
             int staffID = 0;
             boolean userWantsToStop = false;
             boolean staffFound = false;
+            String JobTitle = "";
 
             ResultSet rs = jdbcPrep_getDedicatedStaffMembers.executeQuery();
             HashSet<Integer> hash = new HashSet<Integer>();
@@ -3882,6 +3897,12 @@ public class WolfInns {
             staffIdAsString = scanner.nextLine();
             if (support_isValueSane("ID", staffIdAsString)) {
                 staffID = Integer.parseInt(staffIdAsString);
+                jdbcPrep_getJobTitlebyID.setInt(1, staffID);
+                ResultSet rs2 = jdbcPrep_getJobTitlebyID.executeQuery();
+                while(rs2.next())
+                {
+                    JobTitle = rs2.getString("JobTitle");
+                }
                 // Print just that staff member to console so user has some context
                 staffFound = db_manageShowStaffByID(staffID);
                 if (staffFound) {
@@ -3900,8 +3921,24 @@ public class WolfInns {
                             System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                             valueToChangeTo = scanner.nextLine();
                             if (support_isValueSane(attributeToChange, valueToChangeTo)) {
-                                // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
-                                db_manageStaffUpdate(staffID, attributeToChange, valueToChangeTo);
+                                if(attributeToChange.equalsIgnoreCase("JobTitle") && valueToChangeTo.equalsIgnoreCase("Manager"))
+                                {
+                                    System.out.println("You cannot assign a staff as a manager. To do this, you may update the hotel info and change manager ID");
+                                }
+                                else
+                                {
+                                    if(JobTitle.equals("Manager") && (attributeToChange.equalsIgnoreCase("JobTitle") || attributeToChange.equals("HotelID")))
+                                    {
+                                        System.out.println("You cannot update Job Title and Hotel ID of an exisiting manager from here. You need to update existing manager of the hotel from updatehotel section.");
+                                    }
+                                    else
+                                    {
+                                        // Okay, at this point everything else I can think of can be caught by a Java exception or a SQL exception
+                                        db_manageStaffUpdate(staffID, attributeToChange, valueToChangeTo);
+                                    }
+                                    
+                                }
+                                
                             }
                             else {
                                 userWantsToStop = true;
