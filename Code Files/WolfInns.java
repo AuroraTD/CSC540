@@ -2351,7 +2351,6 @@ public class WolfInns {
             int stayID;
 
             // Find the stays that have actually ended (no transaction needed for a query)
-            // TODO: use prepared statement instead
             local_jdbc_result = jdbc_statement.executeQuery("SELECT ID FROM Stays WHERE EndDate IS NOT NULL");
             
             // Go through and update amount owed for all stays that have actually ended
@@ -3291,7 +3290,6 @@ public class WolfInns {
             }
             // Other tables have no special printing needs
             else {
-                // TODO: use prepared statements instead?
                 jdbc_result = jdbc_statement.executeQuery("SELECT * FROM " + tableName);
             }
             support_printQueryResultSet(jdbc_result);
@@ -3315,6 +3313,7 @@ public class WolfInns {
      *                  03/23/18 -  ATTD -  Use new attribute / value sanity checking method.
      *                                      Use new general error handler.
      *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
+     *                  04/13/18 -  ATTD -  Give user some help in finding staff to promote to manager of new hotel.
      */
     public static void user_manageHotelAdd() {
 
@@ -3358,7 +3357,8 @@ public class WolfInns {
                                 phoneNumAsString = scanner.nextLine();
                                 if (support_isValueSane("PhoneNum", phoneNumAsString)) {
                                     phoneNum = Long.parseLong(phoneNumAsString);
-                                    // Get manager
+                                    // Get manager (first, print staff members to give the user some context)
+                                    user_reportEntireTable("Staff");
                                     System.out.print("\nEnter the hotel's manager's staff ID\n> ");
                                     managerIdAsString = scanner.nextLine();
                                     if (support_isValueSane("ManagerID", managerIdAsString)) {
@@ -3923,13 +3923,19 @@ public class WolfInns {
                             if (support_isValueSane(attributeToChange, valueToChangeTo)) {
                                 if(attributeToChange.equalsIgnoreCase("JobTitle") && valueToChangeTo.equalsIgnoreCase("Manager"))
                                 {
-                                    System.out.println("You cannot assign a staff as a manager. To do this, you may update the hotel info and change manager ID");
+                                    System.out.println(
+                                        "\nYou cannot directly promote a staff member to manager (because every manager must manage a hotel)." + 
+                                        "\nTo do this, you may update the hotel info and change manager ID."
+                                    );
                                 }
                                 else
                                 {
                                     if(JobTitle.equals("Manager") && (attributeToChange.equalsIgnoreCase("JobTitle") || attributeToChange.equals("HotelID")))
                                     {
-                                        System.out.println("You cannot update Job Title and Hotel ID of an exisiting manager from here. You need to update existing manager of the hotel from updatehotel section.");
+                                        System.out.println(
+                                            "\nYou cannot update Job Title and Hotel ID of an exisiting manager from here." + 
+                                            "\nYou need to update existing manager of the hotel from updatehotel section."
+                                        );
                                     }
                                     else
                                     {
@@ -6412,7 +6418,6 @@ public class WolfInns {
              * Don't know of a way to have DBMS check that manager isn't dedicated to a presidential suite (ASSERTION not supported)
              */
             if (okaySoFar && attributeName.equalsIgnoreCase("ManagerID")) {
-                // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
                     "SELECT Staff.ID, Staff.Name, Rooms.RoomNum, Rooms.hotelID " + 
                     "FROM Staff, Rooms " + 
@@ -6528,9 +6533,8 @@ public class WolfInns {
                System.out.println("\nERROR: Room Nightly rate should be a number");
                okaySoFar = false;
            } 
-           ////////check for custumerID 
+           ////////check for customerID 
            if (okaySoFar && attributeName.equalsIgnoreCase("CustomerID")) {
-            // TODO: use prepared statement instead
                 jdbc_result = jdbc_statement.executeQuery(
                     "SELECT ID " + 
                     "FROM Customers " + 
