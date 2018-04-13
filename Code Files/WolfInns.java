@@ -3389,6 +3389,7 @@ public class WolfInns {
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  03/17/18 -  ATTD -  Fix copy-paste error keeping proposed values from being sanity-checked.
      *                  03/28/18 -  ATTD -  Stop immediately if invalid hotel ID is entered.
+     *                  04/13/18 -  ATTD -  If the user wants to change the manager ID, give them some context.
      */
     public static void user_manageHotelUpdate() {
 
@@ -3420,6 +3421,10 @@ public class WolfInns {
                         System.out.print("\nEnter the name of the attribute you wish to change (or press <Enter> to stop)\n> ");
                         attributeToChange = scanner.nextLine();
                         if (support_isValueSane("AnyAttr", attributeToChange)) {
+                            // If the user wants to change the manager ID, give them some context
+                            if (attributeToChange.equalsIgnoreCase("ManagerID")) {
+                                user_reportEntireTable("Staff");
+                            }
                             // Get value they want to change the attribute to
                             System.out.print("\nEnter the value you wish to change this attribute to (or press <Enter> to stop)\n> ");
                             valueToChangeTo = scanner.nextLine();
@@ -3496,11 +3501,13 @@ public class WolfInns {
      *                                      - for developer ease
      *                                      - because "support_isValueSane" method uses table attribute names
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
+     *                  04/13/18 -  ATTD -  Give the user some context for picking a hotel ID.
      */
     public static void user_manageRoomAdd() {
     	
     	try { 
-    		  
+    		
+    	    user_reportEntireTable("Hotels");
     		String hotelId = support_getValidDataFromUser("ADD_ROOM", "HotelId", "Enter the hotel id for which you are adding new room");    	
     		if (!hotelId.equalsIgnoreCase("<QUIT>")) { 
     			
@@ -3540,6 +3547,7 @@ public class WolfInns {
      *                                      - for developer ease
      *                                      - because "support_isValueSane" method uses table attribute names
      *                  04/04/18 -  ATTD -  Changing room categories to match those given in demo data.
+     *                  04/13/18 -  ATTD -  Do not force room category to be upper case.
      */
     public static void user_manageRoomUpdate() {
     	try {
@@ -3570,7 +3578,7 @@ public class WolfInns {
                      		        "Enter the new value for room's category.\nAvailable options are 'Economy', 'Deluxe', 'Executive', 'Presidential'"
                  		        );
         	             		if (!category.equalsIgnoreCase("<QUIT>")) { 
-        	             			db_manageRoomUpdate(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category.toUpperCase(), true);
+        	             			db_manageRoomUpdate(Integer.parseInt(roomNumber), Integer.parseInt(hotelId), "Category", category, true);
         	             		} else
         	             			userWantsToStop = true;
         	             		break;
@@ -3793,6 +3801,7 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/24/18 -  ATTD -  Created method.
+     *                  04/13/18 -  ATTD -  Give the user some context to help them pick a hotel ID for the new staff member.
      */
     public static void user_manageStaffAdd() {
 
@@ -3839,6 +3848,8 @@ public class WolfInns {
                                     System.out.print("\nEnter the new staff member's full address\n> ");
                                     address = scanner.nextLine();
                                     if (support_isValueSane("Address", address)) {
+                                        // Give the user some context
+                                        user_reportEntireTable("Hotels");
                                         // Get hotel ID
                                         System.out.print("\nEnter the new staff member's hotel ID (or press <Enter> if they are not assigned to any particular hotel)\n> ");
                                         hotelIdAsString = scanner.nextLine();
@@ -5016,6 +5027,7 @@ public class WolfInns {
      * Modifications:   03/23/18 -  ATTD -  Created method.
      *                  04/04/18 -  ATTD -  Add attribute for hotel zip code, per demo data.
      *                                      Change "front desk representative" job title to "front desk staff", to match demo data.
+     *                  04/13/18 -  ATTD -  Make attribute as entered by user case-insensitive.
      */
     public static void db_manageHotelUpdate (int hotelID, String attributeToChange, String valueToChangeTo) {
         
@@ -5025,38 +5037,38 @@ public class WolfInns {
             jdbc_connection.setAutoCommit(true);
             
             // Update hotel info, using prepared statement
-            switch (attributeToChange) {
-                case "Name":
+            switch (attributeToChange.toUpperCase()) {
+                case "NAME":
                     jdbcPrep_udpateHotelName.setString(1, valueToChangeTo);
                     jdbcPrep_udpateHotelName.setInt(2, hotelID);
                     jdbcPrep_udpateHotelName.executeUpdate();
                     break;
-                case "StreetAddress":
+                case "STREETADDRESS":
                     jdbcPrep_updateHotelStreetAddress.setString(1, valueToChangeTo);
                     jdbcPrep_updateHotelStreetAddress.setInt(2, hotelID);
                     jdbcPrep_updateHotelStreetAddress.executeUpdate();
                     break;
-                case "City":
+                case "CITY":
                     jdbcPrep_updateHotelCity.setString(1, valueToChangeTo);
                     jdbcPrep_updateHotelCity.setInt(2, hotelID);
                     jdbcPrep_updateHotelCity.executeUpdate();
                     break;
-                case "State":
+                case "STATE":
                     jdbcPrep_udpateHotelState.setString(1, valueToChangeTo);
                     jdbcPrep_udpateHotelState.setInt(2, hotelID);
                     jdbcPrep_udpateHotelState.executeUpdate();
                     break;
-                case "Zip":
+                case "ZIP":
                     jdbcPrep_updateHotelZip.setString(1, valueToChangeTo);
                     jdbcPrep_updateHotelZip.setInt(2, hotelID);
                     jdbcPrep_updateHotelZip.executeUpdate();
                     break;
-                case "PhoneNum":
+                case "PHONENUM":
                     jdbcPrep_updateHotelPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
                     jdbcPrep_updateHotelPhoneNum.setInt(2, hotelID);
                     jdbcPrep_updateHotelPhoneNum.executeUpdate();
                     break;
-                case "ManagerID":
+                case "MANAGERID":
                     /* This one is a special case
                      * 1 -  Demote old manager to front desk staff
                      * 2 -  Actually update the manager ID of the hotel
@@ -5275,14 +5287,15 @@ public class WolfInns {
      * Return -     None
      * 
      * Modifications:   03/27/18 -  ATTD -  Created method.
+     *                  04/13/18 -  ATTD -  Make attribute, as entered by user, case-insensitive.
      */
     public static void db_manageStaffUpdate (int staffID, String attributeToChange, String valueToChangeTo) {
         
         try {
 
             // Update hotel info, using prepared statement
-            switch (attributeToChange) {
-                case "Name":
+            switch (attributeToChange.toUpperCase()) {
+                case "NAME":
                     jdbcPrep_updateStaffName.setString(1, valueToChangeTo);
                     jdbcPrep_updateStaffName.setInt(2, staffID);
                     jdbcPrep_updateStaffName.executeUpdate();
@@ -5292,27 +5305,27 @@ public class WolfInns {
                     jdbcPrep_updateStaffDOB.setInt(2, staffID);
                     jdbcPrep_updateStaffDOB.executeUpdate();
                     break;
-                case "JobTitle":
+                case "JOBTITLE":
                     jdbcPrep_updateStaffJobTitle.setString(1, valueToChangeTo);
                     jdbcPrep_updateStaffJobTitle.setInt(2, staffID);
                     jdbcPrep_updateStaffJobTitle.executeUpdate();
                     break;
-                case "Dep":
+                case "DEP":
                     jdbcPrep_updateStaffDepartment.setString(1, valueToChangeTo);
                     jdbcPrep_updateStaffDepartment.setInt(2, staffID);
                     jdbcPrep_updateStaffDepartment.executeUpdate();
                     break;
-                case "PhoneNum":
+                case "PHONENUM":
                     jdbcPrep_updateStaffPhoneNum.setLong(1, Long.parseLong(valueToChangeTo));
                     jdbcPrep_updateStaffPhoneNum.setInt(2, staffID);
                     jdbcPrep_updateStaffPhoneNum.executeUpdate();
                     break;
-                case "Address":
+                case "ADDRESS":
                     jdbcPrep_updateStaffAddress.setString(1, valueToChangeTo);
                     jdbcPrep_updateStaffAddress.setInt(2, staffID);
                     jdbcPrep_updateStaffAddress.executeUpdate();
                     break;
-                case "HotelID":
+                case "HOTELID":
                     jdbcPrep_updateStaffHotelID.setInt(1, Integer.parseInt(valueToChangeTo));
                     jdbcPrep_updateStaffHotelID.setInt(2, staffID);
                     jdbcPrep_updateStaffHotelID.executeUpdate();
@@ -6017,7 +6030,8 @@ public class WolfInns {
      *                                      - because "support_isValueSane" method uses table attribute names
      *                  04/04/18 -  ATTD -  Fix bug causing add customer to never accept any SSN.
      *                                          Make customer ID the primary key, and SSN just another attribute, per demo data.
-     *                  04/05/18 -  MTA -   Added validations for Start and End Date fields while generating report by date range
+     *                  04/05/18 -  MTA -   Added validations for Start and End Date fields while generating report by date range.
+     *                  04/13/18 -  ATTD -  Add ">" prompt when asking user for data.
      */
     public static String support_getValidDataFromUser (String operation, String fieldName, String message, String...params ){
         
@@ -6029,8 +6043,9 @@ public class WolfInns {
         while(!isValid) {
             // Ask user to enter/re-enter the data
             String messagePrefix = (attempt == 0) ? "\n" : "\nRe-";
-            String messagePostfix = (attempt == 0) ? "\n" : ". Else press q to go back to previous menu.\n>";
-            System.out.println(messagePrefix + message + messagePostfix); 
+            String messagePostfix = (attempt == 0) ? "\n> " : "Else press q to go back to previous menu\n> ";
+            System.out.println(messagePrefix + message);
+            System.out.print(messagePostfix);
             value = scanner.nextLine(); 
             
             if (value.equalsIgnoreCase("q")) {
