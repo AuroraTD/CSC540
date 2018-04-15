@@ -4938,13 +4938,6 @@ public class WolfInns {
         int newHotelID;
         
         try {
-
-            /* TODO:
-             * I noticed when looking through our code for the 2 easiest-to-explain transactions, that we are arguably over-using transactions. 
-             * There are some places where we use a transaction wrapped around a single DB interaction. 
-             * This is possibly an inefficiency, probably a point of confusion for the graders (if they read our code that closely).
-             * This is one of the places where I think we are using a transaction, but don't need to be.
-             */
             
             // Start transaction
             jdbc_connection.setAutoCommit(false);
